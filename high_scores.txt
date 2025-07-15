@@ -1,0 +1,2 @@
+All_normal:41
+All_hard:21

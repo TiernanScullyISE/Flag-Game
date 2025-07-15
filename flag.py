@@ -83,6 +83,7 @@ class FlagQuizApp:
         self.current_pool = []
         self.session_answered = set()  # Track which flags have been answered (correctly or incorrectly)
         self.session_skipped = set()  # Track which flags have been skipped
+        self.session_incorrect = set()  # Track which flags were answered incorrectly
         self.question_answered = False  # Track if current question has been answered
         self.flag_history = []  # Track flag order for last flag functionality
         
@@ -185,6 +186,7 @@ class FlagQuizApp:
         self.current_pool = []
         self.session_answered = set()
         self.session_skipped = set()
+        self.session_incorrect = set()
         self.question_answered = False
         self.flag_history = []
         self.update_session_display()
@@ -193,9 +195,10 @@ class FlagQuizApp:
     def update_session_display(self):
         """Update the session progress display"""
         if self.current_pool:
-            remaining = len(self.current_pool) - len(self.session_flags_seen)
+            answered = len(self.session_answered)
             total = len(self.current_pool)
-            self.session_label.config(text=f"Progress: {len(self.session_flags_seen)}/{total} flags seen | {remaining} remaining")
+            remaining = total - answered
+            self.session_label.config(text=f"Progress: {answered}/{total} flags answered | {remaining} remaining")
         else:
             self.session_label.config(text="")
 
@@ -216,18 +219,132 @@ class FlagQuizApp:
             else:
                 percentage_message = f" (Best: {old_percentage}%)"
             
-            message = f"Session Complete!\n\nYou got {self.session_correct}/{self.session_total} flags correct ({percentage}%){percentage_message}\n\nWould you like to play this mode again?"
-            
-            result = messagebox.askyesno("Session Complete", message)
-            if result:
-                self.reset_session()
+            # Show incorrect flags if any
+            if self.session_incorrect:
+                self.show_incorrect_flags_dialog(percentage, percentage_message)
             else:
-                # Stay on the completion screen
-                self.flag_label.config(text=f"Session Complete: {percentage}% correct", image="")
-                for btn in self.buttons:
-                    btn.config(text="", state=tk.DISABLED)
-                self.text_entry.config(state=tk.DISABLED)
-                self.submit_button.config(state=tk.DISABLED)
+                # Perfect score - just show completion message
+                message = f"Session Complete!\n\nYou got {self.session_correct}/{self.session_total} flags correct ({percentage}%){percentage_message}\n\nWould you like to play this mode again?"
+                
+                result = messagebox.askyesno("Session Complete", message)
+                if result:
+                    self.reset_session()
+                else:
+                    # Stay on the completion screen
+                    self.flag_label.config(text=f"Session Complete: {percentage}% correct", image="")
+                    for btn in self.buttons:
+                        btn.config(text="", state=tk.DISABLED)
+                    self.text_entry.config(state=tk.DISABLED)
+                    self.submit_button.config(state=tk.DISABLED)
+
+    def show_incorrect_flags_dialog(self, percentage, percentage_message):
+        """Show dialog with incorrect flags and option to add to revise"""
+        # Create a new window for incorrect flags
+        results_window = tk.Toplevel(self.root)
+        results_window.title("Session Results")
+        results_window.geometry("600x500")
+        results_window.transient(self.root)
+        results_window.grab_set()
+        
+        # Results header
+        header_text = f"Session Complete!\n\nYou got {self.session_correct}/{self.session_total} flags correct ({percentage}%){percentage_message}"
+        header_label = tk.Label(results_window, text=header_text, font=("Arial", 12, "bold"), pady=10)
+        header_label.pack()
+        
+        # Incorrect flags section
+        if self.session_incorrect:
+            incorrect_label = tk.Label(results_window, text=f"Flags you got wrong ({len(self.session_incorrect)}):", 
+                                     font=("Arial", 11, "bold"), fg="red")
+            incorrect_label.pack(pady=(10, 5))
+            
+            # Scrollable frame for incorrect flags
+            canvas = tk.Canvas(results_window, height=200)
+            scrollbar = tk.Scrollbar(results_window, orient="vertical", command=canvas.yview)
+            scrollable_frame = tk.Frame(canvas)
+            
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # Track which flags to add to revise
+            revise_vars = {}
+            
+            # Add checkboxes for each incorrect flag
+            for i, flag in enumerate(sorted(self.session_incorrect)):
+                var = tk.BooleanVar()
+                revise_vars[flag] = var
+                
+                flag_frame = tk.Frame(scrollable_frame)
+                flag_frame.pack(fill="x", padx=5, pady=2)
+                
+                check = tk.Checkbutton(flag_frame, variable=var, text=flag, 
+                                     font=("Arial", 10), anchor="w")
+                check.pack(fill="x")
+            
+            canvas.pack(side="left", fill="both", expand=True, padx=(10, 0))
+            scrollbar.pack(side="right", fill="y", padx=(0, 10))
+            
+            # Buttons frame
+            button_frame = tk.Frame(results_window)
+            button_frame.pack(pady=20)
+            
+            def add_selected_to_revise():
+                added_count = 0
+                for flag, var in revise_vars.items():
+                    if var.get() and flag not in self.revise_flags:
+                        self.revise_flags.append(flag)
+                        added_count += 1
+                
+                if added_count > 0:
+                    self.save_revise_flags()
+                    messagebox.showinfo("Added to Revise", f"Added {added_count} flags to your revise list!")
+            
+            def select_all():
+                for var in revise_vars.values():
+                    var.set(True)
+            
+            def deselect_all():
+                for var in revise_vars.values():
+                    var.set(False)
+            
+            select_all_btn = tk.Button(button_frame, text="Select All", command=select_all)
+            select_all_btn.pack(side="left", padx=5)
+            
+            deselect_all_btn = tk.Button(button_frame, text="Deselect All", command=deselect_all)
+            deselect_all_btn.pack(side="left", padx=5)
+            
+            add_revise_btn = tk.Button(button_frame, text="Add Selected to Revise", 
+                                     command=add_selected_to_revise, bg="lightblue")
+            add_revise_btn.pack(side="left", padx=10)
+        
+        # Bottom buttons
+        bottom_frame = tk.Frame(results_window)
+        bottom_frame.pack(pady=20)
+        
+        def play_again():
+            results_window.destroy()
+            self.reset_session()
+        
+        def close_results():
+            results_window.destroy()
+            # Stay on the completion screen
+            self.flag_label.config(text=f"Session Complete: {percentage}% correct", image="")
+            for btn in self.buttons:
+                btn.config(text="", state=tk.DISABLED)
+            self.text_entry.config(state=tk.DISABLED)
+            self.submit_button.config(state=tk.DISABLED)
+        
+        play_again_btn = tk.Button(bottom_frame, text="Play Again", command=play_again, 
+                                 bg="lightgreen", font=("Arial", 11, "bold"))
+        play_again_btn.pack(side="left", padx=10)
+        
+        close_btn = tk.Button(bottom_frame, text="Close", command=close_results, 
+                            font=("Arial", 11))
+        close_btn.pack(side="left", padx=10)
 
     def toggle_mode(self):
         if self.selected_continent.get() == "View All":
@@ -395,6 +512,31 @@ class FlagQuizApp:
         # Clear the feedback after 3 seconds
         self.root.after(3000, lambda: self.revise_feedback_label.config(text=""))
 
+    def check_custom_aliases(self, user_input):
+        """Check if user input matches any custom aliases for the correct country"""
+        aliases = {
+            "United States": ["usa"],
+            "Vatican City": ["vatican"],
+            "Saint Vincent and the Grenadines": ["st vincent"],
+            "United Kingdom": ["uk"],
+            "Papua New Guinea": ["png"],
+            "São Tomé and Príncipe": ["sao"],
+            "Saint Kitts and Nevis": ["st kitts"],
+            "Republic of the Congo": ["repcongo"],
+            "Democratic Republic of the Congo": ["drc"],
+            "Central African Republic": ["car"],
+            "North Korea": ["dprk"],
+            "United Arab Emirates": ["uae"],
+            "Türkiye": ["turkey"],
+            "North Macedonia": ["macedonia"],
+            "South Africa": ["rsa"],
+            "The Gambia": ["gambia"]
+        }
+        
+        if self.correct_country in aliases:
+            return user_input in aliases[self.correct_country]
+        return False
+
     def update_revise_button_text(self):
         if self.correct_country and self.correct_country in self.revise_flags:
             self.add_revise_button.config(text="Remove from Revise")
@@ -416,6 +558,37 @@ class FlagQuizApp:
             
         # Check for exact match first
         if user_input.lower() == self.correct_country.lower():
+            self.feedback_label.config(text="Correct!", fg="green")
+            self.text_entry.config(state=tk.DISABLED)
+            self.submit_button.config(state=tk.DISABLED)
+            
+            # Only increase streak if this is first attempt (no previous wrong answers)
+            if first_attempt:
+                self.streak += 1
+                self.session_correct += 1
+            
+            current_mode = self.selected_continent.get()
+            mode_suffix = "_hard" if self.hard_mode.get() else "_normal"
+            streak_key = current_mode + mode_suffix
+            if self.streak > self.get_high_score_for_mode(streak_key):
+                self.high_scores[streak_key] = self.streak
+                self.save_high_scores()
+            self.score_label.config(text=self.get_score_text())
+            self.percentage_label.config(text=self.get_percentage_text())
+            
+            # Auto-advance after 0.2 seconds on correct answer (except in revise mode)
+            current_mode = self.selected_continent.get()
+            if current_mode != "Revise":
+                self.root.after(200, self.load_new_question)
+            else:
+                # In revise mode, reset the input box for the next question
+                self.text_entry.delete(0, tk.END)
+                self.text_entry.config(state=tk.NORMAL)
+                self.submit_button.config(state=tk.NORMAL)
+            return
+        
+        # Check for custom aliases first
+        if self.check_custom_aliases(user_input.lower()):
             self.feedback_label.config(text="Correct!", fg="green")
             self.text_entry.config(state=tk.DISABLED)
             self.submit_button.config(state=tk.DISABLED)
@@ -478,6 +651,11 @@ class FlagQuizApp:
         else:
             self.feedback_label.config(text="Incorrect. Try again.", fg="red")
             self.streak = 0  # Reset streak on wrong answer
+            
+            # Track incorrect answers for session summary
+            if first_attempt and hasattr(self, 'session_incorrect'):
+                self.session_incorrect.add(self.correct_country)
+            
             self.score_label.config(text=self.get_score_text())
             self.percentage_label.config(text=self.get_percentage_text())
             self.text_entry.select_range(0, tk.END)
@@ -493,7 +671,7 @@ class FlagQuizApp:
             # Special cases where we know the exact country code
             if country == "Ivory Coast":
                 country_code = "ci"
-                print(f"✅ Matched Ivory Coast, using code: {country_code}")
+                print(f"Matched Ivory Coast, using code: {country_code}")
             elif country == "Türkiye":
                 api_country_name = "Turkey"
             elif country == "United States":
@@ -520,13 +698,13 @@ class FlagQuizApp:
                         # Load directly from response content
                         img = Image.open(BytesIO(response.content)).resize((320, 200))
                         photo = ImageTk.PhotoImage(img)
-                        print(f"✅ Successfully loaded flag for {country}")
+                        print(f"Successfully loaded flag for {country}")
                         return photo
                     else:
-                        print(f"❌ Failed to get flag for {country}, status code: {response.status_code}")
+                        print(f"Failed to get flag for {country}, status code: {response.status_code}")
                         
                 except Exception as net_error:
-                    print(f"❌ Network error for {country}: {net_error}")
+                    print(f"Network error for {country}: {net_error}")
             else:
                 # Otherwise, use the REST Countries API to get the country code
                 try:
@@ -540,10 +718,10 @@ class FlagQuizApp:
                             img = Image.open(BytesIO(flag_response.content)).resize((320, 200))
                             return ImageTk.PhotoImage(img)
                 except Exception as api_error:
-                    print(f"❌ REST Countries API error for {country}: {api_error}")
+                    print(f"REST Countries API error for {country}: {api_error}")
                     
         except Exception as e:
-            print(f"❌ Error loading flag for {country}: {e}")
+            print(f"Error loading flag for {country}: {e}")
             import traceback
             traceback.print_exc()
         return None
@@ -643,15 +821,15 @@ class FlagQuizApp:
             else:
                 self.current_pool = [c for c in countries if country_continent[c] == continent]
 
-        # Check if all flags have been seen
-        unseen_flags = [flag for flag in self.current_pool if flag not in self.session_flags_seen]
+        # Check if all flags have been answered (correctly or incorrectly)
+        unanswered_flags = [flag for flag in self.current_pool if flag not in self.session_answered]
         
-        # If no unseen flags, check if there are skipped flags to retry
-        if not unseen_flags and self.session_skipped:
-            unseen_flags = list(self.session_skipped)
+        # If no unanswered flags, check if there are skipped flags to retry
+        if not unanswered_flags and self.session_skipped:
+            unanswered_flags = list(self.session_skipped)
             self.session_skipped.clear()  # Clear the skipped set as we're reusing them
         
-        if not unseen_flags:
+        if not unanswered_flags:
             if self.session_total > 0:  # Only show results if we actually played
                 self.show_session_results()
                 return
@@ -664,7 +842,7 @@ class FlagQuizApp:
                 self.submit_button.config(state=tk.DISABLED)
                 return
 
-        self.correct_country = random.choice(unseen_flags)
+        self.correct_country = random.choice(unanswered_flags)
         self.session_flags_seen.append(self.correct_country)
         self.flag_history.append(self.correct_country)  # Add to history for last flag functionality
         
@@ -713,7 +891,7 @@ class FlagQuizApp:
         self.score_label.config(text=self.get_score_text())
 
     def next_flag(self):
-        # If the question hasn't been answered, add it to skipped and put it back in the pool
+        # If the question hasn't been answered, add it to skipped
         if not self.question_answered and self.correct_country:
             self.session_skipped.add(self.correct_country)
             # Remove from session_flags_seen so it can appear again
@@ -761,27 +939,29 @@ class FlagQuizApp:
         else:
             self.feedback_label.config(text="Incorrect. Try again.", fg="red")
             self.streak = 0  # Reset streak on wrong answer
+            
+            # Track incorrect answers for session summary
+            if first_attempt:
+                self.session_incorrect.add(self.correct_country)
+            
             self.score_label.config(text=self.get_score_text())
             self.percentage_label.config(text=self.get_percentage_text())
 
     def give_up(self):
         """Give up on the current session and show final results"""
-        if self.session_total > 0 or (hasattr(self, 'current_pool') and self.current_pool):
-            # Count remaining unseen flags as incorrect
-            if hasattr(self, 'current_pool') and self.current_pool:
-                # Get all unseen flags (flags that haven't been attempted yet)
-                unseen_flags = [flag for flag in self.current_pool if flag not in self.session_flags_seen]
-                
-                # Add skipped flags that would be retried
-                if self.session_skipped:
-                    unseen_flags.extend(list(self.session_skipped))
-                
-                # Count these as incorrect attempts
-                self.session_total += len(unseen_flags)
-                
-                # Reset streak to 0 since we're giving up
-                self.streak = 0
-                
+        if hasattr(self, 'current_pool') and self.current_pool:
+            # Get all flags that haven't been answered (correctly or incorrectly)
+            unanswered_flags = [flag for flag in self.current_pool if flag not in self.session_answered]
+            
+            # Add unanswered flags to incorrect list and count as attempts
+            for flag in unanswered_flags:
+                self.session_incorrect.add(flag)
+                self.session_total += 1
+                self.session_answered.add(flag)
+            
+            # Reset streak to 0 since we're giving up
+            self.streak = 0
+            
             self.show_session_results()
         else:
             # If no questions answered yet, just end the session
