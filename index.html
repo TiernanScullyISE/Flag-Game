@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flag & Capital Quiz</title>
+  <link rel="preconnect" href="https://flagcdn.com">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Flag & Capital Quiz</h1>
+    <p class="subtitle">Learn flags, capitals and continents. Your progress is saved locally.</p>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" role="tablist" aria-label="Quiz tabs">
+      <button class="tab active" data-tab="flags" role="tab" aria-selected="true">Flag Quiz</button>
+      <button class="tab" data-tab="capitals" role="tab" aria-selected="false">Capital Quiz</button>
+      <button class="tab" data-tab="view-all" role="tab" aria-selected="false">View All</button>
+      <button class="tab" data-tab="view-revise" role="tab" aria-selected="false">View Revise</button>
+    </nav>
+
+    <!-- Flag Quiz -->
+    <section id="tab-flags" class="tab-panel active" role="tabpanel" aria-labelledby="Flag Quiz">
+      <div class="controls-row">
+        <label>
+          Continent:
+          <select id="flags-continent"></select>
+        </label>
+
+        <button id="flags-toggle-revise" class="secondary">Add to Revise</button>
+
+        <label class="checkbox">
+          <input type="checkbox" id="flags-hard" />
+          Hard
+        </label>
+      </div>
+
+      <div class="quiz-card">
+        <div class="question-visual" id="flags-question-visual" aria-live="polite"></div>
+
+        <div id="flags-mcq" class="mcq">
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+        </div>
+
+        <div id="flags-text" class="text-answer">
+          <input id="flags-input" type="text" placeholder="Type the country…" autocomplete="off" />
+          <button id="flags-submit" class="primary">Submit</button>
+          <button id="flags-giveup" class="danger">Give Up</button>
+        </div>
+
+        <p id="flags-feedback" class="feedback"></p>
+        <p id="flags-revise-feedback" class="revise-feedback"></p>
+
+        <div class="scores">
+          <p id="flags-score" class="score"></p>
+          <p id="flags-percentage" class="percentage"></p>
+          <p id="flags-session" class="session"></p>
+        </div>
+
+        <div class="nav-row">
+          <button id="flags-last" class="secondary">← Last</button>
+          <button id="flags-next" class="secondary">Next →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Capital Quiz -->
+    <section id="tab-capitals" class="tab-panel" role="tabpanel" aria-labelledby="Capital Quiz">
+      <div class="controls-row">
+        <label>
+          Continent:
+          <select id="capitals-continent"></select>
+        </label>
+
+        <button id="capitals-toggle-revise" class="secondary">Add to Revise</button>
+
+        <label class="checkbox">
+          <input type="checkbox" id="capitals-hard" />
+          Hard
+        </label>
+      </div>
+
+      <div class="quiz-card">
+        <div class="question-visual" id="capitals-question-visual" aria-live="polite"></div>
+        <p id="capitals-country-label" class="country-label"></p>
+
+        <div id="capitals-mcq" class="mcq">
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+        </div>
+
+        <div id="capitals-text" class="text-answer">
+          <input id="capitals-input" type="text" placeholder="Type the capital…" autocomplete="off" />
+          <button id="capitals-submit" class="primary">Submit</button>
+          <button id="capitals-giveup" class="danger">Give Up</button>
+        </div>
+
+        <p id="capitals-feedback" class="feedback"></p>
+        <p id="capitals-revise-feedback" class="revise-feedback"></p>
+
+        <div class="scores">
+          <p id="capitals-score" class="score"></p>
+          <p id="capitals-percentage" class="percentage"></p>
+          <p id="capitals-session" class="session"></p>
+        </div>
+
+        <div class="nav-row">
+          <button id="capitals-last" class="secondary">← Last</button>
+          <button id="capitals-next" class="secondary">Next →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- View All -->
+    <section id="tab-view-all" class="tab-panel" role="tabpanel" aria-labelledby="View All">
+      <div class="view-switch">
+        <label class="radio">
+          <input type="radio" name="view-mode" value="flags" checked />
+          Flags
+        </label>
+        <label class="radio">
+          <input type="radio" name="view-mode" value="capitals" />
+          Capitals
+        </label>
+      </div>
+      <div id="view-all-grid" class="card-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- View Revise -->
+    <section id="tab-view-revise" class="tab-panel" role="tabpanel" aria-labelledby="View Revise">
+      <h2>Revision Lists</h2>
+
+      <div class="view-switch">
+        <label class="radio">
+          <input type="radio" name="revise-mode" value="capitals" checked />
+          Capital Revise
+        </label>
+        <label class="radio">
+          <input type="radio" name="revise-mode" value="flags" />
+          Flag Revise
+        </label>
+      </div>
+
+      <div class="controls-row">
+        <label>
+          Continent:
+          <select id="revise-continent"></select>
+        </label>
+      </div>
+
+      <div id="revise-list" class="revise-list" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Made for the web. No trackers. Data saved in your browser.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
