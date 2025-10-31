@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Play — Flag & Capital Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header with-nav">
+    <a class="brand" href="index.html">Flag & Capital Quiz</a>
+    <nav class="top-nav">
+      <a class="nav-link active" href="game.html">Play</a>
+      <a class="nav-link" href="revise.html">Revision</a>
+      <a class="nav-link" href="view.html">All</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="segment-switch">
+      <button class="segment active" data-mode="flags">Flag Quiz</button>
+      <button class="segment" data-mode="capitals">Capital Quiz</button>
+    </div>
+
+    <section class="toolbar">
+      <div class="control">
+        <label for="continent-select">Continent</label>
+        <select id="continent-select"></select>
+      </div>
+
+      <div class="control">
+        <label class="checkbox">
+          <input type="checkbox" id="hard-toggle" />
+          Hard mode
+        </label>
+      </div>
+
+      <button id="revise-toggle" class="btn subtle">Add to Revise</button>
+    </section>
+
+    <section class="quiz-card">
+      <div id="question-visual" class="question-visual" aria-live="polite"></div>
+      <p id="country-label" class="country-label"></p>
+
+      <div id="mcq" class="mcq">
+        <button class="mcq-btn"></button>
+        <button class="mcq-btn"></button>
+        <button class="mcq-btn"></button>
+        <button class="mcq-btn"></button>
+      </div>
+
+      <div id="text-answer" class="text-answer">
+        <input id="answer-input" type="text" placeholder="Type your answer…" autocomplete="off" />
+        <button id="submit-btn" class="btn primary">Submit</button>
+        <button id="giveup-btn" class="btn danger">Give up</button>
+      </div>
+
+      <p id="feedback" class="feedback"></p>
+      <p id="revise-feedback" class="revise-feedback"></p>
+
+      <div class="stats">
+        <p id="score" class="score"></p>
+        <p id="best" class="best"></p>
+        <p id="session" class="session"></p>
+      </div>
+
+      <div class="nav-row">
+        <button id="last-btn" class="btn subtle">← Last</button>
+        <button id="next-btn" class="btn subtle">Next →</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Need all data offline with no lookups at all? Ask and I will embed a complete ISO list.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="utils.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>All — Flag & Capital Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header with-nav">
+    <a class="brand" href="index.html">Flag & Capital Quiz</a>
+    <nav class="top-nav">
+      <a class="nav-link" href="game.html">Play</a>
+      <a class="nav-link" href="revise.html">Revision</a>
+      <a class="nav-link active" href="view.html">All</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="segment-switch">
+      <label class="segment-radio">
+        <input type="radio" name="view-mode" value="flags" checked>
+        <span>Flags</span>
+      </label>
+      <label class="segment-radio">
+        <input type="radio" name="view-mode" value="capitals">
+        <span>Capitals</span>
+      </label>
+    </div>
+
+    <section id="grid" class="card-grid" aria-live="polite"></section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Flags load from FlagCDN with graceful fallbacks.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="utils.js"></script>
+  <script src="view.js"></script>
+</body>
+</html>
