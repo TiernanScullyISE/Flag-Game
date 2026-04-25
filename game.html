@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Play — Flag & Capital Quiz</title>
+  <title>Play - Flag & Capital Quiz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="site-header with-nav">
+<body data-play-mode="practice">
+  <header class="site-header with-nav compact-header">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
     <nav class="top-nav">
       <a class="nav-link active" href="game.html">Play</a>
@@ -19,67 +19,141 @@
     </nav>
   </header>
 
-  <main class="container">
-    <section class="page-intro">
+  <main class="container game-container">
+    <section class="page-intro game-intro">
       <p class="section-kicker">Quiz mode</p>
-      <h1>Practise recognition first, then switch to hard mode for recall.</h1>
+      <h1>Practise with lives or switch to dedicated speedrun mode.</h1>
     </section>
 
-    <div class="segment-switch">
-      <button class="segment active" data-mode="flags">Flag Quiz</button>
-      <button class="segment" data-mode="capitals">Capital Quiz</button>
-    </div>
+    <section class="game-layout">
+      <aside class="game-sidebar">
+        <div class="segment-switch mode-switch" aria-label="Play mode">
+          <button class="segment play-mode-segment active" data-play-mode="practice">Practice</button>
+          <button class="segment play-mode-segment" data-play-mode="speedrun">Speedrun</button>
+        </div>
 
-    <section class="toolbar">
-      <div class="control">
-        <label for="continent-select">Continent</label>
-        <select id="continent-select"></select>
-      </div>
+        <div class="segment-switch quiz-switch" aria-label="Quiz type">
+          <button class="segment quiz-segment active" data-mode="flags">Flag Quiz</button>
+          <button class="segment quiz-segment" data-mode="capitals">Capital Quiz</button>
+        </div>
 
-      <div class="control">
-        <label class="checkbox">
-          <input type="checkbox" id="hard-toggle" />
-          Hard mode
-        </label>
-      </div>
+        <section class="toolbar">
+          <div class="control">
+            <label for="continent-select">Continent</label>
+            <select id="continent-select"></select>
+          </div>
 
-      <button id="revise-toggle" class="btn subtle">Add to Revise</button>
-    </section>
+          <div class="control compact-control">
+            <label class="checkbox">
+              <input type="checkbox" id="hard-toggle" />
+              <span id="hard-label">Hard mode</span>
+            </label>
+          </div>
 
-    <section class="quiz-card">
-      <div id="question-visual" class="question-visual" aria-live="polite"></div>
-      <p id="country-label" class="country-label"></p>
+          <div class="control practice-only">
+            <label for="life-select">Lives</label>
+            <select id="life-select">
+              <option value="unlimited">Unlimited</option>
+              <option value="10">10 lives</option>
+              <option value="5">5 lives</option>
+              <option value="3">3 lives</option>
+              <option value="1">1 life</option>
+            </select>
+          </div>
 
-      <div id="mcq" class="mcq">
-        <button class="mcq-btn"></button>
-        <button class="mcq-btn"></button>
-        <button class="mcq-btn"></button>
-        <button class="mcq-btn"></button>
-      </div>
+          <div class="control speedrun-only">
+            <label for="speed-target-select">Speedrun target</label>
+            <select id="speed-target-select">
+              <option value="all">All available</option>
+            </select>
+          </div>
 
-      <div id="text-answer" class="text-answer">
-        <input id="answer-input" type="text" placeholder="Type your answer…" autocomplete="off" />
-        <button id="submit-btn" class="btn primary">Submit</button>
-        <button id="giveup-btn" class="btn danger">Give up</button>
-      </div>
+          <button id="revise-toggle" class="btn subtle practice-only">Add to Revise</button>
+        </section>
 
-      <p id="feedback" class="feedback"></p>
-      <p id="revise-feedback" class="revise-feedback"></p>
+        <section class="practice-panel practice-only" aria-label="Practice status">
+          <div class="timer-card">
+            <p class="panel-label">Practice Lives</p>
+            <p id="lives-value" class="timer-value compact-value">Unlimited</p>
+            <p id="lives-status" class="timer-status">Wrong answers cost one life.</p>
+          </div>
+        </section>
 
-      <div class="stats">
-        <p id="score" class="score"></p>
-        <p id="best" class="best"></p>
-        <p id="session" class="session"></p>
-      </div>
+        <section class="speedrun-panel speedrun-only" aria-label="Speedrun timer and records">
+          <div class="timer-card">
+            <p class="panel-label">Speedrun Timer</p>
+            <p id="timer-value" class="timer-value">0:00.0</p>
+            <p id="timer-status" class="timer-status">Starts on your first answer.</p>
+          </div>
+          <div class="split-card">
+            <div class="panel-heading">
+              <p class="panel-label">Current Splits</p>
+              <h2>Run pace</h2>
+            </div>
+            <div id="split-list" class="split-list"></div>
+          </div>
+          <div class="leaderboard-card">
+            <div class="panel-heading">
+              <p class="panel-label">Local Leaderboard</p>
+              <h2 id="leaderboard-title">Current mode</h2>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list"></div>
+          </div>
+        </section>
+      </aside>
 
-      <div class="nav-row">
-        <button id="last-btn" class="btn subtle">← Last</button>
-        <button id="next-btn" class="btn subtle">Next →</button>
-      </div>
+      <section class="quiz-card">
+        <div class="question-stage">
+          <div id="question-visual" class="question-visual" aria-live="polite"></div>
+          <div id="answer-flash" class="answer-flash" aria-live="assertive" aria-hidden="true"></div>
+        </div>
+        <p id="country-label" class="country-label"></p>
+
+        <div id="mcq" class="mcq">
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+          <button class="mcq-btn"></button>
+        </div>
+
+        <div id="text-answer" class="text-answer">
+          <input id="answer-input" type="text" placeholder="Type your answer..." autocomplete="off" />
+          <button id="submit-btn" class="btn primary">Submit</button>
+        </div>
+
+        <p id="feedback" class="feedback"></p>
+        <p id="revise-feedback" class="revise-feedback"></p>
+
+        <div class="stats">
+          <p id="score" class="score"></p>
+          <p id="best" class="best"></p>
+          <p id="session" class="session"></p>
+        </div>
+
+        <div class="nav-row">
+          <button id="last-btn" class="btn subtle">Last</button>
+          <button id="next-btn" class="btn subtle">Skip / Next</button>
+          <button id="giveup-btn" class="btn danger">Give up</button>
+        </div>
+      </section>
     </section>
   </main>
 
-  <footer class="site-footer">
+  <div id="result-modal" class="result-modal" aria-hidden="true">
+    <div class="result-dialog" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <p id="result-kicker" class="panel-label">Session complete</p>
+      <h2 id="result-title">Results</h2>
+      <div id="result-hero" class="result-hero"></div>
+      <p id="result-summary" class="result-summary"></p>
+      <div id="result-details" class="result-details"></div>
+      <div class="result-actions">
+        <button id="result-retry" class="btn primary">Try again</button>
+        <button id="result-close" class="btn subtle">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer compact-footer">
     <p>Flags load directly from FlagCDN. Scores and revision lists stay in this browser.</p>
   </footer>
 

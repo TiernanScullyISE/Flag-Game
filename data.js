@@ -206,5 +206,6 @@ const LS_KEYS = {
   reviseFlags:"revise_flags",
   reviseCapitals:"revise_capitals",
   highScores:"high_scores",
-  sessionPercentages:"session_percentages"
+  sessionPercentages:"session_percentages",
+  speedRuns:"speed_run_records"
 };
