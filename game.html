@@ -6,8 +6,8 @@
   <title>Play — Flag & Capital Quiz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="site-header with-nav">
@@ -20,6 +20,11 @@
   </header>
 
   <main class="container">
+    <section class="page-intro">
+      <p class="section-kicker">Quiz mode</p>
+      <h1>Practise recognition first, then switch to hard mode for recall.</h1>
+    </section>
+
     <div class="segment-switch">
       <button class="segment active" data-mode="flags">Flag Quiz</button>
       <button class="segment" data-mode="capitals">Capital Quiz</button>
@@ -75,11 +80,11 @@
   </main>
 
   <footer class="site-footer">
-    <p>Need all data offline with no lookups at all? Ask and I will embed a complete ISO list.</p>
+    <p>Flags load directly from FlagCDN. Scores and revision lists stay in this browser.</p>
   </footer>
 
-  <script src="data.js"></script>
-  <script src="utils.js"></script>
-  <script src="game.js"></script>
+  <script src="data.js" defer></script>
+  <script src="utils.js" defer></script>
+  <script src="game.js" defer></script>
 </body>
 </html>

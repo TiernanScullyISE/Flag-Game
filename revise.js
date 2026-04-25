@@ -36,7 +36,7 @@ async function update(){
 
   if(items.length===0){
     const p=document.createElement("p");
-    p.style.color="#aab2c0"; p.style.padding="18px 6px";
+    p.className = "empty-state";
     p.textContent = mode==="flags"
       ? "No flags in your revise list for this continent. Add some from Play."
       : "No capitals in your revise list for this continent. Add some from Play.";
@@ -62,7 +62,12 @@ async function update(){
       row.appendChild(label);
     }else{
       const label=document.createElement("div");
-      label.innerHTML = `<strong>${i+1}. ${country}</strong> — Capital: <span style="color:#7bd09f">${countryCapitals[country] || "Unknown"}</span>`;
+      const strong=document.createElement("strong");
+      strong.textContent = `${i+1}. ${country}`;
+      const capital=document.createElement("span");
+      capital.className = "muted";
+      capital.textContent = ` Capital: ${countryCapitals[country] || "Unknown"}`;
+      label.append(strong, capital);
       row.appendChild(label);
     }
 
