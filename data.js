@@ -172,7 +172,8 @@ const countryAliases = {
   "Papua New Guinea":["png"],
   "São Tomé and Príncipe":["sao tome","sao"],
   "Saint Kitts and Nevis":["st kitts"],
-  "Republic of the Congo":["congo","rep congo"],
+  "Saint Lucia":["st lucia"],
+  "Republic of the Congo":["congo","rep congo","rep of congo"],
   "Democratic Republic of the Congo":["drc","congo drc","congo kinshasa"],
   "Central African Republic":["car"],
   "North Korea":["dprk"],
@@ -207,5 +208,8 @@ const LS_KEYS = {
   reviseCapitals:"revise_capitals",
   highScores:"high_scores",
   sessionPercentages:"session_percentages",
-  speedRuns:"speed_run_records"
+  speedRuns:"speed_run_records",
+  playerName:"speedrun_player_name",
+  playerId:"speedrun_player_id",
+  playerNameHistory:"speedrun_player_name_history"
 };

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>All — Flag & Capital Quiz</title>
+  <title>Admin - Flag & Capital Quiz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -16,36 +16,33 @@
       <a class="nav-link" href="game.html">Play</a>
       <a class="nav-link" href="leaderboard.html">Leaderboard</a>
       <a class="nav-link" href="revise.html">Revision</a>
-      <a class="nav-link active" href="view.html">All</a>
+      <a class="nav-link" href="view.html">All</a>
     </nav>
   </header>
 
   <main class="container">
     <section class="page-intro">
-      <p class="section-kicker">Reference</p>
-      <h1>Browse every country in the quiz data set.</h1>
+      <p class="section-kicker">Admin</p>
+      <h1>Review suspicious leaderboard submissions.</h1>
     </section>
 
-    <div class="segment-switch">
-      <label class="segment-radio">
-        <input type="radio" name="view-mode" value="flags" checked>
-        <span>Flags</span>
-      </label>
-      <label class="segment-radio">
-        <input type="radio" name="view-mode" value="capitals">
-        <span>Capitals</span>
-      </label>
-    </div>
+    <section class="toolbar admin-toolbar">
+      <div class="control">
+        <label for="admin-password">Admin password</label>
+        <input id="admin-password" type="password" autocomplete="current-password" />
+      </div>
+      <button id="admin-load" class="btn primary" type="button">Load queue</button>
+    </section>
 
-    <section id="grid" class="card-grid" aria-live="polite"></section>
+    <section id="admin-status" class="leaderboard-page-status" aria-live="polite"></section>
+    <section id="admin-list" class="admin-list" aria-live="polite"></section>
   </main>
 
   <footer class="site-footer">
-    <p>Flags load from FlagCDN with graceful fallbacks.</p>
+    <p>Approved runs appear on the public leaderboard. Rejected runs stay hidden.</p>
   </footer>
 
-  <script src="data.js" defer></script>
-  <script src="utils.js" defer></script>
-  <script src="view.js" defer></script>
+  <script src="leaderboard-config.js" defer></script>
+  <script src="admin.js" defer></script>
 </body>
 </html>

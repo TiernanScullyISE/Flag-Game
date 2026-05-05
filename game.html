@@ -14,6 +14,7 @@
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
     <nav class="top-nav">
       <a class="nav-link active" href="game.html">Play</a>
+      <a class="nav-link" href="leaderboard.html">Leaderboard</a>
       <a class="nav-link" href="revise.html">Revision</a>
       <a class="nav-link" href="view.html">All</a>
     </nav>
@@ -83,7 +84,7 @@
           <div class="timer-card">
             <p class="panel-label">Speedrun Timer</p>
             <p id="timer-value" class="timer-value">0:00.0</p>
-            <p id="timer-status" class="timer-status">Starts on your first answer.</p>
+            <p id="timer-status" class="timer-status">Starts when you begin typing.</p>
           </div>
           <div class="split-card">
             <div class="panel-heading">
@@ -94,7 +95,7 @@
           </div>
           <div class="leaderboard-card">
             <div class="panel-heading">
-              <p class="panel-label">Local Leaderboard</p>
+              <p id="leaderboard-scope-label" class="panel-label">Local Leaderboard</p>
               <h2 id="leaderboard-title">Current mode</h2>
             </div>
             <div id="leaderboard-list" class="leaderboard-list"></div>
@@ -146,6 +147,15 @@
       <div id="result-hero" class="result-hero"></div>
       <p id="result-summary" class="result-summary"></p>
       <div id="result-details" class="result-details"></div>
+      <div id="leaderboard-publish" class="leaderboard-publish" hidden>
+        <p id="leaderboard-publish-title" class="leaderboard-publish-title"></p>
+        <div id="leaderboard-publish-row" class="leaderboard-publish-row">
+          <label for="result-player-name">Name</label>
+          <input id="result-player-name" type="text" maxlength="24" pattern="[A-Za-z0-9 _.-]{1,24}" autocomplete="nickname" placeholder="Player" />
+          <button id="post-leaderboard-btn" class="btn primary" type="button">Post to leaderboard</button>
+        </div>
+        <p id="leaderboard-publish-status" class="leaderboard-publish-status"></p>
+      </div>
       <div class="result-actions">
         <button id="result-retry" class="btn primary">Try again</button>
         <button id="result-close" class="btn subtle">Close</button>
@@ -154,11 +164,13 @@
   </div>
 
   <footer class="site-footer compact-footer">
-    <p>Flags load directly from FlagCDN. Scores and revision lists stay in this browser.</p>
+    <p>Flags load directly from FlagCDN. Practice scores stay in this browser; speedrun leaderboards can be shared.</p>
   </footer>
 
   <script src="data.js" defer></script>
   <script src="utils.js" defer></script>
+  <script src="leaderboard-config.js" defer></script>
+  <script src="leaderboard.js" defer></script>
   <script src="game.js" defer></script>
 </body>
 </html>

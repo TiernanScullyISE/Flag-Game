@@ -2,6 +2,9 @@ const ANSWER_FLASH_MS = 100;
 const TIMER_TICK_MS = 100;
 const SPEEDRUN_SPLITS = [10, 25, 50, 100, 150];
 const MAX_LEADERBOARD_RUNS = 5;
+const MAX_SHARED_LEADERBOARD_RUNS = 5;
+const LEADERBOARD_REFRESH_MS = 30000;
+const MIN_SOLVED_QUESTION_MS = 180;
 
 const state = {
   playMode: "practice",
@@ -10,12 +13,23 @@ const state = {
   selectedContinent: "All",
   lifeSetting: "unlimited",
   speedTarget: "all",
+  playerName: storage.get(LS_KEYS.playerName, "Player"),
+  playerId: storage.get(LS_KEYS.playerId, ""),
+  playerNameHistory: storage.get(LS_KEYS.playerNameHistory, []),
 
   reviseFlags: storage.get(LS_KEYS.reviseFlags, []),
   reviseCapitals: storage.get(LS_KEYS.reviseCapitals, []),
   highScores: storage.get(LS_KEYS.highScores, {}),
   sessionPercentages: storage.get(LS_KEYS.sessionPercentages, {}),
   speedRuns: storage.get(LS_KEYS.speedRuns, {}),
+  sharedLeaderboardRuns: {},
+  sharedLeaderboardLoading: false,
+  sharedLeaderboardLoadingKey: "",
+  sharedLeaderboardError: "",
+  sharedLeaderboardMessage: "",
+  sharedLeaderboardLastLoadedKey: "",
+  pendingSharedRun: null,
+  lastCompletedRun: null,
 
   session: makeSession()
 };
@@ -37,6 +51,9 @@ function makeSession(){
     livesRemaining: null,
     gameOver: false,
     history: [],
+    route: [],
+    currentRouteIndex: -1,
+    security: makeSecurityTelemetry(),
     speedRun: {
       started: false,
       startMs: 0,
@@ -47,6 +64,29 @@ function makeSession(){
       recorded: false
     }
   };
+}
+
+function makeSecurityTelemetry(){
+  return {
+    nonce: makeNonce(),
+    startedAt: new Date().toISOString(),
+    focusLosses: 0,
+    hiddenEvents: 0,
+    pasteEvents: 0,
+    keyEvents: 0,
+    inputEvents: 0,
+    pointerEvents: 0,
+    suspiciousEvents: []
+  };
+}
+
+function makeNonce(){
+  const bytes = new Uint8Array(12);
+  if(window.crypto && window.crypto.getRandomValues){
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte=>byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
 }
 
 const playModeButtons = Array.from(document.querySelectorAll(".play-mode-segment"));
@@ -63,6 +103,7 @@ const livesStatus = document.getElementById("lives-status");
 const timerValue = document.getElementById("timer-value");
 const timerStatus = document.getElementById("timer-status");
 const splitList = document.getElementById("split-list");
+const leaderboardScopeLabel = document.getElementById("leaderboard-scope-label");
 const leaderboardTitle = document.getElementById("leaderboard-title");
 const leaderboardList = document.getElementById("leaderboard-list");
 const answerFlash = document.getElementById("answer-flash");
@@ -89,6 +130,12 @@ const resultTitle = document.getElementById("result-title");
 const resultHero = document.getElementById("result-hero");
 const resultSummary = document.getElementById("result-summary");
 const resultDetails = document.getElementById("result-details");
+const leaderboardPublish = document.getElementById("leaderboard-publish");
+const leaderboardPublishTitle = document.getElementById("leaderboard-publish-title");
+const leaderboardPublishRow = document.getElementById("leaderboard-publish-row");
+const resultPlayerNameInput = document.getElementById("result-player-name");
+const postLeaderboardBtn = document.getElementById("post-leaderboard-btn");
+const leaderboardPublishStatus = document.getElementById("leaderboard-publish-status");
 const resultRetry = document.getElementById("result-retry");
 const resultClose = document.getElementById("result-close");
 
@@ -143,10 +190,34 @@ function init(){
     state.speedTarget = speedTargetSelect.value;
     resetSession();
   });
+  state.playerId = getOrCreatePlayerId();
+  state.playerNameHistory = getCleanPlayerNameHistory();
+  state.playerName = getDefaultPlayerName();
+  if(resultPlayerNameInput){
+    resultPlayerNameInput.value = state.playerName;
+    resultPlayerNameInput.addEventListener("change", savePlayerName);
+    resultPlayerNameInput.addEventListener("blur", savePlayerName);
+  }
 
   mcqBtns.forEach((button,index)=>button.addEventListener("click",()=>checkMcq(index)));
-  submitBtn.addEventListener("click", ()=>checkText());
-  answerInput.addEventListener("keydown", event=>{ if(event.key==="Enter") checkText(); });
+  submitBtn.addEventListener("click", ()=>{
+    checkText();
+    keepAnswerInputFocused();
+  });
+  answerInput.addEventListener("keydown", event=>{
+    if(event.key==="Enter"){
+      event.preventDefault();
+      checkText();
+      keepAnswerInputFocused();
+    }
+  });
+  answerInput.addEventListener("keydown", recordAnswerKey);
+  answerInput.addEventListener("input", checkAutoSubmitText);
+  answerInput.addEventListener("input", recordAnswerInput);
+  answerInput.addEventListener("paste", recordPasteAttempt);
+  document.addEventListener("pointerdown", recordPointerActivity, {passive:true});
+  window.addEventListener("blur", recordFocusLoss);
+  document.addEventListener("visibilitychange", recordVisibilityChange);
   reviseToggle.addEventListener("click", ()=>toggleRevise());
   lastBtn.addEventListener("click", ()=>lastQuestion());
   nextBtn.addEventListener("click", ()=>nextQuestion());
@@ -156,11 +227,154 @@ function init(){
     resetSession();
   });
   resultClose.addEventListener("click", closeResultModal);
+  if(postLeaderboardBtn) postLeaderboardBtn.addEventListener("click", postPendingSharedRun);
 
   syncModeButtons();
   populateContinents();
   populateSpeedTargets();
   resetSession();
+  window.setInterval(()=>{
+    if(state.playMode === "speedrun") refreshSharedLeaderboard();
+  }, LEADERBOARD_REFRESH_MS);
+}
+
+function sanitizePlayerName(value){
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^A-Za-z0-9 _.-]/g, "");
+  return (cleaned || "Player").slice(0, 24);
+}
+
+function getOrCreatePlayerId(){
+  const existing = String(state.playerId || "");
+  if(/^[A-Za-z0-9_-]{16,80}$/.test(existing)) return existing;
+  const id = makeNonce();
+  storage.set(LS_KEYS.playerId, id);
+  return id;
+}
+
+function getCleanPlayerNameHistory(){
+  const names = Array.isArray(state.playerNameHistory) ? state.playerNameHistory : [];
+  const clean = [];
+  for(const name of names){
+    const sanitized = sanitizePlayerName(name);
+    if(sanitized && !clean.includes(sanitized)) clean.push(sanitized);
+  }
+  return clean.slice(0, 5);
+}
+
+function getDefaultPlayerName(){
+  const saved = sanitizePlayerName(state.playerName);
+  if(saved !== "Player") return saved;
+  return state.playerNameHistory[0] || "Player";
+}
+
+function savePlayerName(){
+  state.playerName = sanitizePlayerName(resultPlayerNameInput ? resultPlayerNameInput.value : state.playerName);
+  if(resultPlayerNameInput) resultPlayerNameInput.value = state.playerName;
+  storage.set(LS_KEYS.playerName, state.playerName);
+}
+
+function rememberPostedPlayerName(name){
+  const sanitized = sanitizePlayerName(name);
+  state.playerName = sanitized;
+  state.playerNameHistory = [
+    sanitized,
+    ...getCleanPlayerNameHistory().filter(existing=>existing !== sanitized)
+  ].slice(0, 5);
+  storage.set(LS_KEYS.playerName, state.playerName);
+  storage.set(LS_KEYS.playerNameHistory, state.playerNameHistory);
+}
+
+function isActiveSpeedRun(){
+  return state.playMode === "speedrun"
+    && state.session
+    && state.session.speedRun.started
+    && !state.session.gameOver
+    && !state.session.speedRun.gaveUp;
+}
+
+function ensureSpeedRunStarted(){
+  if(state.playMode === "speedrun" && state.session && !state.session.speedRun.started && !state.session.gameOver){
+    startSpeedRun();
+  }
+}
+
+function getCurrentRouteEntry(){
+  const session = state.session;
+  if(!session || session.currentRouteIndex < 0) return null;
+  return session.route[session.currentRouteIndex] || null;
+}
+
+function recordSecurityEvent(type){
+  const security = state.session && state.session.security;
+  if(!security || !isActiveSpeedRun()) return;
+  security.suspiciousEvents.push({
+    type,
+    ms: Math.round(getElapsedMs())
+  });
+}
+
+function recordAnswerKey(event){
+  ensureSpeedRunStarted();
+  if(!isActiveSpeedRun()) return;
+  const security = state.session.security;
+  security.keyEvents += 1;
+  const entry = getCurrentRouteEntry();
+  if(entry){
+    entry.keyEvents = (entry.keyEvents || 0) + 1;
+    if(event.key && event.key.length === 1){
+      entry.typedChars = (entry.typedChars || 0) + 1;
+    }
+  }
+}
+
+function recordAnswerInput(){
+  ensureSpeedRunStarted();
+  if(!isActiveSpeedRun()) return;
+  const security = state.session.security;
+  security.inputEvents += 1;
+  const entry = getCurrentRouteEntry();
+  if(entry){
+    entry.inputEvents = (entry.inputEvents || 0) + 1;
+    entry.maxInputLength = Math.max(entry.maxInputLength || 0, answerInput.value.length);
+    if(entry.firstInputMs === null) entry.firstInputMs = Math.round(getElapsedMs());
+  }
+}
+
+function recordPasteAttempt(){
+  ensureSpeedRunStarted();
+  if(!isActiveSpeedRun()) return;
+  state.session.security.pasteEvents += 1;
+  const entry = getCurrentRouteEntry();
+  if(entry) entry.pasteEvents = (entry.pasteEvents || 0) + 1;
+  recordSecurityEvent("paste");
+}
+
+function recordPointerActivity(){
+  if(isActiveSpeedRun()) state.session.security.pointerEvents += 1;
+}
+
+function recordFocusLoss(){
+  if(!isActiveSpeedRun()) return;
+  state.session.security.focusLosses += 1;
+  recordSecurityEvent("blur");
+}
+
+function recordVisibilityChange(){
+  if(!isActiveSpeedRun() || document.visibilityState !== "hidden") return;
+  state.session.security.hiddenEvents += 1;
+  recordSecurityEvent("hidden");
+}
+
+function keepAnswerInputFocused(){
+  if(!state.hard || !answerInput || !state.session || state.session.gameOver) return;
+  window.setTimeout(()=>{
+    if(state.hard && state.session && !state.session.gameOver && !answerInput.disabled){
+      answerInput.focus({preventScroll:true});
+    }
+  }, 0);
 }
 
 function syncModeButtons(){
@@ -221,6 +435,8 @@ function getAvailableBasePool(){
 
 function resetSession(){
   stopSpeedRun();
+  state.pendingSharedRun = null;
+  state.lastCompletedRun = null;
   if(state.playMode === "speedrun"){
     state.hard = true;
     populateSpeedTargets();
@@ -232,6 +448,7 @@ function resetSession(){
   toggleAnswerUi();
   updateAllStatus();
   loadQuestion();
+  refreshSharedLeaderboard();
 }
 
 function getInitialLives(){
@@ -288,6 +505,7 @@ async function loadQuestion(){
   session.questionAnswered = false;
   session.currentWrongAttempts = 0;
   session.history.push(session.correctCountry);
+  recordRouteQuestion(session.correctCountry);
 
   await renderFlag(session.correctCountry);
   countryLabel.textContent = state.which === "capitals"
@@ -342,6 +560,139 @@ function renderEmpty(){
   submitBtn.disabled = true;
 }
 
+function recordRouteQuestion(country){
+  const session = state.session;
+  if(state.playMode !== "speedrun" || !country) return;
+  const entry = {
+    index: session.route.length + 1,
+    country,
+    continent: countryContinent[country] || "Unknown",
+    answer: state.which === "flags" ? country : countryCapitals[country] || "Unknown",
+    shownMs: Math.round(getElapsedMs()),
+    firstInputMs: null,
+    firstSubmitMs: null,
+    solvedMs: null,
+    attempts: 0,
+    wrongAttempts: 0,
+    inputEvents: 0,
+    keyEvents: 0,
+    typedChars: 0,
+    maxInputLength: 0,
+    pasteEvents: 0,
+    skipped: false
+  };
+  session.route.push(entry);
+  session.currentRouteIndex = session.route.length - 1;
+}
+
+function recordRouteAttempt(value, correct){
+  const entry = getCurrentRouteEntry();
+  if(state.playMode !== "speedrun" || !entry) return;
+  const now = Math.round(getElapsedMs());
+  entry.attempts += 1;
+  if(entry.firstSubmitMs === null) entry.firstSubmitMs = now;
+  if(entry.firstInputMs === null && value) entry.firstInputMs = now;
+  entry.maxInputLength = Math.max(entry.maxInputLength || 0, value.length);
+  if(!correct) entry.wrongAttempts += 1;
+}
+
+function markRouteSolved(){
+  const entry = getCurrentRouteEntry();
+  if(state.playMode !== "speedrun" || !entry || entry.solvedMs !== null) return;
+  entry.solvedMs = Math.round(getElapsedMs());
+}
+
+function buildRouteSnapshot(route){
+  return route.map(entry=>({
+    index: entry.index,
+    country: entry.country,
+    continent: entry.continent,
+    answer: entry.answer,
+    shownMs: Math.round(entry.shownMs || 0),
+    firstInputMs: entry.firstInputMs === null ? null : Math.round(entry.firstInputMs),
+    firstSubmitMs: entry.firstSubmitMs === null ? null : Math.round(entry.firstSubmitMs),
+    solvedMs: entry.solvedMs === null ? null : Math.round(entry.solvedMs),
+    attempts: entry.attempts || 0,
+    wrongAttempts: entry.wrongAttempts || 0,
+    skipped: !!entry.skipped
+  }));
+}
+
+function buildTelemetrySnapshot(session){
+  const security = session.security || makeSecurityTelemetry();
+  return {
+    nonce: security.nonce,
+    playerId: state.playerId,
+    startedAt: security.startedAt,
+    submittedAt: new Date().toISOString(),
+    focusLosses: security.focusLosses || 0,
+    hiddenEvents: security.hiddenEvents || 0,
+    pasteEvents: security.pasteEvents || 0,
+    keyEvents: security.keyEvents || 0,
+    inputEvents: security.inputEvents || 0,
+    pointerEvents: security.pointerEvents || 0,
+    suspiciousEvents: (security.suspiciousEvents || []).slice(0, 20),
+    webdriver: !!navigator.webdriver
+  };
+}
+
+function evaluateRunIntegrity(elapsed, route, telemetry, total){
+  const blockers = [];
+  const warnings = [];
+  const solvedRoute = route.filter(entry=>entry.solvedMs !== null);
+  const minExpectedMs = getMinimumExpectedRunMs(solvedRoute);
+  const fastestQuestionMs = solvedRoute.reduce((fastest, entry)=>{
+    const submitMs = entry.firstSubmitMs === null ? entry.solvedMs : entry.firstSubmitMs;
+    const delta = Math.max(0, (submitMs || 0) - (entry.shownMs || 0));
+    return fastest === null || delta < fastest ? delta : fastest;
+  }, null);
+  const noInputEntries = solvedRoute.filter(entry=>entry.attempts > 0 && entry.firstInputMs === null);
+  const impossibleEntries = solvedRoute.filter(entry=>{
+    const submitMs = entry.firstSubmitMs === null ? entry.solvedMs : entry.firstSubmitMs;
+    return submitMs !== null && submitMs - entry.shownMs < MIN_SOLVED_QUESTION_MS;
+  });
+
+  if(route.length === 0) blockers.push("missing-route");
+  if(solvedRoute.length !== total) blockers.push("route-total-mismatch");
+  if(elapsed < minExpectedMs) blockers.push("run-too-fast-for-typed-answers");
+  if(impossibleEntries.length) blockers.push("instant-answer-events");
+  if(noInputEntries.length) blockers.push("answers-without-input-events");
+  if(telemetry.pasteEvents > 0) blockers.push("paste-detected");
+  if(telemetry.hiddenEvents > 0) blockers.push("tab-hidden-during-run");
+  if(telemetry.webdriver) blockers.push("webdriver-browser-detected");
+  if(telemetry.focusLosses > 0) warnings.push("window-focus-lost");
+  if(telemetry.keyEvents < Math.max(1, Math.floor(total * 0.75))) warnings.push("low-key-event-count");
+
+  const score = Math.max(0, 100 - blockers.length * 25 - warnings.length * 8);
+  return {
+    eligible: blockers.length === 0,
+    score,
+    blockers,
+    warnings,
+    minExpectedMs,
+    fastestQuestionMs,
+    routeHash: hashRunRoute(route),
+    routeLength: route.length
+  };
+}
+
+function getMinimumExpectedRunMs(route){
+  return route.reduce((sum, entry)=>{
+    const answerLength = normalise(entry.answer || "").replace(/\s+/g, "").length;
+    return sum + 250 + answerLength * 25;
+  }, 1000);
+}
+
+function hashRunRoute(route){
+  let hash = 2166136261;
+  const value = route.map(entry=>`${entry.index}:${entry.country}:${entry.solvedMs}`).join("|");
+  for(let i=0;i<value.length;i++){
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
 function toggleAnswerUi(){
   mcq.style.display = state.hard ? "none" : "grid";
   textWrap.style.display = state.hard ? "flex" : "none";
@@ -388,33 +739,58 @@ function checkMcq(index){
   const firstAttempt = registerAttempt();
 
   if(selected === correct){
+    recordRouteAttempt(selected, true);
     mcqBtns.forEach(button=>button.disabled = true);
     handleCorrect(firstAttempt);
   }else{
+    recordRouteAttempt(selected, false);
     handleIncorrect(firstAttempt);
   }
 }
 
-function checkText(){
+function checkAutoSubmitText(){
+  const session = state.session;
+  if(session.gameOver || !session.correctCountry || !state.hard) return;
+  if(session.solved.has(session.correctCountry)) return;
+  const value = answerInput.value.trim();
+  if(!value) return;
+  const result = evaluateTextAnswer(value, false);
+  if(result.exact || result.aliasOk) checkText({allowFuzzy:false});
+}
+
+function checkText(options={}){
   const session = state.session;
   if(session.gameOver || !session.correctCountry) return;
+  if(session.solved.has(session.correctCountry)) return;
   const value = answerInput.value.trim();
   if(!value) return;
 
+  const result = evaluateTextAnswer(value, options.allowFuzzy !== false);
+  const accepted = result.exact || result.aliasOk || result.fuzzyOk;
   const firstAttempt = registerAttempt();
-  const correct = getCorrectAnswer();
-  const exact = normalise(value) === normalise(correct);
-  const aliasOk = isAlias(value);
+  recordRouteAttempt(value, accepted);
 
-  if(exact || aliasOk || fuzzyMatch(value, correct)){
-    answerInput.disabled = true;
+  if(accepted){
     submitBtn.disabled = true;
-    handleCorrect(firstAttempt, exact || aliasOk ? "Correct!" : "Correct! (Close enough)");
+    answerInput.value = "";
+    keepAnswerInputFocused();
+    handleCorrect(firstAttempt, result.exact || result.aliasOk ? "Correct!" : "Correct! (Close enough)");
     return;
   }
 
   handleIncorrect(firstAttempt);
   answerInput.select();
+}
+
+function evaluateTextAnswer(value, allowFuzzy=true){
+  const correct = getCorrectAnswer();
+  const exact = normalise(value) === normalise(correct);
+  const aliasOk = isAlias(value);
+  return {
+    exact,
+    aliasOk,
+    fuzzyOk: allowFuzzy && fuzzyMatch(value, correct)
+  };
 }
 
 function getCorrectAnswer(){
@@ -490,6 +866,7 @@ function markSolved(){
   if(!session.correctCountry || session.solved.has(session.correctCountry)) return;
   session.solved.add(session.correctCountry);
   session.skipped.delete(session.correctCountry);
+  markRouteSolved();
   captureSpeedRunSplit();
 }
 
@@ -514,6 +891,8 @@ function nextQuestion(){
   const session = state.session;
   if(session.gameOver || !session.correctCountry) return;
   if(!session.solved.has(session.correctCountry)){
+    const entry = getCurrentRouteEntry();
+    if(entry) entry.skipped = true;
     session.skipped.add(session.correctCountry);
     if(session.history.length && session.history[session.history.length-1] === session.correctCountry){
       session.history.pop();
@@ -609,6 +988,7 @@ function startSpeedRun(){
   session.speedRun.started = true;
   session.speedRun.startMs = Date.now();
   session.speedRun.elapsedMs = 0;
+  session.security.startedAt = new Date().toISOString();
   if(session.speedRun.timerId) window.clearInterval(session.speedRun.timerId);
   session.speedRun.timerId = window.setInterval(updateTimerDisplay, TIMER_TICK_MS);
   updateTimerDisplay();
@@ -647,35 +1027,144 @@ function isTargetComplete(){
 
 function recordSpeedRun(){
   const session = state.session;
-  if(state.playMode !== "speedrun" || session.speedRun.recorded || session.speedRun.gaveUp || !isTargetComplete()) return;
+  if(state.playMode !== "speedrun" || session.speedRun.recorded || session.speedRun.gaveUp || !isTargetComplete()) return null;
   stopSpeedRun();
   const elapsed = session.speedRun.elapsedMs || getElapsedMs();
   session.speedRun.splits.all = elapsed;
   session.speedRun.recorded = true;
+  const route = buildRouteSnapshot(session.route);
+  const telemetry = buildTelemetrySnapshot(session);
+  const antiCheat = evaluateRunIntegrity(Math.round(elapsed), route, telemetry, session.pool.length);
 
   const key = getSpeedRunKey();
-  const record = state.speedRuns[key] || {bestSplits:{}, runs:[]};
-  record.bestSplits = record.bestSplits || {};
-  record.runs = Array.isArray(record.runs) ? record.runs : [];
+  const previousBest = getBestLocalRunTime(key);
 
   for(const [label, value] of Object.entries(session.speedRun.splits)){
+    const record = state.speedRuns[key] || {bestSplits:{}, runs:[]};
+    record.bestSplits = record.bestSplits || {};
     if(!record.bestSplits[label] || value < record.bestSplits[label]){
       record.bestSplits[label] = Math.round(value);
     }
+    state.speedRuns[key] = record;
   }
 
-  record.runs.push({
+  const run = {
+    playerName: sanitizePlayerName(state.playerName),
+    modeKey: key,
+    which: state.which,
+    continent: state.selectedContinent,
+    difficulty: state.hard ? "hard" : "normal",
+    targetValue: state.speedTarget,
+    targetLabel: getSpeedTargetLabel(),
     timeMs: Math.round(elapsed),
     date: new Date().toISOString(),
     correct: session.correctFirstTry,
     total: session.pool.length,
-    target: getSpeedTargetLabel()
-  });
+    target: getSpeedTargetLabel(),
+    splits: {...session.speedRun.splits},
+    route,
+    telemetry,
+    antiCheat,
+    isPersonalBest: previousBest === null || Math.round(elapsed) < previousBest,
+    relatedPersonalBestRuns: []
+  };
+  run.relatedPersonalBestRuns = buildSplitPersonalBestRuns(run);
+
+  saveLocalSpeedRun(run);
+  run.relatedPersonalBestRuns.forEach(saveLocalSpeedRun);
+  storage.set(LS_KEYS.speedRuns, state.speedRuns);
+  return run;
+}
+
+function saveLocalSpeedRun(run){
+  const record = state.speedRuns[run.modeKey] || {bestSplits:{}, runs:[]};
+  record.bestSplits = record.bestSplits || {};
+  record.runs = Array.isArray(record.runs) ? record.runs : [];
+  record.bestSplits.all = !record.bestSplits.all || run.timeMs < record.bestSplits.all
+    ? run.timeMs
+    : record.bestSplits.all;
+  record.runs.push(run);
   record.runs.sort((left,right)=>left.timeMs-right.timeMs);
   record.runs = record.runs.slice(0, MAX_LEADERBOARD_RUNS);
+  state.speedRuns[run.modeKey] = record;
+}
 
-  state.speedRuns[key] = record;
-  storage.set(LS_KEYS.speedRuns, state.speedRuns);
+function getBestLocalRunTime(key){
+  const record = state.speedRuns[key];
+  const runs = record && Array.isArray(record.runs) ? record.runs : [];
+  return runs.reduce((bestRun, run)=>{
+    const time = Number(run.timeMs);
+    if(!Number.isFinite(time)) return bestRun;
+    return bestRun === null || time < bestRun ? time : bestRun;
+  }, null);
+}
+
+function buildSplitPersonalBestRuns(sourceRun){
+  if(!sourceRun || !sourceRun.splits) return [];
+  return SPEEDRUN_SPLITS
+    .filter(split=>String(split) !== sourceRun.targetValue)
+    .filter(split=>sourceRun.splits[String(split)] && split < sourceRun.total)
+    .map(split=>buildSplitRun(sourceRun, split))
+    .filter(Boolean)
+    .filter(run=>run.isPersonalBest);
+}
+
+function buildSplitRun(sourceRun, split){
+  const timeMs = Math.round(Number(sourceRun.splits[String(split)]) || 0);
+  if(!timeMs) return null;
+  const route = getRouteForSolvedTarget(sourceRun.route, split);
+  if(!route.length) return null;
+  const key = `${sourceRun.which}_${sourceRun.continent}_${sourceRun.difficulty}_${split}`;
+  const previousBest = getBestLocalRunTime(key);
+  const telemetry = {
+    ...sourceRun.telemetry,
+    nonce: `${sourceRun.telemetry.nonce}-${split}`,
+    submittedAt: new Date().toISOString(),
+    derivedFrom: sourceRun.telemetry.nonce,
+    splitTarget: split
+  };
+  const antiCheat = evaluateRunIntegrity(timeMs, route, telemetry, split);
+  const correct = route
+    .filter(entry=>entry.solvedMs !== null)
+    .filter(entry=>(entry.wrongAttempts || 0) === 0)
+    .length;
+  return {
+    playerName: sourceRun.playerName,
+    modeKey: key,
+    which: sourceRun.which,
+    continent: sourceRun.continent,
+    difficulty: sourceRun.difficulty,
+    targetValue: String(split),
+    targetLabel: `First ${split}`,
+    timeMs,
+    date: sourceRun.date,
+    correct,
+    total: split,
+    target: `First ${split}`,
+    splits: {
+      [String(split)]: timeMs,
+      all: timeMs
+    },
+    route,
+    telemetry,
+    antiCheat,
+    isPersonalBest: previousBest === null || timeMs < previousBest,
+    derivedFromTarget: sourceRun.targetValue
+  };
+}
+
+function getRouteForSolvedTarget(route, target){
+  const result = [];
+  let solved = 0;
+  for(const entry of route){
+    const copy = {...entry, index: result.length + 1};
+    result.push(copy);
+    if(copy.solvedMs !== null){
+      solved += 1;
+      if(solved === target) break;
+    }
+  }
+  return solved === target ? result : [];
 }
 
 function getPracticeKey(){
@@ -686,8 +1175,160 @@ function getSpeedRunKey(){
   return `${state.which}_${state.selectedContinent}_${state.hard ? "hard" : "normal"}_${state.speedTarget}`;
 }
 
+function getSpeedRunFilters(){
+  return {
+    modeKey: getSpeedRunKey(),
+    which: state.which,
+    continent: state.selectedContinent,
+    difficulty: state.hard ? "hard" : "normal",
+    target: state.speedTarget,
+    targetLabel: getSpeedTargetLabel()
+  };
+}
+
 function getSpeedTargetLabel(){
   return state.speedTarget === "all" ? "All" : `First ${state.speedTarget}`;
+}
+
+function getLeaderboardService(){
+  return window.sharedLeaderboard || null;
+}
+
+function isSharedLeaderboardConfigured(){
+  const service = getLeaderboardService();
+  return !!(service && service.isConfigured && service.isConfigured());
+}
+
+function clearSharedLeaderboardMessageLater(message){
+  window.setTimeout(()=>{
+    if(state.sharedLeaderboardMessage === message){
+      state.sharedLeaderboardMessage = "";
+      renderLeaderboard();
+    }
+  }, 3500);
+}
+
+function getSharedLeaderboardErrorMessage(error){
+  const message = error && error.message ? error.message : "";
+  if(message.toLowerCase().includes("permission denied")){
+    return "Shared leaderboard database grants are missing.";
+  }
+  return message || "Shared leaderboard unavailable.";
+}
+
+async function refreshSharedLeaderboard(){
+  if(state.playMode !== "speedrun" || !isSharedLeaderboardConfigured()){
+    state.sharedLeaderboardLoading = false;
+    state.sharedLeaderboardLoadingKey = "";
+    state.sharedLeaderboardError = "";
+    state.sharedLeaderboardMessage = "";
+    state.sharedLeaderboardLastLoadedKey = "";
+    renderLeaderboard();
+    return;
+  }
+
+  const key = getSpeedRunKey();
+  if(state.sharedLeaderboardLoading && state.sharedLeaderboardLoadingKey === key) return;
+  state.sharedLeaderboardLoading = true;
+  state.sharedLeaderboardLoadingKey = key;
+  state.sharedLeaderboardError = "";
+  renderLeaderboard();
+
+  try{
+    const runs = await getLeaderboardService().fetchRuns(
+      getSpeedRunFilters(),
+      MAX_SHARED_LEADERBOARD_RUNS
+    );
+    if(getSpeedRunKey() === key){
+      state.sharedLeaderboardRuns[key] = runs;
+      state.sharedLeaderboardLastLoadedKey = key;
+    }
+  }catch(error){
+    if(getSpeedRunKey() === key){
+      state.sharedLeaderboardError = getSharedLeaderboardErrorMessage(error);
+    }
+  }finally{
+    if(state.sharedLeaderboardLoadingKey === key){
+      state.sharedLeaderboardLoading = false;
+      state.sharedLeaderboardLoadingKey = "";
+    }
+    if(getSpeedRunKey() === key) renderLeaderboard();
+  }
+}
+
+async function submitSharedSpeedRun(run){
+  if(!run || !isSharedLeaderboardConfigured()) return false;
+  state.sharedLeaderboardMessage = "Submitting shared run...";
+  state.sharedLeaderboardError = "";
+  renderLeaderboard();
+
+  try{
+    const result = await getLeaderboardService().submitRun({
+      ...run,
+      playerName: sanitizePlayerName(run.playerName),
+      target: run.targetValue,
+      targetLabel: run.targetLabel
+    });
+    const queued = result && result.status === "pending";
+    state.sharedLeaderboardMessage = queued
+      ? "Run submitted for admin review."
+      : "Shared run posted.";
+    clearSharedLeaderboardMessageLater(state.sharedLeaderboardMessage);
+    await refreshSharedLeaderboard();
+    return result || {ok:true, status:"approved"};
+  }catch(error){
+    state.sharedLeaderboardMessage = "";
+    state.sharedLeaderboardError = getSharedLeaderboardErrorMessage(error);
+    renderLeaderboard();
+    return false;
+  }
+}
+
+async function postPendingSharedRun(){
+  if(!state.pendingSharedRun || !postLeaderboardBtn) return;
+  savePlayerName();
+  rememberPostedPlayerName(state.playerName);
+  const pendingRuns = getPendingSharedRuns();
+  if(!pendingRuns.length) return;
+  postLeaderboardBtn.disabled = true;
+  if(leaderboardPublishStatus){
+    leaderboardPublishStatus.textContent = pendingRuns.length === 1
+      ? "Posting run..."
+      : `Posting ${pendingRuns.length} runs...`;
+  }
+
+  const results = [];
+  for(const run of pendingRuns){
+    const result = await submitSharedSpeedRun({
+      ...run,
+      playerName: state.playerName
+    });
+    if(!result){
+      if(leaderboardPublishStatus){
+        leaderboardPublishStatus.textContent = state.sharedLeaderboardError || "Could not post every run.";
+      }
+      postLeaderboardBtn.disabled = false;
+      return;
+    }
+    results.push(result);
+  }
+
+  if(results.length){
+    state.pendingSharedRun = null;
+    const queued = results.some(result=>result.status === "pending");
+    if(leaderboardPublishStatus){
+      const postedText = results.length === 1 ? "run" : `${results.length} runs`;
+      leaderboardPublishStatus.textContent = queued
+        ? `Submitted ${postedText}; at least one needs admin review.`
+        : `Posted ${postedText} to the shared leaderboard.`;
+    }
+    postLeaderboardBtn.textContent = queued ? "Submitted" : "Posted";
+  }
+}
+
+function getPendingSharedRuns(){
+  if(!state.pendingSharedRun) return [];
+  return Array.isArray(state.pendingSharedRun) ? state.pendingSharedRun : [state.pendingSharedRun];
 }
 
 function getSpeedRunSplitTargets(){
@@ -764,7 +1405,7 @@ function updateTimerDisplay(){
   }else if(session.speedRun.started){
     timerStatus.textContent = `Running - ${session.solved.size}/${session.pool.length} solved.`;
   }else{
-    timerStatus.textContent = "Starts on your first answer.";
+    timerStatus.textContent = "Starts when you begin typing.";
   }
 }
 
@@ -809,19 +1450,52 @@ function renderLeaderboard(){
   const modeLabel = state.which === "flags" ? "Flags" : "Capitals";
   const difficulty = state.hard ? "Hard" : "Normal";
   leaderboardTitle.textContent = `${modeLabel} - ${state.selectedContinent} - ${difficulty} - ${getSpeedTargetLabel()}`;
+  const shared = isSharedLeaderboardConfigured();
+  if(leaderboardScopeLabel){
+    leaderboardScopeLabel.textContent = shared ? "Shared Leaderboard" : "Local Leaderboard";
+  }
 
   if(state.playMode !== "speedrun"){
     leaderboardList.appendChild(emptyMini("Speedrun leaderboards are shown in Speedrun mode."));
     return;
   }
 
-  const record = state.speedRuns[getSpeedRunKey()];
-  if(!record || !record.runs || record.runs.length === 0){
-    leaderboardList.appendChild(emptyMini("No completed runs yet for this exact setup."));
+  const key = getSpeedRunKey();
+  const localRecord = state.speedRuns[key];
+  const localRuns = localRecord && Array.isArray(localRecord.runs) ? localRecord.runs : [];
+
+  if(shared && state.sharedLeaderboardLoading && state.sharedLeaderboardLoadingKey === key){
+    leaderboardList.appendChild(emptyMini("Loading shared leaderboard..."));
+  }
+
+  if(state.sharedLeaderboardMessage){
+    leaderboardList.appendChild(emptyMini(state.sharedLeaderboardMessage));
+  }
+
+  if(shared && state.sharedLeaderboardError){
+    leaderboardList.appendChild(emptyMini(`${state.sharedLeaderboardError} Showing local records.`));
+  }
+
+  const sharedRuns = state.sharedLeaderboardRuns[key] || [];
+  const runs = shared && !state.sharedLeaderboardError ? sharedRuns : localRuns;
+  const initialSharedLoad = shared
+    && state.sharedLeaderboardLoading
+    && state.sharedLeaderboardLoadingKey === key
+    && state.sharedLeaderboardLastLoadedKey !== key;
+
+  if(initialSharedLoad && !runs.length){
     return;
   }
 
-  record.runs.forEach((run,index)=>{
+  if(!runs.length){
+    const emptyText = shared && !state.sharedLeaderboardError
+      ? "No shared runs yet for this exact setup."
+      : "No completed runs yet for this exact setup.";
+    leaderboardList.appendChild(emptyMini(emptyText));
+    return;
+  }
+
+  runs.forEach((run,index)=>{
     const row = document.createElement("div");
     row.className = "leaderboard-row";
     const rank = document.createElement("strong");
@@ -830,7 +1504,8 @@ function renderLeaderboard(){
     time.textContent = formatTime(run.timeMs);
     const meta = document.createElement("span");
     const date = run.date ? new Date(run.date).toLocaleDateString() : "";
-    meta.textContent = `${run.correct}/${run.total} first-try${date ? ` - ${date}` : ""}`;
+    const player = run.playerName ? `${run.playerName} - ` : "";
+    meta.textContent = `${player}${run.correct}/${run.total} first-try${date ? ` - ${date}` : ""}`;
     row.append(rank, time, meta);
     leaderboardList.appendChild(row);
   });
@@ -846,9 +1521,13 @@ function emptyMini(text){
 function finishSession(reason){
   const session = state.session;
   if(state.playMode === "speedrun" && reason === "complete"){
-    recordSpeedRun();
+    const run = recordSpeedRun();
+    state.lastCompletedRun = run;
+    state.pendingSharedRun = buildPendingSharedRuns(run);
   }else{
     stopSpeedRun();
+    state.pendingSharedRun = null;
+    state.lastCompletedRun = null;
   }
 
   if(state.playMode === "practice" && reason === "complete"){
@@ -859,6 +1538,16 @@ function finishSession(reason){
   disableInputs();
   updateAllStatus();
   showResultModal(reason);
+}
+
+function buildPendingSharedRuns(run){
+  if(!run) return null;
+  const candidates = [
+    run,
+    ...(Array.isArray(run.relatedPersonalBestRuns) ? run.relatedPersonalBestRuns : [])
+  ];
+  const pending = candidates.filter(item=>item.isPersonalBest && item.antiCheat && item.antiCheat.eligible);
+  return pending.length ? pending : null;
 }
 
 function recordPracticePercentage(){
@@ -928,9 +1617,62 @@ function showResultModal(reason){
     resultDetails.appendChild(wrong);
   }
 
+  renderLeaderboardPublishPrompt(reason);
   resultModal.classList.add("is-visible");
   resultModal.setAttribute("aria-hidden", "false");
-  resultRetry.focus();
+  if(leaderboardPublish && !leaderboardPublish.hidden && resultPlayerNameInput && !resultPlayerNameInput.hidden){
+    resultPlayerNameInput.focus();
+  }else{
+    resultRetry.focus();
+  }
+}
+
+function renderLeaderboardPublishPrompt(reason){
+  if(!leaderboardPublish) return;
+  leaderboardPublish.hidden = true;
+  if(postLeaderboardBtn){
+    postLeaderboardBtn.disabled = false;
+    postLeaderboardBtn.textContent = "Post to leaderboard";
+  }
+  if(leaderboardPublishStatus) leaderboardPublishStatus.textContent = "";
+  if(leaderboardPublishRow) leaderboardPublishRow.hidden = false;
+
+  if(reason !== "complete" || state.playMode !== "speedrun") return;
+
+  if(state.lastCompletedRun && state.lastCompletedRun.isPersonalBest && !state.pendingSharedRun){
+    leaderboardPublish.hidden = false;
+    if(leaderboardPublishTitle){
+      const blockers = state.lastCompletedRun.antiCheat && state.lastCompletedRun.antiCheat.blockers
+        ? state.lastCompletedRun.antiCheat.blockers.join(", ")
+        : "run validation failed";
+      leaderboardPublishTitle.textContent = `New personal best saved locally. Shared posting blocked: ${blockers}.`;
+    }
+    if(leaderboardPublishRow) leaderboardPublishRow.hidden = true;
+    return;
+  }
+
+  const pendingRuns = getPendingSharedRuns();
+  if(!pendingRuns.length) return;
+
+  if(!isSharedLeaderboardConfigured()){
+    leaderboardPublish.hidden = false;
+    if(leaderboardPublishTitle){
+      leaderboardPublishTitle.textContent = "New personal best saved locally. Shared leaderboard is not configured.";
+    }
+    if(leaderboardPublishRow) leaderboardPublishRow.hidden = true;
+    return;
+  }
+
+  leaderboardPublish.hidden = false;
+  if(leaderboardPublishTitle){
+    const count = pendingRuns.length;
+    leaderboardPublishTitle.textContent = count === 1
+      ? "New personal best. Post this run to the shared leaderboard?"
+      : `${count} new personal bests from this route. Post them to the shared leaderboard?`;
+  }
+  if(resultPlayerNameInput){
+    resultPlayerNameInput.value = state.playerName;
+  }
 }
 
 function renderResultHero(items){
@@ -963,6 +1705,7 @@ function getResultTitle(reason){
 function closeResultModal(){
   resultModal.classList.remove("is-visible");
   resultModal.setAttribute("aria-hidden", "true");
+  if(leaderboardPublish) leaderboardPublish.hidden = true;
 }
 
 function setFeedback(text, ok){

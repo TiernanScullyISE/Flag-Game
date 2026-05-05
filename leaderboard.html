@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Leaderboard - Flag & Capital Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header with-nav">
+    <a class="brand" href="index.html">Flag & Capital Quiz</a>
+    <nav class="top-nav">
+      <a class="nav-link" href="game.html">Play</a>
+      <a class="nav-link active" href="leaderboard.html">Leaderboard</a>
+      <a class="nav-link" href="revise.html">Revision</a>
+      <a class="nav-link" href="view.html">All</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="page-intro">
+      <p class="section-kicker">Shared leaderboard</p>
+      <h1>Top five speedrun times for each category.</h1>
+    </section>
+
+    <section class="toolbar leaderboard-toolbar">
+      <div class="control">
+        <label for="leaderboard-mode">Mode</label>
+        <select id="leaderboard-mode">
+          <option value="all">All modes</option>
+          <option value="flags">Flags</option>
+          <option value="capitals">Capitals</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="leaderboard-continent">Continent</label>
+        <select id="leaderboard-continent"></select>
+      </div>
+      <div class="control">
+        <label for="leaderboard-target">Target</label>
+        <select id="leaderboard-target">
+          <option value="all-targets">All targets</option>
+          <option value="10">First 10</option>
+          <option value="25">First 25</option>
+          <option value="50">First 50</option>
+          <option value="100">First 100</option>
+          <option value="150">First 150</option>
+          <option value="all">All available</option>
+        </select>
+      </div>
+      <div class="control compact-control">
+        <label class="checkbox">
+          <input type="checkbox" id="leaderboard-with-scores" />
+          <span>With scores</span>
+        </label>
+      </div>
+      <button id="leaderboard-refresh" class="btn subtle" type="button">Refresh</button>
+    </section>
+
+    <section id="leaderboard-page-status" class="leaderboard-page-status" aria-live="polite"></section>
+    <section id="leaderboard-page-grid" class="leaderboard-page-grid" aria-live="polite"></section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Only speedrun PBs that players choose to post appear here.</p>
+  </footer>
+
+  <script src="data.js" defer></script>
+  <script src="leaderboard-config.js" defer></script>
+  <script src="leaderboard.js" defer></script>
+  <script src="leaderboard-page.js" defer></script>
+</body>
+</html>
