@@ -165,7 +165,7 @@ const alpha2Overrides = {
 };
 
 const countryAliases = {
-  "United States":["usa","us","america","united states of america"],
+  "United States":["usa","america","united states of america"],
   "Vatican City":["vatican"],
   "Saint Vincent and the Grenadines":["st vincent","saint vincent"],
   "United Kingdom":["uk","gb","great britain","britain"],

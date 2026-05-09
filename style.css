@@ -426,10 +426,23 @@ body[data-play-mode="speedrun"] .practice-only{
   display:none!important;
 }
 
+body[data-quiz-mode="world"] .hard-control,
+body[data-quiz-mode="world"] #revise-toggle,
+body[data-quiz-mode="world"] #mcq,
+body[data-quiz-mode="world"] #country-label,
+body[data-quiz-mode="world"] #last-btn,
+body[data-quiz-mode="world"] #next-btn{
+  display:none!important;
+}
+
 .game-sidebar .segment-switch{
   display:grid;
-  grid-template-columns:1fr 1fr;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:8px;
+}
+
+.game-sidebar .quiz-switch{
+  grid-template-columns:repeat(3, minmax(0, 1fr));
 }
 
 .game-sidebar .segment{
@@ -616,6 +629,29 @@ body[data-play-mode="speedrun"] .practice-only{
   background:rgba(189,63,63,.88);
 }
 
+.answer-flash.is-world-flash{
+  inset:12px auto auto 12px;
+  min-width:86px;
+  min-height:34px;
+  width:auto;
+  height:auto;
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:.9rem;
+  letter-spacing:0;
+  line-height:1;
+  text-transform:none;
+  box-shadow:0 8px 18px rgba(16,24,32,.22);
+}
+
+.answer-flash.is-world-flash.is-correct{
+  background:rgba(31,139,109,.94);
+}
+
+.answer-flash.is-world-flash.is-incorrect{
+  background:rgba(189,63,63,.94);
+}
+
 .question-stage{
   position:relative;
   margin:10px;
@@ -651,6 +687,172 @@ body[data-play-mode="speedrun"] .practice-only{
   background:#fff;
   padding:0;
   box-shadow:0 18px 36px rgba(23,32,41,.24);
+}
+
+.world-map-shell{
+  position:relative;
+  width:100%;
+  min-height:100%;
+  display:grid;
+  place-items:center;
+  padding:4px;
+}
+
+.world-map-shell svg{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:100%;
+}
+
+.world-map-ocean{
+  fill:#bfd5dc;
+}
+
+.world-map-panel-bg{
+  fill:#c8dde2;
+  stroke:#172029;
+  stroke-width:1.4;
+}
+
+.world-map-panel-main .world-map-panel-bg{
+  fill:#c8dde2;
+}
+
+.world-map-panel-label{
+  fill:#172029;
+  font-family:"Space Grotesk", sans-serif;
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:0;
+  paint-order:stroke;
+  stroke:rgba(255,249,238,.86);
+  stroke-width:3px;
+}
+
+.world-map-country{
+  fill:#fff4db;
+  stroke:#101820;
+  stroke-width:.95;
+  vector-effect:non-scaling-stroke;
+  pointer-events:none;
+}
+
+.world-map-country.is-active{
+  fill:#fffdf7;
+  stroke:#bb650d;
+  stroke-width:1.65;
+}
+
+.world-map-country.is-muted,
+.world-map-country.is-context{
+  fill:#e5ece6;
+  stroke:#43515a;
+  stroke-width:.72;
+}
+
+.world-map-country.is-solved{
+  stroke:rgba(16,24,32,.62);
+  stroke-width:1.45;
+}
+
+.world-map-country.is-just-solved{
+  stroke:var(--gold);
+  stroke-width:4.2;
+  opacity:1;
+}
+
+.world-map-marker-layer,
+.world-map-small-marker{
+  pointer-events:none;
+}
+
+.world-map-marker-halo{
+  fill:rgba(255,249,238,.9);
+  stroke:rgba(187,101,13,.24);
+  stroke-width:1.4;
+}
+
+.world-map-marker-ring{
+  fill:rgba(255,253,247,.96);
+  stroke:#bb650d;
+  stroke-width:2.35;
+}
+
+.world-map-small-marker.is-muted{
+  opacity:.25;
+}
+
+.world-map-small-marker.is-solved{
+  opacity:0;
+}
+
+.world-map-progress{
+  position:absolute;
+  right:14px;
+  top:12px;
+  min-width:166px;
+  max-width:min(280px, calc(100% - 28px));
+  padding:8px 10px;
+  border:1px solid rgba(23,32,41,.16);
+  border-radius:12px;
+  background:rgba(255,249,238,.92);
+  color:var(--ink);
+  font-family:"Space Grotesk", sans-serif;
+  font-size:.78rem;
+  font-weight:800;
+  box-shadow:0 8px 18px rgba(23,32,41,.12);
+  pointer-events:none;
+}
+
+.world-map-progress-total{
+  margin-bottom:4px;
+  font-size:.92rem;
+  line-height:1.05;
+}
+
+.world-map-progress-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:3px 10px;
+}
+
+.world-map-progress-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-width:0;
+  line-height:1.05;
+  color:var(--ink-soft);
+}
+
+.world-map-progress-item span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.world-map-progress-item strong{
+  color:var(--ink);
+}
+
+.world-map-progress-item.is-empty{
+  opacity:.45;
+}
+
+.world-map-status{
+  width:100%;
+  min-height:520px;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  border:1px dashed rgba(23,32,41,.28);
+  border-radius:18px;
+  color:var(--ink-soft);
+  background:rgba(255,249,238,.58);
+  text-align:center;
+  font-weight:800;
 }
 
 .flag-fallback{
@@ -1237,6 +1439,67 @@ body[data-play-mode="speedrun"] .practice-only{
   font-size:.9rem;
 }
 
+body[data-quiz-mode="world"] .game-container{
+  width:min(1840px, 100%);
+  padding-left:10px;
+  padding-right:10px;
+  padding-bottom:8px;
+}
+
+body[data-quiz-mode="world"] .game-intro{
+  display:none;
+}
+
+body[data-quiz-mode="world"] .game-layout{
+  grid-template-columns:minmax(226px, 306px) minmax(0, 1fr);
+  gap:8px;
+}
+
+body[data-quiz-mode="world"] .game-sidebar{
+  gap:8px;
+}
+
+body[data-quiz-mode="world"] .game-sidebar .segment{
+  min-height:34px;
+  padding:6px 8px;
+  font-size:.86rem;
+}
+
+body[data-quiz-mode="world"] .game-sidebar .toolbar{
+  grid-template-columns:1fr;
+}
+
+body[data-quiz-mode="world"] .question-stage{
+  margin:6px;
+}
+
+body[data-quiz-mode="world"] .question-visual{
+  min-height:640px;
+  height:calc(100vh - 218px);
+  max-height:860px;
+  place-items:stretch;
+  border-radius:18px;
+  background:#d7e6ea;
+}
+
+body[data-quiz-mode="world"] .text-answer{
+  padding:0 6px 6px;
+}
+
+body[data-quiz-mode="world"] .feedback,
+body[data-quiz-mode="world"] .revise-feedback{
+  margin-left:8px;
+  margin-right:8px;
+}
+
+body[data-quiz-mode="world"] .stats{
+  padding:0 6px 6px;
+}
+
+body[data-quiz-mode="world"] .nav-row{
+  padding:0 6px 6px;
+}
+
 @media (max-width:900px){
   .site-header.with-nav{align-items:flex-start;flex-direction:column}
   .top-nav{justify-content:flex-start}
@@ -1244,6 +1507,8 @@ body[data-play-mode="speedrun"] .practice-only{
   .home-panel > div:first-child{grid-column:1 / -1}
   .grid-3{grid-template-columns:1fr}
   .game-layout{grid-template-columns:1fr}
+  body[data-quiz-mode="world"] .game-layout{grid-template-columns:1fr}
+  body[data-quiz-mode="world"] .question-visual{height:auto;min-height:520px}
   .speedrun-panel{grid-template-columns:1fr}
 }
 
@@ -1272,6 +1537,7 @@ body[data-play-mode="speedrun"] .practice-only{
   .text-answer{flex-direction:column}
   .question-stage{margin:8px}
   .question-visual{min-height:210px}
+  body[data-quiz-mode="world"] .question-visual{min-height:430px}
   .flag-holder{min-height:210px;padding:8px}
   .question-visual img{height:200px}
   .stats{grid-template-columns:1fr}

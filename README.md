@@ -4,13 +4,14 @@
 
 A geography quiz with two front ends:
 
-- **GitHub Pages static site**: browser-based flag and capital quizzes, revision lists, hard mode, streaks and speedrun leaderboards.
+- **GitHub Pages static site**: browser-based flag, capital and world-map country quizzes, revision lists, hard mode, streaks and speedrun leaderboards.
 - **Tkinter desktop app**: the same quiz modes and persistence model using local text files.
 
 ## Features
 
-- Flag quiz and capital quiz.
+- Flag quiz, capital quiz and a typed country-map mode.
 - Normal multiple-choice mode and hard typed-answer mode.
+- World-map mode highlights solved countries with flag fills and includes zoomed inset panels for compact regions.
 - Continent filters plus separate flag and capital revision lists.
 - Current streak, per-mode high streak and best session percentage.
 - Shared speedrun leaderboard support through Supabase, with local fallback and PB-only opt-in posting.
@@ -20,6 +21,7 @@ A geography quiz with two front ends:
 - Server-validated leaderboard submissions using Supabase Edge Functions, row-level security and database-side integrity checks.
 - "Next", "Last" and "Give Up" session controls.
 - Direct FlagCDN image loading through a complete local alpha-2 country-code map.
+- Country outline rendering uses Natural Earth-derived `world-atlas` TopoJSON from jsDelivr.
 
 ## Architecture Highlights
 

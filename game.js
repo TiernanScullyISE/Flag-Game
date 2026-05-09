@@ -5,6 +5,172 @@ const MAX_LEADERBOARD_RUNS = 5;
 const MAX_SHARED_LEADERBOARD_RUNS = 5;
 const LEADERBOARD_REFRESH_MS = 30000;
 const MIN_SOLVED_QUESTION_MS = 180;
+const WORLD_MAP_TOPOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
+const WORLD_MAP_WIDTH = 1440;
+const WORLD_MAP_HEIGHT = 760;
+const WORLD_MAP_MAIN_BOUNDS = [-180, -58, 180, 84];
+const WORLD_MAP_FLAG_FILL_IDLE_TIMEOUT_MS = 1000;
+const WORLD_MAP_FLAG_FILL_FALLBACK_MS = 180;
+const WORLD_MAP_PANELS = [
+  {id:"main", label:"World", x:0, y:0, width:1440, height:492},
+  {id:"europe", label:"Europe detail", x:8, y:508, width:270, height:236, bounds:[-15, 34, 45, 72]},
+  {id:"caribbean", label:"Caribbean detail", x:286, y:508, width:250, height:236, bounds:[-91, 7, -58, 29]},
+  {id:"westafrica", label:"West Africa detail", x:544, y:508, width:290, height:236, bounds:[-20, -6, 18, 20]},
+  {id:"gulf", label:"Gulf detail", x:842, y:508, width:190, height:236, bounds:[32, 11, 60, 34]},
+  {id:"seasia", label:"SE Asia detail", x:1040, y:508, width:210, height:236, bounds:[94, -12, 132, 24]},
+  {id:"oceania", label:"Oceania detail", x:1258, y:508, width:174, height:236, bounds:[112, -49, 205, 16]}
+];
+const WORLD_MAP_CONTINENT_BOUNDS = {
+  "Africa":[-20, -36, 55, 38],
+  "Asia":[25, -12, 190, 82],
+  "Europe":[-25, 34, 45, 72],
+  "North America":[-170, 5, -50, 84],
+  "South America":[-83, -56, -34, 14],
+  "Oceania":[95, -50, 205, 25]
+};
+const WORLD_MAP_COUNTRY_CONTINENTS = {
+  "Russia":["Europe", "Asia"]
+};
+const WORLD_MAP_SMALL_MARKER_COUNTRIES = new Set([
+  "Andorra",
+  "Antigua and Barbuda",
+  "Bahrain",
+  "Barbados",
+  "Brunei",
+  "Cabo Verde",
+  "Comoros",
+  "Dominica",
+  "Equatorial Guinea",
+  "Grenada",
+  "Kiribati",
+  "Liechtenstein",
+  "Luxembourg",
+  "Maldives",
+  "Malta",
+  "Marshall Islands",
+  "Mauritius",
+  "Micronesia",
+  "Monaco",
+  "Nauru",
+  "Palau",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "São Tomé and Príncipe",
+  "Seychelles",
+  "Singapore",
+  "The Gambia",
+  "Tonga",
+  "Tuvalu",
+  "Vatican City"
+]);
+const WORLD_MAP_CONTINENT_ORDER = ["Africa", "Asia", "Europe", "North America", "South America", "Oceania"];
+const WORLD_MAP_CONTINENT_SHORT_LABELS = {
+  "Africa":"Afr",
+  "Asia":"Asia",
+  "Europe":"Eur",
+  "North America":"N Am",
+  "South America":"S Am",
+  "Oceania":"Oce"
+};
+
+const WORLD_MAP_ID_OVERRIDES = {
+  "070":"Bosnia and Herzegovina",
+  "132":"Cabo Verde",
+  "140":"Central African Republic",
+  "178":"Republic of the Congo",
+  "180":"Democratic Republic of the Congo",
+  "203":"Czechia",
+  "214":"Dominican Republic",
+  "226":"Equatorial Guinea",
+  "336":"Vatican City",
+  "384":"Ivory Coast",
+  "584":"Marshall Islands",
+  "659":"Saint Kitts and Nevis",
+  "670":"Saint Vincent and the Grenadines",
+  "678":"São Tomé and Príncipe",
+  "728":"South Sudan",
+  "748":"Eswatini",
+  "792":"Türkiye",
+  "807":"North Macedonia",
+  "840":"United States"
+};
+
+const WORLD_MAP_NAME_OVERRIDES = {
+  "Antigua and Barb.":"Antigua and Barbuda",
+  "Bosnia and Herz.":"Bosnia and Herzegovina",
+  "Cape Verde":"Cabo Verde",
+  "Central African Rep.":"Central African Republic",
+  "Congo":"Republic of the Congo",
+  "Czech Republic":"Czechia",
+  "Dem. Rep. Congo":"Democratic Republic of the Congo",
+  "Dominican Rep.":"Dominican Republic",
+  "Eq. Guinea":"Equatorial Guinea",
+  "eSwatini":"Eswatini",
+  "Gambia":"The Gambia",
+  "Ivory Coast":"Ivory Coast",
+  "Macedonia":"North Macedonia",
+  "Marshall Is.":"Marshall Islands",
+  "S. Sudan":"South Sudan",
+  "Sao Tome and Principe":"São Tomé and Príncipe",
+  "Solomon Is.":"Solomon Islands",
+  "St. Kitts and Nevis":"Saint Kitts and Nevis",
+  "St. Vin. and Gren.":"Saint Vincent and the Grenadines",
+  "Turkey":"Türkiye",
+  "United States of America":"United States",
+  "Vatican":"Vatican City"
+};
+
+const WORLD_MAP_CONTEXT_FEATURES = {
+  "304": {name:"Greenland", continent:"North America", ownerCountry:"Denmark"}
+};
+
+const WORLD_MAP_CONTEXT_NAME_OVERRIDES = {
+  "Greenland": {name:"Greenland", continent:"North America", ownerCountry:"Denmark"}
+};
+
+const WORLD_COUNTRY_EXTRA_ALIASES = {
+  "Bahamas":["the bahamas"],
+  "Cabo Verde":["cape verde"],
+  "Czechia":["czech republic"],
+  "Eswatini":["swaziland"],
+  "Ivory Coast":["cote d ivoire","cote divoire"],
+  "Myanmar":["burma"],
+  "Palestine":["palestinian territories"],
+  "São Tomé and Príncipe":["sao tome","sao","sao tome and principe"],
+  "Türkiye":["turkey","turkiye"]
+};
+
+const WORLD_COUNTRY_EXTRA_ALIAS_CODES = {
+  bs:["the bahamas"],
+  cv:["cape verde"],
+  cz:["czech republic"],
+  sz:["swaziland"],
+  ci:["cote d ivoire","cote divoire"],
+  mm:["burma"],
+  ps:["palestinian territories"],
+  st:["sao tome","sao","sao tome and principe"],
+  tr:["turkey","turkiye"]
+};
+
+const worldMapState = {
+  features: null,
+  loadPromise: null,
+  error: "",
+  renderToken: 0,
+  defs: null,
+  progress: null,
+  pathElementsByCountry: new Map(),
+  markerElementsByCountry: new Map(),
+  pendingSolvedCountries: new Set(),
+  pendingFlagFillCountries: new Set(),
+  updateFrameId: 0,
+  flagFillTimerId: 0
+};
+
+let countryAnswerIndex = null;
 
 const state = {
   playMode: "practice",
@@ -54,6 +220,9 @@ function makeSession(){
     route: [],
     currentRouteIndex: -1,
     security: makeSecurityTelemetry(),
+    worldAnswerStartedMs: null,
+    worldLastSolvedMs: 0,
+    worldWrongSubmissions: 0,
     speedRun: {
       started: false,
       startMs: 0,
@@ -161,6 +330,10 @@ function init(){
       if(state.which === button.dataset.mode) return;
       state.which = button.dataset.mode;
       state.selectedContinent = "All";
+      if(isWorldMode()){
+        state.hard = true;
+        state.speedTarget = "all";
+      }
       syncModeButtons();
       populateContinents();
       populateSpeedTargets();
@@ -212,8 +385,8 @@ function init(){
     }
   });
   answerInput.addEventListener("keydown", recordAnswerKey);
-  answerInput.addEventListener("input", checkAutoSubmitText);
   answerInput.addEventListener("input", recordAnswerInput);
+  answerInput.addEventListener("input", checkAutoSubmitText);
   answerInput.addEventListener("paste", recordPasteAttempt);
   document.addEventListener("pointerdown", recordPointerActivity, {passive:true});
   window.addEventListener("blur", recordFocusLoss);
@@ -335,6 +508,12 @@ function recordAnswerInput(){
   if(!isActiveSpeedRun()) return;
   const security = state.session.security;
   security.inputEvents += 1;
+  if(isWorldMode()){
+    if(answerInput.value.trim() && state.session.worldAnswerStartedMs === null){
+      state.session.worldAnswerStartedMs = Math.round(getElapsedMs());
+    }
+    return;
+  }
   const entry = getCurrentRouteEntry();
   if(entry){
     entry.inputEvents = (entry.inputEvents || 0) + 1;
@@ -378,20 +557,21 @@ function keepAnswerInputFocused(){
 }
 
 function syncModeButtons(){
-  if(state.playMode === "speedrun") state.hard = true;
+  if(state.playMode === "speedrun" || isWorldMode()) state.hard = true;
   document.body.dataset.playMode = state.playMode;
+  document.body.dataset.quizMode = state.which;
   playModeButtons.forEach(button=>button.classList.toggle("active", button.dataset.playMode === state.playMode));
   quizButtons.forEach(button=>button.classList.toggle("active", button.dataset.mode === state.which));
   hardToggle.checked = state.hard;
-  hardToggle.disabled = state.playMode === "speedrun";
-  hardLabel.textContent = state.playMode === "speedrun" ? "Hard mode required" : "Hard mode";
+  hardToggle.disabled = state.playMode === "speedrun" || isWorldMode();
+  hardLabel.textContent = state.playMode === "speedrun" || isWorldMode() ? "Typing required" : "Hard mode";
   lifeSelect.value = state.lifeSetting;
   speedTargetSelect.value = state.speedTarget;
 }
 
 function populateContinents(){
   const continents = Array.from(new Set(Object.values(countryContinent))).sort();
-  const options = state.playMode === "speedrun"
+  const options = state.playMode === "speedrun" || isWorldMode()
     ? ["All", ...continents]
     : state.which === "flags"
       ? ["All", ...continents, "Revise"]
@@ -411,10 +591,14 @@ function populateContinents(){
 function populateSpeedTargets(){
   const max = getAvailableBasePool().length;
   const previous = state.speedTarget;
-  const targets = SPEEDRUN_SPLITS
-    .filter(split=>split <= max)
-    .map(split=>({value:String(split), label:`First ${split}`}));
-  targets.push({value:"all", label:`All available (${max})`});
+  const targets = isWorldMode()
+    ? [{value:"all", label:`All available (${max})`}]
+    : SPEEDRUN_SPLITS
+      .filter(split=>split <= max)
+      .map(split=>({value:String(split), label:`First ${split}`}));
+  if(!targets.some(target=>target.value === "all")){
+    targets.push({value:"all", label:`All available (${max})`});
+  }
 
   speedTargetSelect.innerHTML = "";
   for(const target of targets){
@@ -430,7 +614,7 @@ function populateSpeedTargets(){
 
 function getAvailableBasePool(){
   if(state.selectedContinent === "All") return [...countries];
-  return countries.filter(country=>countryContinent[country]===state.selectedContinent);
+  return countries.filter(country=>countryIsInCurrentContinent(country, state.selectedContinent));
 }
 
 function resetSession(){
@@ -465,7 +649,7 @@ function buildPool(){
   }else if(state.selectedContinent === "All"){
     pool = [...countries];
   }else{
-    pool = countries.filter(country=>countryContinent[country]===state.selectedContinent);
+    pool = countries.filter(country=>countryIsInCurrentContinent(country, state.selectedContinent));
   }
 
   shuffle(pool);
@@ -488,6 +672,11 @@ async function loadQuestion(){
     session.pool = buildPool();
   }
 
+  if(isWorldMode()){
+    await loadWorldMapRound();
+    return;
+  }
+
   const candidates = getQuestionCandidates();
   if(candidates.length === 0){
     if(session.solved.size > 0 || session.totalFirstAttempts > 0){
@@ -506,6 +695,7 @@ async function loadQuestion(){
   session.currentWrongAttempts = 0;
   session.history.push(session.correctCountry);
   recordRouteQuestion(session.correctCountry);
+  answerInput.placeholder = "Type your answer...";
 
   await renderFlag(session.correctCountry);
   countryLabel.textContent = state.which === "capitals"
@@ -548,6 +738,36 @@ async function renderFlag(country){
   holder.replaceChildren(img);
 }
 
+async function loadWorldMapRound(){
+  const session = state.session;
+  if(!session.pool.length){
+    renderEmpty();
+    updateAllStatus();
+    return;
+  }
+
+  session.correctCountry = null;
+  session.correctAnswer = null;
+  session.questionAnswered = false;
+  session.currentWrongAttempts = 0;
+  countryLabel.textContent = "";
+  answerInput.placeholder = state.selectedContinent === "All"
+    ? "Type any country..."
+    : `Type any ${state.selectedContinent} country...`;
+  mcqBtns.forEach(button=>{ button.textContent = ""; button.disabled = true; });
+
+  await renderWorldMap();
+  updateAllStatus();
+
+  answerInput.value = "";
+  answerInput.disabled = false;
+  submitBtn.disabled = false;
+  lastBtn.disabled = true;
+  nextBtn.disabled = true;
+  giveupBtn.disabled = false;
+  answerInput.focus();
+}
+
 function renderEmpty(){
   questionVisual.innerHTML = "";
   const empty = document.createElement("div");
@@ -562,12 +782,12 @@ function renderEmpty(){
 
 function recordRouteQuestion(country){
   const session = state.session;
-  if(state.playMode !== "speedrun" || !country) return;
+  if(state.playMode !== "speedrun" || isWorldMode() || !country) return;
   const entry = {
     index: session.route.length + 1,
     country,
     continent: countryContinent[country] || "Unknown",
-    answer: state.which === "flags" ? country : countryCapitals[country] || "Unknown",
+    answer: getExpectedAnswerForMode(country),
     shownMs: Math.round(getElapsedMs()),
     firstInputMs: null,
     firstSubmitMs: null,
@@ -639,6 +859,7 @@ function buildTelemetrySnapshot(session){
 function evaluateRunIntegrity(elapsed, route, telemetry, total){
   const blockers = [];
   const warnings = [];
+  const isWorldRun = isWorldMode();
   const solvedRoute = route.filter(entry=>entry.solvedMs !== null);
   const minExpectedMs = getMinimumExpectedRunMs(solvedRoute);
   const fastestQuestionMs = solvedRoute.reduce((fastest, entry)=>{
@@ -655,7 +876,7 @@ function evaluateRunIntegrity(elapsed, route, telemetry, total){
   if(route.length === 0) blockers.push("missing-route");
   if(solvedRoute.length !== total) blockers.push("route-total-mismatch");
   if(elapsed < minExpectedMs) blockers.push("run-too-fast-for-typed-answers");
-  if(impossibleEntries.length) blockers.push("instant-answer-events");
+  if(!isWorldRun && impossibleEntries.length) blockers.push("instant-answer-events");
   if(noInputEntries.length) blockers.push("answers-without-input-events");
   if(telemetry.pasteEvents > 0) blockers.push("paste-detected");
   if(telemetry.hiddenEvents > 0) blockers.push("tab-hidden-during-run");
@@ -694,8 +915,9 @@ function hashRunRoute(route){
 }
 
 function toggleAnswerUi(){
-  mcq.style.display = state.hard ? "none" : "grid";
-  textWrap.style.display = state.hard ? "flex" : "none";
+  const typedOnly = state.hard || isWorldMode();
+  mcq.style.display = typedOnly ? "none" : "grid";
+  textWrap.style.display = typedOnly ? "flex" : "none";
 }
 
 function setupMcq(){
@@ -750,6 +972,10 @@ function checkMcq(index){
 
 function checkAutoSubmitText(){
   const session = state.session;
+  if(isWorldMode()){
+    checkAutoSubmitWorldText();
+    return;
+  }
   if(session.gameOver || !session.correctCountry || !state.hard) return;
   if(session.solved.has(session.correctCountry)) return;
   const value = answerInput.value.trim();
@@ -760,6 +986,10 @@ function checkAutoSubmitText(){
 
 function checkText(options={}){
   const session = state.session;
+  if(isWorldMode()){
+    checkWorldMapText(options);
+    return;
+  }
   if(session.gameOver || !session.correctCountry) return;
   if(session.solved.has(session.correctCountry)) return;
   const value = answerInput.value.trim();
@@ -782,6 +1012,187 @@ function checkText(options={}){
   answerInput.select();
 }
 
+function checkAutoSubmitWorldText(){
+  const session = state.session;
+  if(session.gameOver || !state.hard || !session.pool.length) return;
+  const value = answerInput.value.trim();
+  if(!value) return;
+  const result = evaluateWorldCountryAnswer(value, false);
+  if(result.country && result.inPool && !result.alreadySolved){
+    checkWorldMapText({allowFuzzy:false});
+  }
+}
+
+function checkWorldMapText(options={}){
+  const session = state.session;
+  if(session.gameOver || !session.pool.length) return;
+  const value = answerInput.value.trim();
+  if(!value) return;
+
+  ensureSpeedRunStarted();
+  const result = evaluateWorldCountryAnswer(value, options.allowFuzzy !== false);
+  if(result.country && result.inPool && !result.alreadySolved){
+    handleWorldCorrect(result.country, result.fuzzy ? "Correct! (Close enough)" : "Correct!");
+    return;
+  }
+
+  if(result.country && result.alreadySolved){
+    setFeedback(`${result.country} is already on the map.`, true);
+    answerInput.value = "";
+    state.session.worldAnswerStartedMs = null;
+    keepAnswerInputFocused();
+    return;
+  }
+
+  if(result.country && !result.inPool){
+    setFeedback(`${result.country} is not in this round.`, false);
+    answerInput.select();
+    return;
+  }
+
+  handleWorldIncorrect();
+  answerInput.select();
+}
+
+function evaluateWorldCountryAnswer(value, allowFuzzy=true){
+  const normalised = normalise(value);
+  const session = state.session;
+  const exactCountry = getCountryAnswerIndex().get(normalised) || null;
+  const country = exactCountry || (allowFuzzy ? getUniqueFuzzyWorldCountry(value) : null);
+  const inPool = !!country && session.pool.includes(country);
+  return {
+    country,
+    exact: !!exactCountry,
+    fuzzy: !!country && !exactCountry,
+    inPool,
+    alreadySolved: !!country && session.solved.has(country)
+  };
+}
+
+function getUniqueFuzzyWorldCountry(value){
+  const candidates = state.session.pool
+    .filter(country=>!state.session.solved.has(country))
+    .filter(country=>fuzzyMatch(value, country));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+function getCountryAnswerIndex(){
+  if(countryAnswerIndex) return countryAnswerIndex;
+  countryAnswerIndex = new Map();
+  for(const country of countries){
+    addCountryAnswerIndexValue(countryAnswerIndex, country, country);
+    for(const alias of countryAliases[country] || []){
+      addCountryAnswerIndexValue(countryAnswerIndex, alias, country);
+    }
+    for(const alias of WORLD_COUNTRY_EXTRA_ALIASES[country] || []){
+      addCountryAnswerIndexValue(countryAnswerIndex, alias, country);
+    }
+    const code = (alpha2Overrides[country] || "").toLowerCase();
+    for(const alias of WORLD_COUNTRY_EXTRA_ALIAS_CODES[code] || []){
+      addCountryAnswerIndexValue(countryAnswerIndex, alias, country);
+    }
+  }
+  return countryAnswerIndex;
+}
+
+function addCountryAnswerIndexValue(index, value, country){
+  const key = normalise(value);
+  if(key && !index.has(key)) index.set(key, country);
+}
+
+function handleWorldCorrect(country, message="Correct!"){
+  const session = state.session;
+  registerWorldCorrect(country);
+  setFeedback(`${message} ${country} filled in.`, true);
+  showAnswerFlash(true);
+  recordWorldRouteSolved(country);
+  markWorldSolved(country);
+  answerInput.value = "";
+  session.worldAnswerStartedMs = null;
+  keepAnswerInputFocused();
+  updateHighScore();
+  updateWorldAnswerStatus();
+  scheduleWorldMapCountrySolved(country);
+
+  window.setTimeout(()=>{
+    if(isTargetComplete()){
+      finishSession("complete");
+    }
+  }, ANSWER_FLASH_MS);
+}
+
+function registerWorldCorrect(country){
+  const session = state.session;
+  if(state.playMode === "speedrun") startSpeedRun();
+  if(!session.answered.has(country)){
+    session.totalFirstAttempts += 1;
+    session.correctFirstTry += 1;
+    session.answered.add(country);
+  }
+  session.streak += 1;
+  session.questionAnswered = true;
+}
+
+function handleWorldIncorrect(){
+  const session = state.session;
+  if(state.playMode === "speedrun") startSpeedRun();
+  session.currentWrongAttempts += 1;
+  session.worldWrongSubmissions += 1;
+  session.streak = 0;
+  if(state.playMode === "practice"){
+    session.totalFirstAttempts += 1;
+  }
+  setFeedback("No matching country in this round.", false);
+  showAnswerFlash(false);
+
+  if(state.playMode === "practice"){
+    loseLife();
+    if(session.gameOver){
+      window.setTimeout(()=>finishSession("gameover"), ANSWER_FLASH_MS);
+      return;
+    }
+  }
+  updateWorldAnswerStatus();
+}
+
+function markWorldSolved(country){
+  const session = state.session;
+  if(!country || session.solved.has(country)) return;
+  session.solved.add(country);
+  session.skipped.delete(country);
+  session.worldLastSolvedMs = Math.round(getElapsedMs());
+  captureSpeedRunSplit();
+}
+
+function recordWorldRouteSolved(country){
+  const session = state.session;
+  if(state.playMode !== "speedrun" || !country) return;
+  const now = Math.round(getElapsedMs());
+  const shownMs = Math.max(0, Math.round(session.worldLastSolvedMs || 0));
+  const firstInputMs = session.worldAnswerStartedMs === null
+    ? now
+    : Math.max(shownMs, Math.round(session.worldAnswerStartedMs));
+  session.route.push({
+    index: session.route.length + 1,
+    country,
+    continent: getCountryContinentForCurrentMode(country),
+    answer: country,
+    shownMs,
+    firstInputMs,
+    firstSubmitMs: now,
+    solvedMs: now,
+    attempts: 1,
+    wrongAttempts: 0,
+    inputEvents: 0,
+    keyEvents: 0,
+    typedChars: 0,
+    maxInputLength: country.length,
+    pasteEvents: 0,
+    skipped: false
+  });
+  session.currentRouteIndex = session.route.length - 1;
+}
+
 function evaluateTextAnswer(value, allowFuzzy=true){
   const correct = getCorrectAnswer();
   const exact = normalise(value) === normalise(correct);
@@ -795,6 +1206,36 @@ function evaluateTextAnswer(value, allowFuzzy=true){
 
 function getCorrectAnswer(){
   return state.which === "flags" ? state.session.correctCountry : state.session.correctAnswer;
+}
+
+function getCountryContinentForCurrentMode(country){
+  if(isWorldMode()) return getWorldMapCountryContinent(country);
+  return countryContinent[country] || "Unknown";
+}
+
+function getWorldMapCountryContinent(country){
+  const continents = getWorldMapCountryContinents(country);
+  if(state.selectedContinent !== "All" && continents.includes(state.selectedContinent)){
+    return state.selectedContinent;
+  }
+  return continents[0] || "Unknown";
+}
+
+function getWorldMapCountryContinents(country){
+  return WORLD_MAP_COUNTRY_CONTINENTS[country] || [countryContinent[country] || "Unknown"];
+}
+
+function countryIsInCurrentContinent(country, continent){
+  if(continent === "All") return true;
+  if(isWorldMode()){
+    return getWorldMapCountryContinents(country).includes(continent);
+  }
+  return countryContinent[country] === continent;
+}
+
+function getExpectedAnswerForMode(country){
+  if(state.which === "capitals") return countryCapitals[country] || "Unknown";
+  return country;
 }
 
 function isAlias(value){
@@ -889,6 +1330,7 @@ function updateHighScore(){
 
 function nextQuestion(){
   const session = state.session;
+  if(isWorldMode()) return;
   if(session.gameOver || !session.correctCountry) return;
   if(!session.solved.has(session.correctCountry)){
     const entry = getCurrentRouteEntry();
@@ -903,6 +1345,7 @@ function nextQuestion(){
 
 async function lastQuestion(){
   const session = state.session;
+  if(isWorldMode()) return;
   if(state.playMode === "speedrun" || session.history.length < 2 || session.gameOver) return;
 
   session.history.pop();
@@ -951,7 +1394,7 @@ function giveUp(){
 
 function toggleRevise(){
   const session = state.session;
-  if(state.playMode !== "practice" || !session.correctCountry) return;
+  if(isWorldMode() || state.playMode !== "practice" || !session.correctCountry) return;
   const list = state.which === "flags" ? state.reviseFlags : state.reviseCapitals;
   const key = state.which === "flags" ? LS_KEYS.reviseFlags : LS_KEYS.reviseCapitals;
   const index = list.indexOf(session.correctCountry);
@@ -969,6 +1412,10 @@ function toggleRevise(){
 
 function updateReviseButton(){
   const session = state.session;
+  if(isWorldMode()){
+    reviseToggle.textContent = "Add to Revise";
+    return;
+  }
   const list = state.which === "flags" ? state.reviseFlags : state.reviseCapitals;
   reviseToggle.textContent = session.correctCountry && list.includes(session.correctCountry)
     ? "Remove from Revise"
@@ -1340,13 +1787,846 @@ function getSpeedRunSplitTargets(){
   return targets;
 }
 
+async function renderWorldMap(){
+  if(!isWorldMode()) return;
+  const token = ++worldMapState.renderToken;
+  if(worldMapState.features){
+    questionVisual.innerHTML = "";
+    questionVisual.appendChild(createWorldMapShell(worldMapState.features));
+    return;
+  }
+  questionVisual.innerHTML = "";
+  questionVisual.appendChild(createWorldMapStatus("Loading country outlines..."));
+
+  try{
+    const features = await loadWorldMapFeatures();
+    if(token !== worldMapState.renderToken || !isWorldMode()) return;
+    questionVisual.innerHTML = "";
+    questionVisual.appendChild(createWorldMapShell(features));
+  }catch(error){
+    if(token !== worldMapState.renderToken || !isWorldMode()) return;
+    worldMapState.error = error && error.message ? error.message : "Country outline map could not load.";
+    questionVisual.innerHTML = "";
+    questionVisual.appendChild(createWorldMapStatus(worldMapState.error));
+  }
+}
+
+function createWorldMapStatus(text){
+  const status = document.createElement("div");
+  status.className = "world-map-status";
+  status.textContent = text;
+  return status;
+}
+
+async function loadWorldMapFeatures(){
+  if(worldMapState.features) return worldMapState.features;
+  if(worldMapState.loadPromise) return worldMapState.loadPromise;
+
+  worldMapState.loadPromise = (async ()=>{
+    if(!window.topojson || !window.topojson.feature){
+      throw new Error("Map libraries did not load. Check your connection and refresh.");
+    }
+    const response = await fetch(WORLD_MAP_TOPOJSON_URL);
+    if(!response.ok) throw new Error(`Country outline map failed to load (${response.status}).`);
+    const topology = await response.json();
+    const collection = window.topojson.feature(topology, topology.objects.countries);
+    worldMapState.features = collection.features
+      .map(feature=>{
+        const contextFeature = getWorldMapContextFeature(feature);
+        return {
+          ...feature,
+          properties: {
+            ...(feature.properties || {}),
+            quizCountry: matchWorldMapCountry(feature),
+            contextName: contextFeature ? contextFeature.name : null,
+            contextContinent: contextFeature ? contextFeature.continent : null,
+            contextOwnerCountry: contextFeature ? contextFeature.ownerCountry : null
+          }
+        };
+      })
+      .filter(feature=>!!feature.properties.quizCountry || !!feature.properties.contextName);
+    addSyntheticWorldMapFeatures(worldMapState.features);
+    return worldMapState.features;
+  })();
+
+  return worldMapState.loadPromise;
+}
+
+function matchWorldMapCountry(feature){
+  const id = String(feature.id || "").padStart(3, "0");
+  if(Object.prototype.hasOwnProperty.call(WORLD_MAP_ID_OVERRIDES, id)){
+    const country = resolveWorldMapCountry(WORLD_MAP_ID_OVERRIDES[id]);
+    if(country) return country;
+  }
+  const rawName = cleanWorldMapName(feature.properties && feature.properties.name);
+  if(Object.prototype.hasOwnProperty.call(WORLD_MAP_NAME_OVERRIDES, rawName)){
+    const country = resolveWorldMapCountry(WORLD_MAP_NAME_OVERRIDES[rawName]);
+    if(country) return country;
+  }
+  return getCountryAnswerIndex().get(normalise(rawName)) || null;
+}
+
+function getWorldMapContextFeature(feature){
+  const id = String(feature.id || "").padStart(3, "0");
+  if(Object.prototype.hasOwnProperty.call(WORLD_MAP_CONTEXT_FEATURES, id)){
+    return WORLD_MAP_CONTEXT_FEATURES[id];
+  }
+  const rawName = cleanWorldMapName(feature.properties && feature.properties.name);
+  return WORLD_MAP_CONTEXT_NAME_OVERRIDES[rawName] || null;
+}
+
+function addSyntheticWorldMapFeatures(features){
+  const present = new Set(features.map(feature=>feature.properties.quizCountry));
+  if(!present.has("Tuvalu")){
+    features.push(makeSyntheticWorldMapCountry("Tuvalu", 179.2, -8.52, 0.42, 0.28));
+  }
+}
+
+function makeSyntheticWorldMapCountry(country, lon, lat, width, height){
+  const left = lon - width / 2;
+  const right = lon + width / 2;
+  const bottom = lat - height / 2;
+  const top = lat + height / 2;
+  return {
+    type:"Feature",
+    id:`synthetic-${country}`,
+    properties:{
+      name:country,
+      quizCountry:country,
+      synthetic:true
+    },
+    geometry:{
+      type:"Polygon",
+      coordinates:[[
+        [left, bottom],
+        [right, bottom],
+        [right, top],
+        [left, top],
+        [left, bottom]
+      ]]
+    }
+  };
+}
+
+function cleanWorldMapName(value){
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function resolveWorldMapCountry(candidate){
+  if(!candidate) return null;
+  if(countries.includes(candidate)) return candidate;
+  return getCountryAnswerIndex().get(normalise(candidate)) || null;
+}
+
+function createWorldMapShell(features){
+  const shell = document.createElement("div");
+  shell.className = "world-map-shell";
+  worldMapState.defs = null;
+  worldMapState.progress = null;
+  worldMapState.pathElementsByCountry = new Map();
+  worldMapState.markerElementsByCountry = new Map();
+  worldMapState.pendingSolvedCountries = new Set();
+  worldMapState.pendingFlagFillCountries = new Set();
+  if(worldMapState.updateFrameId){
+    cancelAnimationFrame(worldMapState.updateFrameId);
+    worldMapState.updateFrameId = 0;
+  }
+  if(worldMapState.flagFillTimerId){
+    cancelWorldMapFlagFillDrain();
+    worldMapState.flagFillTimerId = 0;
+  }
+
+  const svg = svgNode("svg", {
+    viewBox: `0 0 ${WORLD_MAP_WIDTH} ${WORLD_MAP_HEIGHT}`,
+    role: "img",
+    "aria-label": "World map of countries"
+  });
+  const defs = svgNode("defs");
+  worldMapState.defs = defs;
+  addSolvedFlagPatterns(defs);
+  svg.appendChild(defs);
+
+  const background = svgNode("rect", {
+    class:"world-map-ocean",
+    x:0,
+    y:0,
+    width:WORLD_MAP_WIDTH,
+    height:WORLD_MAP_HEIGHT,
+    rx:18
+  });
+  svg.appendChild(background);
+
+  const panels = getWorldMapPanels();
+  const renderFeatures = getWorldMapRenderFeatures(features);
+  for(const panel of panels){
+    drawWorldMapPanel(svg, renderFeatures, panel);
+  }
+
+  shell.appendChild(svg);
+  const progress = createWorldMapProgress();
+  worldMapState.progress = progress;
+  shell.appendChild(progress);
+  return shell;
+}
+
+function getWorldMapPanels(){
+  if(state.selectedContinent === "All") return WORLD_MAP_PANELS;
+  const bounds = WORLD_MAP_CONTINENT_BOUNDS[state.selectedContinent] || WORLD_MAP_MAIN_BOUNDS;
+  return [{
+    id:`continent-${normalise(state.selectedContinent).replace(/\s+/g, "-") || "selected"}`,
+    label:state.selectedContinent,
+    x:0,
+    y:0,
+    width:WORLD_MAP_WIDTH,
+    height:WORLD_MAP_HEIGHT,
+    bounds,
+    full:true
+  }];
+}
+
+function getWorldMapRenderFeatures(features){
+  if(state.selectedContinent === "All") return features;
+  const pool = new Set(state.session.pool || []);
+  return features.filter(feature=>
+    pool.has(feature.properties.quizCountry)
+    || feature.properties.contextContinent === state.selectedContinent
+  );
+}
+
+function addSolvedFlagPatterns(defs){
+  for(const country of Array.from(state.session.solved)){
+    ensureWorldMapFlagPattern(country, defs);
+  }
+}
+
+function drawWorldMapPanel(svg, features, panel){
+  const panelGroup = svgNode("g", {
+    class:`world-map-panel world-map-panel-${panel.id}`,
+    transform:`translate(${panel.x} ${panel.y})`
+  });
+  const clipId = `world-map-clip-${panel.id}`;
+
+  const panelDefs = svgNode("defs");
+  const clip = svgNode("clipPath", {
+    id:clipId
+  });
+  clip.appendChild(svgNode("rect", {
+    x:0,
+    y:0,
+    width:panel.width,
+    height:panel.height,
+    rx:panel.id === "main" || panel.full ? 18 : 12
+  }));
+  panelDefs.appendChild(clip);
+  panelGroup.appendChild(panelDefs);
+
+  panelGroup.appendChild(svgNode("rect", {
+    class:"world-map-panel-bg",
+    x:0,
+    y:0,
+    width:panel.width,
+    height:panel.height,
+    rx:panel.id === "main" || panel.full ? 18 : 12
+  }));
+
+  const mapLayer = svgNode("g", {
+    class:"world-map-layer",
+    "clip-path":`url(#${clipId})`
+  });
+  panelGroup.appendChild(mapLayer);
+
+  const panelFeatures = getWorldMapPanelFeatures(features, panel);
+
+  for(const feature of panelFeatures){
+    const country = feature.properties.quizCountry;
+    const contextOwner = resolveWorldMapCountry(feature.properties.contextOwnerCountry);
+    const pathDataList = makeWorldMapPathList(feature, panel);
+    if(!pathDataList.length) continue;
+
+    for(const pathData of pathDataList){
+      const ownerIsSolved = !!contextOwner && state.session.solved.has(contextOwner);
+      const classCountry = country || (ownerIsSolved ? contextOwner : null);
+      const countryPath = svgNode("path", {
+        class:getWorldMapCountryClass(classCountry),
+        d:pathData
+      });
+      if(country){
+        countryPath.dataset.country = country;
+        countryPath.dataset.panel = panel.id;
+        if(state.session.solved.has(country) && alpha2Overrides[country]){
+          countryPath.style.fill = `url(#${getWorldMapPatternId(country)})`;
+        }
+        rememberWorldMapCountryPath(country, countryPath);
+      }else if(contextOwner){
+        countryPath.dataset.contextCountry = feature.properties.contextName || "";
+        countryPath.dataset.ownerCountry = contextOwner;
+        countryPath.dataset.panel = panel.id;
+        if(ownerIsSolved && alpha2Overrides[contextOwner]){
+          countryPath.style.fill = `url(#${getWorldMapPatternId(contextOwner)})`;
+        }
+        rememberWorldMapCountryPath(contextOwner, countryPath);
+      }
+      mapLayer.appendChild(countryPath);
+    }
+  }
+
+  drawWorldMapSmallCountryMarkers(panelGroup, panelFeatures, panel);
+
+  const label = svgNode("text", {
+    class:"world-map-panel-label",
+    x:panel.id === "main" ? 18 : 10,
+    y:panel.id === "main" ? 28 : 19
+  });
+  label.textContent = panel.label;
+  panelGroup.appendChild(label);
+
+  svg.appendChild(panelGroup);
+}
+
+function getWorldMapPanelFeatures(features, panel){
+  if(panel.id === "main") return features;
+  return features.filter(feature=>featureHasPointsInWorldBounds(feature, getWorldMapPanelView(panel).bounds));
+}
+
+function featureHasPointsInWorldBounds(feature, bounds){
+  if(!bounds) return true;
+  const [left, bottom, right, top] = bounds;
+  return iterateWorldMapPoints(feature, point=>{
+    const lon = normaliseWorldMapLonForBounds(Number(point[0]), bounds);
+    const lat = Number(point[1]);
+    return Number.isFinite(lon)
+      && Number.isFinite(lat)
+      && lon >= left
+      && lon <= right
+      && lat >= bottom
+      && lat <= top;
+  });
+}
+
+function makeWorldMapPathList(feature, panel){
+  const geometry = feature.geometry || {};
+  const polygons = geometry.type === "Polygon"
+    ? [geometry.coordinates]
+    : geometry.type === "MultiPolygon"
+      ? geometry.coordinates
+      : [];
+  const country = feature.properties.quizCountry;
+  return polygons
+    .map(polygon=>makeWorldMapPolygonPath(polygon, panel, country))
+    .filter(Boolean);
+}
+
+function makeWorldMapPolygonPath(polygon, panel, country){
+  if(!Array.isArray(polygon)) return "";
+  const parts = [];
+  for(const ring of polygon){
+    const segment = makeWorldMapRingPath(ring, panel, country);
+    if(segment) parts.push(segment);
+  }
+  return parts.join("");
+}
+
+function makeWorldMapRingPath(ring, panel, country){
+  if(!Array.isArray(ring) || ring.length < 3) return "";
+  const segments = [];
+  let segment = [];
+  let previousLon = null;
+  let ringWasSplit = false;
+  const view = getWorldMapPanelView(panel);
+
+  for(const point of ring){
+    const rawLon = Number(point[0]);
+    const lat = Number(point[1]);
+    const lon = unwrapWorldMapRingLon(rawLon, previousLon, view.bounds, country);
+    const projected = projectWorldMapLonLat(lon, lat, panel, view);
+    const longProjectedJump = segment.length
+      ? isWorldMapLongProjectedJump(segment[segment.length - 1], projected, panel)
+      : false;
+    if(!projected){
+      if(segment.length >= 3) segments.push(segment);
+      segment = [];
+      ringWasSplit = true;
+    }else if(longProjectedJump){
+      if(segment.length >= 3) segments.push(segment);
+      segment = [projected];
+      ringWasSplit = true;
+    }else{
+      segment.push(projected);
+    }
+    if(Number.isFinite(lon)) previousLon = lon;
+  }
+
+  if(segment.length >= 3) segments.push(segment);
+  return segments.map(points=>{
+    const [first, ...rest] = points;
+    const closePath = ringWasSplit ? "" : "Z";
+    return `M${formatWorldMapNumber(first[0])},${formatWorldMapNumber(first[1])}${rest.map(point=>`L${formatWorldMapNumber(point[0])},${formatWorldMapNumber(point[1])}`).join("")}${closePath}`;
+  }).join("");
+}
+
+function projectWorldMapPoint(point, panel){
+  if(!Array.isArray(point) || point.length < 2) return null;
+  const view = getWorldMapPanelView(panel);
+  const lon = normaliseWorldMapLonForBounds(Number(point[0]), view.bounds);
+  const lat = Number(point[1]);
+  return projectWorldMapLonLat(lon, lat, panel, view);
+}
+
+function projectWorldMapLonLat(lon, lat, panel, view=getWorldMapPanelView(panel)){
+  const [left, bottom, right, top] = view.bounds;
+  if(!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  const x = view.margin + ((lon - left) * view.lonScale / view.effectiveLonSpan) * view.innerWidth;
+  const y = view.margin + ((top - lat) / view.latSpan) * view.innerHeight;
+  return [x, y];
+}
+
+function unwrapWorldMapRingLon(rawLon, previousLon, bounds, country){
+  let lon = normaliseWorldMapLonForBounds(rawLon, bounds);
+  if(country === "Russia" && bounds && bounds[0] <= -180 && bounds[2] >= 180 && lon < -150){
+    lon += 360;
+  }
+  if(previousLon === null || !Number.isFinite(previousLon) || !Number.isFinite(lon)) return lon;
+  while(lon - previousLon > 180) lon -= 360;
+  while(previousLon - lon > 180) lon += 360;
+  return lon;
+}
+
+function normaliseWorldMapLonForBounds(lon, bounds){
+  if(!Number.isFinite(lon) || !bounds) return lon;
+  const [left,, right] = bounds;
+  if(right > 180 && lon < left){
+    return lon + 360;
+  }
+  if(left < -180 && lon > right){
+    return lon - 360;
+  }
+  return lon;
+}
+
+function isWorldMapLongProjectedJump(previous, current, panel){
+  if(!previous || !current) return false;
+  const dx = Math.abs(current[0] - previous[0]);
+  const dy = Math.abs(current[1] - previous[1]);
+  return dx > panel.width * 1.05 || dy > panel.height * 1.05;
+}
+
+function getWorldMapPanelView(panel){
+  const margin = panel.id === "main" ? 18 : 7;
+  const innerWidth = panel.width - margin * 2;
+  const innerHeight = panel.height - margin * 2;
+  if(panel.id === "main"){
+    const [left, bottom, right, top] = WORLD_MAP_MAIN_BOUNDS;
+    return {
+      bounds: WORLD_MAP_MAIN_BOUNDS,
+      margin,
+      innerWidth,
+      innerHeight,
+      lonScale: 1,
+      effectiveLonSpan: right - left,
+      latSpan: top - bottom
+    };
+  }
+
+  let [left, bottom, right, top] = panel.bounds;
+  const centreLon = (left + right) / 2;
+  const centreLat = (bottom + top) / 2;
+  const lonScale = Math.max(.35, Math.cos(Math.abs(centreLat) * Math.PI / 180));
+  let lonSpan = right - left;
+  let latSpan = top - bottom;
+  const targetAspect = innerWidth / innerHeight;
+  const geoAspect = (lonSpan * lonScale) / latSpan;
+
+  if(geoAspect > targetAspect){
+    latSpan = (lonSpan * lonScale) / targetAspect;
+    bottom = centreLat - latSpan / 2;
+    top = centreLat + latSpan / 2;
+  }else{
+    lonSpan = (latSpan * targetAspect) / lonScale;
+    left = centreLon - lonSpan / 2;
+    right = centreLon + lonSpan / 2;
+  }
+
+  return {
+    bounds: [left, bottom, right, top],
+    margin,
+    innerWidth,
+    innerHeight,
+    lonScale,
+    effectiveLonSpan: lonSpan * lonScale,
+    latSpan
+  };
+}
+
+function drawWorldMapSmallCountryMarkers(panelGroup, panelFeatures, panel){
+  const markerLayer = svgNode("g", {
+    class:"world-map-marker-layer",
+    "clip-path":`url(#world-map-clip-${panel.id})`
+  });
+  let markerCount = 0;
+  for(const feature of panelFeatures){
+    const country = feature.properties.quizCountry;
+    if(!country) continue;
+    const bounds = getWorldMapProjectedBounds(feature, panel);
+    if(!bounds || !shouldDrawWorldMapSmallCountryMarker(country, panel, bounds)) continue;
+    const marker = createWorldMapSmallCountryMarker(country, panel, bounds);
+    rememberWorldMapCountryMarker(country, marker);
+    markerLayer.appendChild(marker);
+    markerCount += 1;
+  }
+  if(markerCount > 0){
+    panelGroup.appendChild(markerLayer);
+  }
+}
+
+function getWorldMapProjectedBounds(feature, panel){
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let count = 0;
+  iterateWorldMapPoints(feature, point=>{
+    const projected = projectWorldMapPoint(point, panel);
+    if(!projected) return false;
+    const [x, y] = projected;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+    count += 1;
+    return false;
+  });
+  if(count === 0) return null;
+  return {
+    x:(minX + maxX) / 2,
+    y:(minY + maxY) / 2,
+    width:maxX - minX,
+    height:maxY - minY
+  };
+}
+
+function shouldDrawWorldMapSmallCountryMarker(country, panel, bounds){
+  if(!state.session.pool.includes(country)) return false;
+  if(WORLD_MAP_SMALL_MARKER_COUNTRIES.has(country)) return true;
+  if(panel.id === "main") return bounds.width < 3.8 || bounds.height < 3.8;
+  return bounds.width < 8 || bounds.height < 8;
+}
+
+function createWorldMapSmallCountryMarker(country, panel, bounds){
+  const marker = svgNode("g", {
+    class:getWorldMapMarkerClass(country)
+  });
+  marker.dataset.country = country;
+  marker.dataset.panel = panel.id;
+  const radius = panel.id === "main" ? 4.6 : 5.4;
+  marker.appendChild(svgNode("circle", {
+    class:"world-map-marker-halo",
+    cx:formatWorldMapNumber(bounds.x),
+    cy:formatWorldMapNumber(bounds.y),
+    r:formatWorldMapNumber(radius + 2.3)
+  }));
+  marker.appendChild(svgNode("circle", {
+    class:"world-map-marker-ring",
+    cx:formatWorldMapNumber(bounds.x),
+    cy:formatWorldMapNumber(bounds.y),
+    r:formatWorldMapNumber(radius)
+  }));
+  return marker;
+}
+
+function iterateWorldMapPoints(feature, callback){
+  const geometry = feature.geometry || {};
+  const polygons = geometry.type === "Polygon"
+    ? [geometry.coordinates]
+    : geometry.type === "MultiPolygon"
+      ? geometry.coordinates
+      : [];
+  for(const polygon of polygons){
+    for(const ring of polygon){
+      for(const point of ring){
+        if(callback(point)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function formatWorldMapNumber(value){
+  return Number(value).toFixed(2).replace(/\.?0+$/, "");
+}
+
+function rememberWorldMapCountryPath(country, path){
+  const paths = worldMapState.pathElementsByCountry.get(country) || [];
+  paths.push(path);
+  worldMapState.pathElementsByCountry.set(country, paths);
+}
+
+function rememberWorldMapCountryMarker(country, marker){
+  const markers = worldMapState.markerElementsByCountry.get(country) || [];
+  markers.push(marker);
+  worldMapState.markerElementsByCountry.set(country, markers);
+}
+
+function updateWorldMapCountrySolved(country){
+  if(!isWorldMode() || !country) return;
+  const paths = worldMapState.pathElementsByCountry.get(country) || [];
+  for(const path of paths){
+    path.className.baseVal = getWorldMapCountryClass(country);
+    path.style.fill = getWorldMapSolvedBaseFill(country);
+    pulseWorldMapCountryPath(path);
+  }
+  const markers = worldMapState.markerElementsByCountry.get(country) || [];
+  for(const marker of markers){
+    marker.className.baseVal = getWorldMapMarkerClass(country);
+  }
+  scheduleWorldMapFlagFill(country);
+}
+
+function scheduleWorldMapCountrySolved(country){
+  if(!isWorldMode() || !country) return;
+  worldMapState.pendingSolvedCountries.add(country);
+  if(worldMapState.updateFrameId) return;
+  worldMapState.updateFrameId = requestAnimationFrame(()=>{
+    worldMapState.updateFrameId = 0;
+    const pending = Array.from(worldMapState.pendingSolvedCountries);
+    worldMapState.pendingSolvedCountries.clear();
+    for(const item of pending){
+      updateWorldMapCountrySolved(item);
+    }
+  });
+}
+
+function ensureWorldMapFlagPattern(country, defs=worldMapState.defs){
+  const code = (alpha2Overrides[country] || "").toLowerCase();
+  if(!code || !defs) return false;
+  const id = getWorldMapPatternId(country);
+  if(document.getElementById(id)) return true;
+  const pattern = svgNode("pattern", {
+    id,
+    x:0,
+    y:0,
+    width:1,
+    height:1,
+    patternUnits:"objectBoundingBox",
+    patternContentUnits:"objectBoundingBox"
+  });
+  const image = svgNode("image", {
+    x:0,
+    y:0,
+    width:1,
+    height:1,
+    preserveAspectRatio:"none",
+    href:flagCdnUrl(code, 160)
+  });
+  image.setAttributeNS("http://www.w3.org/1999/xlink", "href", flagCdnUrl(code, 160));
+  pattern.appendChild(image);
+  defs.appendChild(pattern);
+  return true;
+}
+
+function scheduleWorldMapFlagFill(country){
+  if(!alpha2Overrides[country]) return;
+  worldMapState.pendingFlagFillCountries.add(country);
+  if(worldMapState.flagFillTimerId) return;
+  scheduleWorldMapFlagFillDrain();
+}
+
+function scheduleWorldMapFlagFillDrain(){
+  if(worldMapState.flagFillTimerId) return;
+  if(window.requestIdleCallback){
+    worldMapState.flagFillTimerId = window.requestIdleCallback(deadline=>{
+      worldMapState.flagFillTimerId = 0;
+      applyPendingWorldMapFlagFills(deadline);
+    }, {timeout:WORLD_MAP_FLAG_FILL_IDLE_TIMEOUT_MS});
+  }else{
+    worldMapState.flagFillTimerId = window.setTimeout(()=>{
+      worldMapState.flagFillTimerId = 0;
+      applyPendingWorldMapFlagFills(null);
+    }, WORLD_MAP_FLAG_FILL_FALLBACK_MS);
+  }
+}
+
+function cancelWorldMapFlagFillDrain(){
+  if(!worldMapState.flagFillTimerId) return;
+  if(window.cancelIdleCallback){
+    window.cancelIdleCallback(worldMapState.flagFillTimerId);
+  }
+  window.clearTimeout(worldMapState.flagFillTimerId);
+}
+
+function applyPendingWorldMapFlagFills(deadline){
+  if(!isWorldMode()) return;
+  let processed = 0;
+  const maxPerDrain = state.playMode === "speedrun" ? 1 : 3;
+  while(worldMapState.pendingFlagFillCountries.size){
+    if(processed >= maxPerDrain) break;
+    if(processed > 0 && deadline && deadline.timeRemaining && deadline.timeRemaining() < 3) break;
+    if(processed > 0 && !deadline) break;
+    const country = worldMapState.pendingFlagFillCountries.values().next().value;
+    worldMapState.pendingFlagFillCountries.delete(country);
+    ensureWorldMapFlagPattern(country);
+    const fill = `url(#${getWorldMapPatternId(country)})`;
+    const paths = worldMapState.pathElementsByCountry.get(country) || [];
+    for(const path of paths){
+      path.style.fill = fill;
+    }
+    processed += 1;
+  }
+  if(worldMapState.pendingFlagFillCountries.size){
+    scheduleWorldMapFlagFillDrain();
+  }
+}
+
+function getWorldMapSolvedBaseFill(country){
+  const continent = getWorldMapCountryContinent(country);
+  if(continent === "Africa") return "#f0bd62";
+  if(continent === "Asia") return "#d95f3f";
+  if(continent === "Europe") return "#6fa8dc";
+  if(continent === "North America") return "#7fbf7b";
+  if(continent === "South America") return "#8e7cc3";
+  if(continent === "Oceania") return "#5db7aa";
+  return "#f0bd62";
+}
+
+function pulseWorldMapCountryPath(path){
+  if(!path || !path.classList) return;
+  path.classList.remove("is-just-solved");
+  requestAnimationFrame(()=>{
+    path.classList.add("is-just-solved");
+    window.setTimeout(()=>path.classList.remove("is-just-solved"), 520);
+  });
+}
+
+function updateWorldMapProgress(){
+  if(!worldMapState.progress) return;
+  const summary = getWorldMapRemainingSummary();
+  const total = document.createElement("div");
+  total.className = "world-map-progress-total";
+  total.textContent = `${summary.remaining}/${summary.total} left`;
+
+  const grid = document.createElement("div");
+  grid.className = "world-map-progress-grid";
+  for(const row of summary.continents){
+    const item = document.createElement("div");
+    item.className = `world-map-progress-item ${row.remaining === 0 ? "is-empty" : ""}`;
+    const label = document.createElement("span");
+    label.textContent = row.label;
+    const count = document.createElement("strong");
+    count.textContent = String(row.remaining);
+    item.append(label, count);
+    grid.appendChild(item);
+  }
+
+  worldMapState.progress.replaceChildren(total, grid);
+}
+
+function getWorldMapRemainingSummary(){
+  const pool = state.session.pool || [];
+  const totals = new Map();
+  const remaining = new Map();
+  for(const continent of WORLD_MAP_CONTINENT_ORDER){
+    totals.set(continent, 0);
+    remaining.set(continent, 0);
+  }
+  for(const country of pool){
+    const continent = getCountryContinentForCurrentMode(country);
+    totals.set(continent, (totals.get(continent) || 0) + 1);
+    if(!state.session.solved.has(country)){
+      remaining.set(continent, (remaining.get(continent) || 0) + 1);
+    }
+  }
+  const continentNames = Array.from(totals.keys())
+    .filter(continent=>totals.get(continent) > 0)
+    .sort((a, b)=>{
+      const left = WORLD_MAP_CONTINENT_ORDER.indexOf(a);
+      const right = WORLD_MAP_CONTINENT_ORDER.indexOf(b);
+      if(left === -1 && right === -1) return a.localeCompare(b);
+      if(left === -1) return 1;
+      if(right === -1) return -1;
+      return left - right;
+    });
+  return {
+    total: pool.length,
+    remaining: Math.max(0, pool.length - state.session.solved.size),
+    continents: continentNames.map(continent=>({
+      name: continent,
+      label: WORLD_MAP_CONTINENT_SHORT_LABELS[continent] || continent,
+      total: totals.get(continent) || 0,
+      remaining: remaining.get(continent) || 0
+    }))
+  };
+}
+
+function getWorldMapCountryClass(country){
+  const classes = ["world-map-country"];
+  if(!country){
+    classes.push("is-context");
+  }else if(!state.session.pool.includes(country)){
+    classes.push("is-muted");
+  }else if(state.session.solved.has(country)){
+    classes.push("is-solved");
+  }else{
+    classes.push("is-active");
+  }
+  return classes.join(" ");
+}
+
+function getWorldMapMarkerClass(country){
+  const classes = ["world-map-small-marker"];
+  if(!country || !state.session.pool.includes(country)){
+    classes.push("is-muted");
+  }else if(state.session.solved.has(country)){
+    classes.push("is-solved");
+  }else{
+    classes.push("is-active");
+  }
+  return classes.join(" ");
+}
+
+function getWorldMapPatternId(country){
+  const index = countries.indexOf(country);
+  return `world-flag-fill-${index >= 0 ? index : normalise(country).replace(/\s+/g, "-")}`;
+}
+
+function createWorldMapProgress(){
+  const progress = document.createElement("div");
+  progress.className = "world-map-progress";
+  progress.setAttribute("aria-live", "polite");
+  progress.textContent = "";
+  return progress;
+}
+
+function svgNode(name, attributes={}){
+  const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+  for(const [key, value] of Object.entries(attributes)){
+    node.setAttribute(key, String(value));
+  }
+  return node;
+}
+
 function updateAllStatus(){
   updateScoreTexts();
   updateSessionText();
   updateLivesDisplay();
   updateTimerDisplay();
+  updateWorldMapProgress();
   renderSplits();
   renderLeaderboard();
+}
+
+function updateWorldAnswerStatus(){
+  updateScoreTexts();
+  updateSessionText();
+  updateLivesDisplay();
+  updateTimerDisplay();
+  updateWorldMapProgress();
+  if(state.playMode === "speedrun" && isWorldSplitBoundary()){
+    renderSplits();
+  }
+}
+
+function isWorldSplitBoundary(){
+  const solved = state.session.solved.size;
+  return SPEEDRUN_SPLITS.includes(solved) || isTargetComplete();
 }
 
 function updateScoreTexts(){
@@ -1447,7 +2727,7 @@ function renderSplits(){
 
 function renderLeaderboard(){
   leaderboardList.innerHTML = "";
-  const modeLabel = state.which === "flags" ? "Flags" : "Capitals";
+  const modeLabel = getModeLabel();
   const difficulty = state.hard ? "Hard" : "Normal";
   leaderboardTitle.textContent = `${modeLabel} - ${state.selectedContinent} - ${difficulty} - ${getSpeedTargetLabel()}`;
   const shared = isSharedLeaderboardConfigured();
@@ -1594,11 +2874,13 @@ function showResultModal(reason){
     accuracy: `${pct}%`,
     lives: !isSpeed && session.livesRemaining !== null ? String(session.livesRemaining) : null
   });
-  resultSummary.textContent = `First-try accuracy: ${session.correctFirstTry}/${session.totalFirstAttempts || 0}.`;
+  resultSummary.textContent = isWorldMode()
+    ? `Countries found: ${session.solved.size}/${session.pool.length}. Wrong guesses: ${session.worldWrongSubmissions}.`
+    : `First-try accuracy: ${session.correctFirstTry}/${session.totalFirstAttempts || 0}.`;
 
   resultDetails.innerHTML = "";
   const details = [
-    `Mode: ${state.which === "flags" ? "Flags" : "Capitals"} / ${state.hard ? "Hard" : "Normal"}`,
+    `Mode: ${getModeLabel()} / ${state.hard ? "Typed" : "Normal"}`,
     `Continent: ${state.selectedContinent}`,
     isSpeed ? `Target: ${getSpeedTargetLabel()}` : `Lives: ${state.lifeSetting === "unlimited" ? "Unlimited" : state.lifeSetting}`,
     `Skipped unresolved: ${session.skipped.size}`,
@@ -1722,6 +3004,10 @@ function clearFeedback(){
 }
 
 function showAnswerFlash(ok){
+  if(isWorldMode()){
+    showWorldAnswerFlash(ok);
+    return;
+  }
   answerFlash.textContent = ok ? "CORRECT" : "INCORRECT";
   answerFlash.className = `answer-flash ${ok ? "is-correct" : "is-incorrect"} is-visible`;
   answerFlash.setAttribute("aria-hidden", "false");
@@ -1729,6 +3015,21 @@ function showAnswerFlash(ok){
     answerFlash.classList.remove("is-visible");
     answerFlash.setAttribute("aria-hidden", "true");
   }, ANSWER_FLASH_MS);
+}
+
+function showWorldAnswerFlash(ok){
+  if(ok){
+    answerFlash.classList.remove("is-visible");
+    answerFlash.setAttribute("aria-hidden", "true");
+    return;
+  }
+  answerFlash.textContent = ok ? "Correct" : "Miss";
+  answerFlash.className = `answer-flash is-world-flash ${ok ? "is-correct" : "is-incorrect"} is-visible`;
+  answerFlash.setAttribute("aria-hidden", "false");
+  window.setTimeout(()=>{
+    answerFlash.classList.remove("is-visible");
+    answerFlash.setAttribute("aria-hidden", "true");
+  }, 70);
 }
 
 function formatTime(ms){
@@ -1741,6 +3042,16 @@ function formatTime(ms){
 
 function isRevisionMode(){
   return state.selectedContinent === "Revise" || state.selectedContinent === "Revise Capitals";
+}
+
+function isWorldMode(){
+  return state.which === "world";
+}
+
+function getModeLabel(which=state.which){
+  if(which === "capitals") return "Capitals";
+  if(which === "world") return "Countries";
+  return "Flags";
 }
 
 document.addEventListener("DOMContentLoaded", init);

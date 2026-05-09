@@ -7,9 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=world-map-19" />
 </head>
-<body data-play-mode="practice">
+<body data-play-mode="practice" data-quiz-mode="flags">
   <header class="site-header with-nav compact-header">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
     <nav class="top-nav">
@@ -36,6 +36,7 @@
         <div class="segment-switch quiz-switch" aria-label="Quiz type">
           <button class="segment quiz-segment active" data-mode="flags">Flag Quiz</button>
           <button class="segment quiz-segment" data-mode="capitals">Capital Quiz</button>
+          <button class="segment quiz-segment" data-mode="world">World Map</button>
         </div>
 
         <section class="toolbar">
@@ -44,7 +45,7 @@
             <select id="continent-select"></select>
           </div>
 
-          <div class="control compact-control">
+          <div class="control compact-control hard-control">
             <label class="checkbox">
               <input type="checkbox" id="hard-toggle" />
               <span id="hard-label">Hard mode</span>
@@ -164,13 +165,14 @@
   </div>
 
   <footer class="site-footer compact-footer">
-    <p>Flags load directly from FlagCDN. Practice scores stay in this browser; speedrun leaderboards can be shared.</p>
+    <p>Flags load from FlagCDN and the world map uses Natural Earth outlines. Practice scores stay in this browser; speedrun leaderboards can be shared.</p>
   </footer>
 
   <script src="data.js" defer></script>
   <script src="utils.js" defer></script>
   <script src="leaderboard-config.js" defer></script>
   <script src="leaderboard.js" defer></script>
-  <script src="game.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3" defer></script>
+  <script src="game.js?v=world-map-19" defer></script>
 </body>
 </html>

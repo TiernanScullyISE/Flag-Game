@@ -50,9 +50,9 @@ function buildLeaderboardCategories(){
   const continents = ["All", ...getLeaderboardContinents()];
   const categories = [];
 
-  for(const which of ["flags", "capitals"]){
+  for(const which of ["flags", "capitals", "world"]){
     for(const continent of continents){
-      const max = getCategoryPoolSize(continent);
+      const max = getCategoryPoolSize(continent, which);
       const targets = PAGE_SPEEDRUN_SPLITS
         .filter(split=>split <= max)
         .map(split=>String(split));
@@ -64,7 +64,7 @@ function buildLeaderboardCategories(){
           which,
           continent,
           target,
-          modeLabel: which === "flags" ? "Flags" : "Capitals",
+          modeLabel: getLeaderboardModeLabel(which),
           targetLabel: target === "all" ? `All available (${max})` : `First ${target}`
         });
       }
@@ -74,9 +74,20 @@ function buildLeaderboardCategories(){
   return categories;
 }
 
-function getCategoryPoolSize(continent){
+function getLeaderboardModeLabel(which){
+  if(which === "capitals") return "Capitals";
+  if(which === "world") return "Countries";
+  return "Flags";
+}
+
+function getCategoryPoolSize(continent, which="flags"){
   if(continent === "All") return countries.length;
-  return countries.filter(country=>countryContinent[country] === continent).length;
+  return countries.filter(country=>getLeaderboardCountryContinents(country, which).includes(continent)).length;
+}
+
+function getLeaderboardCountryContinents(country, which="flags"){
+  if(which === "world" && country === "Russia") return ["Europe", "Asia"];
+  return [countryContinent[country]];
 }
 
 async function loadSharedLeaderboards(){
