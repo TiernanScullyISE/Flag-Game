@@ -16,7 +16,9 @@
 
   function isConfigured(){
     const config = getConfig();
-    return configuredValue(config.supabaseUrl) && configuredValue(config.supabaseAnonKey);
+    return configuredValue(config.supabaseUrl)
+      && configuredValue(config.supabaseAnonKey)
+      && configuredValue(config.submitFunctionUrl);
   }
 
   function getTableName(){
@@ -166,31 +168,25 @@
     };
 
     const config = getConfig();
-    if(config.submitFunctionUrl && configuredValue(config.submitFunctionUrl)){
-      const key = config.supabaseAnonKey.trim();
-      const response = await fetch(config.submitFunctionUrl.trim(), {
-        method: "POST",
-        headers: {
-          apikey: key,
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      if(!response.ok){
-        const text = await response.text();
-        throw new Error(getErrorMessage(text, `Leaderboard function failed (${response.status}).`));
-      }
-      const text = await response.text();
-      return text ? JSON.parse(text) : {ok:true, status:"approved"};
+    if(!configuredValue(config.submitFunctionUrl)){
+      throw new Error("Shared leaderboard submit function is not configured.");
     }
-
-    await request(null, {
+    const key = config.supabaseAnonKey.trim();
+    const response = await fetch(config.submitFunctionUrl.trim(), {
       method: "POST",
-      headers: { Prefer: "return=minimal" },
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify(payload)
     });
-    return {ok:true, status:"approved"};
+    if(!response.ok){
+      const text = await response.text();
+      throw new Error(getErrorMessage(text, `Leaderboard function failed (${response.status}).`));
+    }
+    const text = await response.text();
+    return text ? JSON.parse(text) : {ok:true, status:"approved"};
   }
 
   window.sharedLeaderboard = {

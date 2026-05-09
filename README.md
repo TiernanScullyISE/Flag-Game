@@ -61,27 +61,27 @@ The web version can also be served directly by GitHub Pages from the repo root.
 GitHub Pages is static, so it cannot store shared scores by itself. The web app now supports a shared Supabase leaderboard:
 
 1. Create a free Supabase project.
-2. Open Supabase SQL Editor and run `supabase/leaderboard.sql`. Re-run it after updates; it is idempotent and includes the required anon `select`/`insert` grants.
+2. Open Supabase SQL Editor and run `supabase/leaderboard.sql`. Re-run it after updates; it is idempotent and keeps public access read-only.
 3. In Supabase Project Settings > API, copy the Project URL and the public browser key (`anon public` or `publishable` key).
-4. Paste them into `leaderboard-config.js`:
+4. Deploy `supabase/functions/submit-speedrun` and `supabase/functions/admin-leaderboard`, then paste the public project settings and function URLs into `leaderboard-config.js`:
 
 ```js
 window.LEADERBOARD_CONFIG = {
   supabaseUrl: "https://YOUR_PROJECT.supabase.co",
   supabaseAnonKey: "YOUR_ANON_PUBLIC_KEY",
   tableName: "speedrun_leaderboard",
-  submitFunctionUrl: "",
-  adminFunctionUrl: ""
+  submitFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/submit-speedrun",
+  adminFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/admin-leaderboard"
 };
 ```
 
-Only commit the public browser key. Never put the `service_role` key in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted only when they are a personal best for that exact category and the player chooses to submit them.
+Only commit the public browser key. Never put the `service_role` key, admin password or private function secrets in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted only when they are a personal best for that exact category and the player chooses to submit them.
 
 Posted runs include route order, splits and anti-cheat telemetry. The leaderboard page shows the top five by default; expand a run to inspect route details.
 
 If Supabase reports a missing `route`, `telemetry` or `anti_cheat` column after an update, re-run `supabase/leaderboard.sql`; it ends with a PostgREST schema-cache reload.
 
-For stronger anti-cheat, deploy `supabase/functions/submit-speedrun`, set `submitFunctionUrl` to that function URL, then run `supabase/harden-leaderboard.sql`. That moves inserts behind server-side validation and removes public direct table inserts. If you later re-run `supabase/leaderboard.sql`, re-run `supabase/harden-leaderboard.sql` afterwards.
+`supabase/leaderboard.sql` is safe by default: public clients can read approved rows but cannot insert leaderboard rows directly. Shared submissions must go through the `submit-speedrun` Edge Function, which uses the server-side `service_role` key.
 
 `admin.html` uses `supabase/functions/admin-leaderboard` and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review.
 
@@ -89,9 +89,9 @@ For stronger anti-cheat, deploy `supabase/functions/submit-speedrun`, set `submi
 
 The leaderboard is designed for a public-source static app, so the browser is treated as untrusted. The system uses layered checks rather than relying on any single client-side signal:
 
-- Direct public table inserts are revoked after deployment hardening.
+- Direct public table inserts are revoked by the default SQL setup.
 - Submissions go through an Edge Function that recomputes category, route, answer, timing and score consistency before writing to the database.
-- Client anti-cheat telemetry is stored as evidence, but the server produces its own validation result.
+- Client telemetry is stored as evidence, but the browser does not decide whether a run is valid for the shared leaderboard.
 - Database constraints, a replay-resistant telemetry nonce and an insert trigger provide a second line of defence if the server write path regresses.
 - Borderline but structurally valid runs are queued for admin moderation instead of being published immediately.
 - Player-name moderation uses private server-side review terms; flagged names are saved for admin approval rather than published directly.

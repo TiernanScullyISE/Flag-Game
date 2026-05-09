@@ -4,7 +4,6 @@ const SPEEDRUN_SPLITS = [10, 25, 50, 100, 150];
 const MAX_LEADERBOARD_RUNS = 5;
 const MAX_SHARED_LEADERBOARD_RUNS = 5;
 const LEADERBOARD_REFRESH_MS = 30000;
-const MIN_SOLVED_QUESTION_MS = 180;
 const WORLD_MAP_TOPOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 const WORLD_MAP_WIDTH = 1440;
 const WORLD_MAP_HEIGHT = 760;
@@ -856,52 +855,28 @@ function buildTelemetrySnapshot(session){
   };
 }
 
-function evaluateRunIntegrity(elapsed, route, telemetry, total){
-  const blockers = [];
-  const warnings = [];
-  const isWorldRun = isWorldMode();
+function buildClientRunEvidence(route, telemetry){
   const solvedRoute = route.filter(entry=>entry.solvedMs !== null);
-  const minExpectedMs = getMinimumExpectedRunMs(solvedRoute);
   const fastestQuestionMs = solvedRoute.reduce((fastest, entry)=>{
     const submitMs = entry.firstSubmitMs === null ? entry.solvedMs : entry.firstSubmitMs;
     const delta = Math.max(0, (submitMs || 0) - (entry.shownMs || 0));
     return fastest === null || delta < fastest ? delta : fastest;
   }, null);
-  const noInputEntries = solvedRoute.filter(entry=>entry.attempts > 0 && entry.firstInputMs === null);
-  const impossibleEntries = solvedRoute.filter(entry=>{
-    const submitMs = entry.firstSubmitMs === null ? entry.solvedMs : entry.firstSubmitMs;
-    return submitMs !== null && submitMs - entry.shownMs < MIN_SOLVED_QUESTION_MS;
-  });
-
-  if(route.length === 0) blockers.push("missing-route");
-  if(solvedRoute.length !== total) blockers.push("route-total-mismatch");
-  if(elapsed < minExpectedMs) blockers.push("run-too-fast-for-typed-answers");
-  if(!isWorldRun && impossibleEntries.length) blockers.push("instant-answer-events");
-  if(noInputEntries.length) blockers.push("answers-without-input-events");
-  if(telemetry.pasteEvents > 0) blockers.push("paste-detected");
-  if(telemetry.hiddenEvents > 0) blockers.push("tab-hidden-during-run");
-  if(telemetry.webdriver) blockers.push("webdriver-browser-detected");
-  if(telemetry.focusLosses > 0) warnings.push("window-focus-lost");
-  if(telemetry.keyEvents < Math.max(1, Math.floor(total * 0.75))) warnings.push("low-key-event-count");
-
-  const score = Math.max(0, 100 - blockers.length * 25 - warnings.length * 8);
   return {
-    eligible: blockers.length === 0,
-    score,
-    blockers,
-    warnings,
-    minExpectedMs,
+    validationSource: "client-telemetry",
     fastestQuestionMs,
     routeHash: hashRunRoute(route),
-    routeLength: route.length
+    routeLength: route.length,
+    solvedCount: solvedRoute.length,
+    firstTrySolvedCount: solvedRoute.filter(entry=>(entry.wrongAttempts || 0) === 0).length,
+    telemetryCounts: {
+      keyEvents: telemetry.keyEvents || 0,
+      inputEvents: telemetry.inputEvents || 0,
+      pasteEvents: telemetry.pasteEvents || 0,
+      hiddenEvents: telemetry.hiddenEvents || 0,
+      focusLosses: telemetry.focusLosses || 0
+    }
   };
-}
-
-function getMinimumExpectedRunMs(route){
-  return route.reduce((sum, entry)=>{
-    const answerLength = normalise(entry.answer || "").replace(/\s+/g, "").length;
-    return sum + 250 + answerLength * 25;
-  }, 1000);
 }
 
 function hashRunRoute(route){
@@ -1481,7 +1456,7 @@ function recordSpeedRun(){
   session.speedRun.recorded = true;
   const route = buildRouteSnapshot(session.route);
   const telemetry = buildTelemetrySnapshot(session);
-  const antiCheat = evaluateRunIntegrity(Math.round(elapsed), route, telemetry, session.pool.length);
+  const antiCheat = buildClientRunEvidence(route, telemetry);
 
   const key = getSpeedRunKey();
   const previousBest = getBestLocalRunTime(key);
@@ -1570,7 +1545,7 @@ function buildSplitRun(sourceRun, split){
     derivedFrom: sourceRun.telemetry.nonce,
     splitTarget: split
   };
-  const antiCheat = evaluateRunIntegrity(timeMs, route, telemetry, split);
+  const antiCheat = buildClientRunEvidence(route, telemetry);
   const correct = route
     .filter(entry=>entry.solvedMs !== null)
     .filter(entry=>(entry.wrongAttempts || 0) === 0)
@@ -2826,7 +2801,7 @@ function buildPendingSharedRuns(run){
     run,
     ...(Array.isArray(run.relatedPersonalBestRuns) ? run.relatedPersonalBestRuns : [])
   ];
-  const pending = candidates.filter(item=>item.isPersonalBest && item.antiCheat && item.antiCheat.eligible);
+  const pending = candidates.filter(item=>item.isPersonalBest);
   return pending.length ? pending : null;
 }
 
@@ -2920,18 +2895,6 @@ function renderLeaderboardPublishPrompt(reason){
   if(leaderboardPublishRow) leaderboardPublishRow.hidden = false;
 
   if(reason !== "complete" || state.playMode !== "speedrun") return;
-
-  if(state.lastCompletedRun && state.lastCompletedRun.isPersonalBest && !state.pendingSharedRun){
-    leaderboardPublish.hidden = false;
-    if(leaderboardPublishTitle){
-      const blockers = state.lastCompletedRun.antiCheat && state.lastCompletedRun.antiCheat.blockers
-        ? state.lastCompletedRun.antiCheat.blockers.join(", ")
-        : "run validation failed";
-      leaderboardPublishTitle.textContent = `New personal best saved locally. Shared posting blocked: ${blockers}.`;
-    }
-    if(leaderboardPublishRow) leaderboardPublishRow.hidden = true;
-    return;
-  }
 
   const pendingRuns = getPendingSharedRuns();
   if(!pendingRuns.length) return;
