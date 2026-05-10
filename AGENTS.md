@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository contains a flag and capital quiz with two front ends. The static web app is served from the repo root: `index.html`, `game.html`, `leaderboard.html`, `admin.html`, `revise.html`, and `view.html` are page entry points; `style.css` is shared styling; `game.js`, `leaderboard.js`, `leaderboard-page.js`, `admin.js`, `revise.js`, `view.js`, and `utils.js` hold browser behavior. `data.js` is the canonical quiz data source. `leaderboard-config.js` holds public Supabase settings, `supabase/leaderboard.sql` defines the shared table, and `supabase/functions/` contains Edge Functions. The desktop app lives in `flag.py` and reads shared data through `flag_data.py`. Local desktop persistence files such as `high_scores.txt`, `revise_flags.txt`, and `session_percentages.txt` are ignored by Git.
+This repository contains a flag and capital quiz with two front ends. The static web app is served from the repo root: `index.html`, `game.html`, `leaderboard.html`, `admin.html`, `revise.html`, and `view.html` are page entry points; `style.css` is shared styling; `game.js`, `leaderboard.js`, `leaderboard-page.js`, `admin.js`, `revise.js`, `view.js`, and `utils.js` hold browser behavior. `data.js` is the canonical quiz data source. `leaderboard-config.js` holds public Supabase settings. Supabase schema, Edge Functions, admin validation, and anti-cheat implementation belong in a private server repository and must not be committed here. The desktop app lives in `flag.py` and reads shared data through `flag_data.py`. Local desktop persistence files such as `high_scores.txt`, `revise_flags.txt`, and `session_percentages.txt` are ignored by Git.
 
 ## Build, Test, and Development Commands
 
@@ -27,7 +27,7 @@ Recent commits use short, imperative summaries such as `Add speedrun mode and pr
 
 ## Agent-Specific Instructions
 
-Do not commit generated local state files or Supabase `service_role` secrets. Preserve the shared-data model: browser and desktop behavior should stay aligned through `data.js`.
+Do not commit generated local state files, Supabase `service_role` secrets, Supabase SQL, or Supabase Edge Function source. Preserve the shared-data model: browser and desktop behavior should stay aligned through `data.js`.
 
 For Supabase Edge Functions, check whether `leaderboard-config.js` uses a legacy anon JWT or a `sb_publishable_...` key. Publishable keys are not JWTs, so browser requests must not send them as `Authorization: Bearer ...`, and functions that accept public browser requests must be deployed with `--no-verify-jwt`.
 

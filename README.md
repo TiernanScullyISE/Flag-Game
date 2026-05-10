@@ -41,7 +41,7 @@ A geography quiz with two front ends:
 - `data.js`: canonical browser data for countries, capitals, continents, aliases and flag codes.
 - `utils.js`, `game.js`, `leaderboard.js`, `leaderboard-page.js`, `revise.js`, `view.js`: active browser logic.
 - `leaderboard-config.js`: public Supabase configuration for shared speedrun records.
-- `supabase/leaderboard.sql`: database table, indexes and row-level security policies for the shared leaderboard.
+- Supabase schema, Edge Functions and anti-cheat implementation live in a private server repository, not this public repo.
 - `flag_data.py`: desktop data bridge that reads `data.js`.
 - `flag.py`: Tkinter desktop app.
 - `revise_flags.txt`, `revise_capitals.txt`, `high_scores.txt`, `session_percentages.txt`: desktop persistence files.
@@ -58,18 +58,9 @@ The web version can also be served directly by GitHub Pages from the repo root.
 
 ## Shared Speedrun Leaderboard
 
-GitHub Pages is static, so it cannot store shared scores by itself. The web app now supports a shared Supabase leaderboard:
+GitHub Pages is static, so shared speedrun records and private learning analytics are handled by Supabase. The browser-facing project URL, public browser key and function URLs live in `leaderboard-config.js`.
 
-1. Create a free Supabase project.
-2. Open Supabase SQL Editor and run `supabase/leaderboard.sql`. Re-run it after updates; it is idempotent and keeps public access read-only.
-3. In Supabase Project Settings > API, copy the Project URL and the public browser key (`anon public` JWT or `publishable` key).
-4. Deploy `supabase/functions/submit-speedrun`, `supabase/functions/submit-analytics`, and `supabase/functions/admin-leaderboard`, then paste the public project settings and function URLs into `leaderboard-config.js`. If you use a `sb_publishable_...` key, deploy the functions with JWT verification disabled because publishable keys are not JWTs:
-
-```powershell
-supabase functions deploy submit-speedrun --no-verify-jwt
-supabase functions deploy submit-analytics --no-verify-jwt
-supabase functions deploy admin-leaderboard --no-verify-jwt
-```
+The Supabase schema, Edge Functions, admin validation and anti-cheat rules are intentionally kept out of this public repository. Deploy them from the private server repository only.
 
 ```js
 window.LEADERBOARD_CONFIG = {
@@ -86,17 +77,13 @@ Only commit the public browser key. Never put the `service_role` key, admin pass
 
 Posted runs include route order, splits and anti-cheat telemetry. The leaderboard page shows the top five by default; expand a run to inspect route details.
 
-If Supabase reports a missing `route`, `telemetry` or `anti_cheat` column after an update, re-run `supabase/leaderboard.sql`; it ends with a PostgREST schema-cache reload.
-
-`supabase/leaderboard.sql` is safe by default: public clients can read approved rows but cannot insert leaderboard rows directly. Shared submissions must go through the `submit-speedrun` Edge Function, which uses the server-side `service_role` key.
-
 Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include timing metrics such as time to first input, typing duration, solve time, WPM, attempts and quality flags; raw wrong answers are not stored. These records are not public and are available only through the admin function.
 
-`admin.html` uses `supabase/functions/admin-leaderboard` and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review. The same admin page can load private analytics records for educational review.
+`admin.html` uses a private Supabase admin function and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review. The same admin page can load private analytics records for educational review.
 
 ## Anti-Cheat Approach
 
-The leaderboard is designed for a public-source static app, so the browser is treated as untrusted. The system uses layered checks rather than relying on any single client-side signal:
+The leaderboard is designed for a public-source static app, so the browser is treated as untrusted. The private server implementation uses layered checks rather than relying on any single client-side signal:
 
 - Direct public table inserts are revoked by the default SQL setup.
 - Submissions go through an Edge Function that recomputes category, route, answer, timing and score consistency before writing to the database.
@@ -107,7 +94,7 @@ The leaderboard is designed for a public-source static app, so the browser is tr
 - Admin moderation is protected by a server-side password check and database-backed failed-login lockout.
 - Approved public reads are separated from pending/rejected moderation data.
 
-This is suitable for a casual public leaderboard. Because a public browser app cannot fully hide quiz data or stop real-browser automation, determined attackers can still cheat. Do not use it for prizes without stronger authentication and moderation.
+Because a public browser app cannot fully hide quiz data or stop real-browser automation, determined attackers can still cheat. Keep the server validation code private, use admin moderation for suspicious records, and avoid prize-backed competition without stronger authentication.
 
 ## Run the Desktop Version
 

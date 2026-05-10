@@ -2,3 +2,6 @@
 *.txt
 .vscode/
 supabase/.temp/
+supabase/functions/
+supabase/*.sql
+.private-supabase-backup/
