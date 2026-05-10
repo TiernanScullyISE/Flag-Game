@@ -23,7 +23,7 @@
   <main class="container">
     <section class="page-intro">
       <p class="section-kicker">Admin</p>
-      <h1>Review suspicious leaderboard submissions.</h1>
+      <h1>Review leaderboard submissions and private learning analytics.</h1>
     </section>
 
     <section class="toolbar admin-toolbar">
@@ -32,6 +32,7 @@
         <input id="admin-password" type="password" autocomplete="current-password" />
       </div>
       <button id="admin-load" class="btn primary" type="button">Load queue</button>
+      <button id="admin-analytics" class="btn subtle" type="button">Load analytics</button>
     </section>
 
     <section id="admin-status" class="leaderboard-page-status" aria-live="polite"></section>
@@ -39,7 +40,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Approved runs appear on the public leaderboard. Rejected runs stay hidden.</p>
+    <p>Approved runs appear on the public leaderboard. Private analytics stay admin-only.</p>
   </footer>
 
   <script src="leaderboard-config.js" defer></script>

@@ -62,8 +62,14 @@ GitHub Pages is static, so it cannot store shared scores by itself. The web app 
 
 1. Create a free Supabase project.
 2. Open Supabase SQL Editor and run `supabase/leaderboard.sql`. Re-run it after updates; it is idempotent and keeps public access read-only.
-3. In Supabase Project Settings > API, copy the Project URL and the public browser key (`anon public` or `publishable` key).
-4. Deploy `supabase/functions/submit-speedrun` and `supabase/functions/admin-leaderboard`, then paste the public project settings and function URLs into `leaderboard-config.js`:
+3. In Supabase Project Settings > API, copy the Project URL and the public browser key (`anon public` JWT or `publishable` key).
+4. Deploy `supabase/functions/submit-speedrun`, `supabase/functions/submit-analytics`, and `supabase/functions/admin-leaderboard`, then paste the public project settings and function URLs into `leaderboard-config.js`. If you use a `sb_publishable_...` key, deploy the functions with JWT verification disabled because publishable keys are not JWTs:
+
+```powershell
+supabase functions deploy submit-speedrun --no-verify-jwt
+supabase functions deploy submit-analytics --no-verify-jwt
+supabase functions deploy admin-leaderboard --no-verify-jwt
+```
 
 ```js
 window.LEADERBOARD_CONFIG = {
@@ -71,11 +77,12 @@ window.LEADERBOARD_CONFIG = {
   supabaseAnonKey: "YOUR_ANON_PUBLIC_KEY",
   tableName: "speedrun_leaderboard",
   submitFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/submit-speedrun",
+  analyticsFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/submit-analytics",
   adminFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/admin-leaderboard"
 };
 ```
 
-Only commit the public browser key. Never put the `service_role` key, admin password or private function secrets in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted only when they are a personal best for that exact category and the player chooses to submit them.
+Only commit the public browser key. Never put the `service_role` key, admin password or private function secrets in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted to the public leaderboard only when they are a personal best for that exact category and the player chooses to submit them.
 
 Posted runs include route order, splits and anti-cheat telemetry. The leaderboard page shows the top five by default; expand a run to inspect route details.
 
@@ -83,7 +90,9 @@ If Supabase reports a missing `route`, `telemetry` or `anti_cheat` column after 
 
 `supabase/leaderboard.sql` is safe by default: public clients can read approved rows but cannot insert leaderboard rows directly. Shared submissions must go through the `submit-speedrun` Edge Function, which uses the server-side `service_role` key.
 
-`admin.html` uses `supabase/functions/admin-leaderboard` and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review.
+Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include timing metrics such as time to first input, typing duration, solve time, WPM, attempts and quality flags; raw wrong answers are not stored. These records are not public and are available only through the admin function.
+
+`admin.html` uses `supabase/functions/admin-leaderboard` and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review. The same admin page can load private analytics records for educational review.
 
 ## Anti-Cheat Approach
 

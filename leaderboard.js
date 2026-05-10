@@ -14,11 +14,34 @@
     return typeof value === "string" && !PLACEHOLDER_VALUES.has(value.trim());
   }
 
+  function isJwt(value){
+    return /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(String(value || "").trim());
+  }
+
+  function makePublicHeaders(key, extraHeaders={}){
+    const headers = {
+      apikey: key,
+      "Content-Type": "application/json",
+      ...extraHeaders
+    };
+    if(isJwt(key) && !headers.Authorization){
+      headers.Authorization = `Bearer ${key}`;
+    }
+    return headers;
+  }
+
   function isConfigured(){
     const config = getConfig();
     return configuredValue(config.supabaseUrl)
       && configuredValue(config.supabaseAnonKey)
       && configuredValue(config.submitFunctionUrl);
+  }
+
+  function isAnalyticsConfigured(){
+    const config = getConfig();
+    return configuredValue(config.supabaseUrl)
+      && configuredValue(config.supabaseAnonKey)
+      && configuredValue(config.analyticsFunctionUrl);
   }
 
   function getTableName(){
@@ -34,12 +57,7 @@
 
   function getHeaders(extraHeaders={}){
     const key = getConfig().supabaseAnonKey.trim();
-    return {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      ...extraHeaders
-    };
+    return makePublicHeaders(key, extraHeaders);
   }
 
   async function request(params, options={}){
@@ -174,11 +192,7 @@
     const key = config.supabaseAnonKey.trim();
     const response = await fetch(config.submitFunctionUrl.trim(), {
       method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json"
-      },
+      headers: makePublicHeaders(key),
       body: JSON.stringify(payload)
     });
     if(!response.ok){
@@ -189,10 +203,53 @@
     return text ? JSON.parse(text) : {ok:true, status:"approved"};
   }
 
+  async function submitAnalytics(run){
+    const config = getConfig();
+    if(!configuredValue(config.analyticsFunctionUrl)){
+      throw new Error("Speedrun analytics function is not configured.");
+    }
+    const key = config.supabaseAnonKey.trim();
+    const payload = {
+      client_run_id: cleanText(run.clientRunId, "", 120),
+      player_name: cleanText(run.playerName, "Player", 24),
+      player_id: cleanText(run.playerId, "", 80),
+      mode_key: cleanText(run.modeKey, "unknown", 80),
+      which: cleanText(run.which, "flags", 12),
+      continent: cleanText(run.continent, "All", 32),
+      difficulty: cleanText(run.difficulty, "hard", 12),
+      target: cleanText(run.target, "all", 12),
+      target_label: cleanText(run.targetLabel, "All", 24),
+      time_ms: Math.round(Number(run.timeMs) || 0),
+      correct_first_try: Math.round(Number(run.correct) || 0),
+      total: Math.round(Number(run.total) || 0),
+      typed_chars: Math.round(Number(run.typedChars) || 0),
+      wpm: Number(run.wpm) || 0,
+      splits: run.splits || {},
+      route: Array.isArray(run.route) ? run.route : [],
+      telemetry: run.telemetry || {},
+      anti_cheat: run.antiCheat || {},
+      captured_at: run.capturedAt || new Date().toISOString()
+    };
+
+    const response = await fetch(config.analyticsFunctionUrl.trim(), {
+      method: "POST",
+      headers: makePublicHeaders(key),
+      body: JSON.stringify(payload)
+    });
+    if(!response.ok){
+      const text = await response.text();
+      throw new Error(getErrorMessage(text, `Analytics function failed (${response.status}).`));
+    }
+    const text = await response.text();
+    return text ? JSON.parse(text) : {ok:true, status:"stored"};
+  }
+
   window.sharedLeaderboard = {
     isConfigured,
+    isAnalyticsConfigured,
     fetchRuns,
     fetchAllRuns,
-    submitRun
+    submitRun,
+    submitAnalytics
   };
 })();

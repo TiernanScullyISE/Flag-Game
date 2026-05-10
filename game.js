@@ -4,6 +4,7 @@ const SPEEDRUN_SPLITS = [10, 25, 50, 100, 150];
 const MAX_LEADERBOARD_RUNS = 5;
 const MAX_SHARED_LEADERBOARD_RUNS = 5;
 const LEADERBOARD_REFRESH_MS = 30000;
+const MAX_ANALYTICS_QUEUE_RUNS = 50;
 const WORLD_MAP_TOPOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 const WORLD_MAP_WIDTH = 1440;
 const WORLD_MAP_HEIGHT = 760;
@@ -187,6 +188,8 @@ const state = {
   highScores: storage.get(LS_KEYS.highScores, {}),
   sessionPercentages: storage.get(LS_KEYS.sessionPercentages, {}),
   speedRuns: storage.get(LS_KEYS.speedRuns, {}),
+  speedRunAnalyticsQueue: storage.get(LS_KEYS.speedRunAnalyticsQueue, []),
+  analyticsSyncing: false,
   sharedLeaderboardRuns: {},
   sharedLeaderboardLoading: false,
   sharedLeaderboardLoadingKey: "",
@@ -227,6 +230,7 @@ function makeSession(){
       startMs: 0,
       elapsedMs: 0,
       timerId: null,
+      typedChars: 0,
       splits: {},
       gaveUp: false,
       recorded: false
@@ -270,6 +274,8 @@ const livesValue = document.getElementById("lives-value");
 const livesStatus = document.getElementById("lives-status");
 const timerValue = document.getElementById("timer-value");
 const timerStatus = document.getElementById("timer-status");
+const wpmValue = document.getElementById("wpm-value");
+const wpmStatus = document.getElementById("wpm-status");
 const splitList = document.getElementById("split-list");
 const leaderboardScopeLabel = document.getElementById("leaderboard-scope-label");
 const leaderboardTitle = document.getElementById("leaderboard-title");
@@ -405,6 +411,7 @@ function init(){
   populateContinents();
   populateSpeedTargets();
   resetSession();
+  window.setTimeout(drainSpeedRunAnalyticsQueue, 0);
   window.setInterval(()=>{
     if(state.playMode === "speedrun") refreshSharedLeaderboard();
   }, LEADERBOARD_REFRESH_MS);
@@ -493,13 +500,26 @@ function recordAnswerKey(event){
   if(!isActiveSpeedRun()) return;
   const security = state.session.security;
   security.keyEvents += 1;
+  if(isTypedCharacterKey(event)){
+    state.session.speedRun.typedChars += 1;
+    updateWpmDisplay();
+  }
   const entry = getCurrentRouteEntry();
   if(entry){
     entry.keyEvents = (entry.keyEvents || 0) + 1;
-    if(event.key && event.key.length === 1){
+    if(isTypedCharacterKey(event)){
       entry.typedChars = (entry.typedChars || 0) + 1;
     }
   }
+}
+
+function isTypedCharacterKey(event){
+  return !!event
+    && !!event.key
+    && event.key.length === 1
+    && !event.ctrlKey
+    && !event.metaKey
+    && !event.altKey;
 }
 
 function recordAnswerInput(){
@@ -833,6 +853,11 @@ function buildRouteSnapshot(route){
     solvedMs: entry.solvedMs === null ? null : Math.round(entry.solvedMs),
     attempts: entry.attempts || 0,
     wrongAttempts: entry.wrongAttempts || 0,
+    inputEvents: entry.inputEvents || 0,
+    keyEvents: entry.keyEvents || 0,
+    typedChars: entry.typedChars || 0,
+    maxInputLength: entry.maxInputLength || 0,
+    pasteEvents: entry.pasteEvents || 0,
     skipped: !!entry.skipped
   }));
 }
@@ -849,6 +874,8 @@ function buildTelemetrySnapshot(session){
     pasteEvents: security.pasteEvents || 0,
     keyEvents: security.keyEvents || 0,
     inputEvents: security.inputEvents || 0,
+    typedChars: getSpeedRunTypedChars(session),
+    wpm: roundMetric(getSpeedRunWpm(session, getSpeedRunDisplayMs(session)), 1),
     pointerEvents: security.pointerEvents || 0,
     suspiciousEvents: (security.suspiciousEvents || []).slice(0, 20),
     webdriver: !!navigator.webdriver
@@ -1433,6 +1460,23 @@ function getElapsedMs(){
   return Date.now() - session.speedRun.startMs;
 }
 
+function getSpeedRunDisplayMs(session=state.session){
+  if(!session || !session.speedRun) return 0;
+  if(!session.speedRun.started) return session.speedRun.elapsedMs || 0;
+  if(!session.speedRun.timerId && session.speedRun.elapsedMs) return session.speedRun.elapsedMs;
+  return getElapsedMs();
+}
+
+function getSpeedRunTypedChars(session=state.session){
+  return Math.max(0, Math.round(Number(session && session.speedRun && session.speedRun.typedChars) || 0));
+}
+
+function getSpeedRunWpm(session=state.session, elapsedMs=getSpeedRunDisplayMs(session)){
+  const minutes = Math.max(0, elapsedMs || 0) / 60000;
+  if(!minutes) return 0;
+  return (getSpeedRunTypedChars(session) / 5) / minutes;
+}
+
 function captureSpeedRunSplit(){
   if(state.playMode !== "speedrun" || !state.session.speedRun.started) return;
   const solved = state.session.solved.size;
@@ -1460,6 +1504,8 @@ function recordSpeedRun(){
 
   const key = getSpeedRunKey();
   const previousBest = getBestLocalRunTime(key);
+  const typedChars = getSpeedRunTypedChars(session);
+  const wpm = roundMetric(getSpeedRunWpm(session, elapsed), 1);
 
   for(const [label, value] of Object.entries(session.speedRun.splits)){
     const record = state.speedRuns[key] || {bestSplits:{}, runs:[]};
@@ -1479,6 +1525,8 @@ function recordSpeedRun(){
     targetValue: state.speedTarget,
     targetLabel: getSpeedTargetLabel(),
     timeMs: Math.round(elapsed),
+    typedChars,
+    wpm,
     date: new Date().toISOString(),
     correct: session.correctFirstTry,
     total: session.pool.length,
@@ -1751,6 +1799,85 @@ async function postPendingSharedRun(){
 function getPendingSharedRuns(){
   if(!state.pendingSharedRun) return [];
   return Array.isArray(state.pendingSharedRun) ? state.pendingSharedRun : [state.pendingSharedRun];
+}
+
+function queueCompletedRunAnalytics(run){
+  if(!run || !run.telemetry || !run.telemetry.nonce) return;
+  const analyticsRun = buildCompletedRunAnalytics(run);
+  if(!analyticsRun) return;
+  const queue = getSpeedRunAnalyticsQueue()
+    .filter(item=>item && item.clientRunId !== analyticsRun.clientRunId);
+  queue.push(analyticsRun);
+  state.speedRunAnalyticsQueue = queue.slice(-MAX_ANALYTICS_QUEUE_RUNS);
+  saveSpeedRunAnalyticsQueue();
+  drainSpeedRunAnalyticsQueue();
+}
+
+function buildCompletedRunAnalytics(run){
+  const route = Array.isArray(run.route) ? run.route : [];
+  const telemetry = run.telemetry || {};
+  const clientRunId = String(telemetry.nonce || "");
+  if(!clientRunId || !route.length) return null;
+  return {
+    clientRunId,
+    playerName: sanitizePlayerName(run.playerName || state.playerName),
+    playerId: state.playerId,
+    modeKey: run.modeKey,
+    which: run.which,
+    continent: run.continent,
+    difficulty: run.difficulty,
+    target: run.targetValue,
+    targetLabel: run.targetLabel,
+    timeMs: run.timeMs,
+    correct: run.correct,
+    total: run.total,
+    typedChars: run.typedChars || 0,
+    wpm: run.wpm || 0,
+    splits: run.splits || {},
+    route,
+    telemetry,
+    antiCheat: run.antiCheat || {},
+    capturedAt: new Date().toISOString()
+  };
+}
+
+function getSpeedRunAnalyticsQueue(){
+  return Array.isArray(state.speedRunAnalyticsQueue) ? state.speedRunAnalyticsQueue : [];
+}
+
+function saveSpeedRunAnalyticsQueue(){
+  storage.set(LS_KEYS.speedRunAnalyticsQueue, getSpeedRunAnalyticsQueue());
+}
+
+async function drainSpeedRunAnalyticsQueue(){
+  if(state.analyticsSyncing) return;
+  if(!window.sharedLeaderboard || !window.sharedLeaderboard.isAnalyticsConfigured || !window.sharedLeaderboard.submitAnalytics) return;
+  if(!window.sharedLeaderboard.isAnalyticsConfigured()) return;
+
+  let queue = getSpeedRunAnalyticsQueue().filter(item=>item && item.clientRunId);
+  if(!queue.length) return;
+  if(queue.length !== getSpeedRunAnalyticsQueue().length){
+    state.speedRunAnalyticsQueue = queue;
+    saveSpeedRunAnalyticsQueue();
+  }
+  state.analyticsSyncing = true;
+  try{
+    let submitted = 0;
+    for(const item of queue){
+      try{
+        await window.sharedLeaderboard.submitAnalytics(item);
+        submitted += 1;
+      }catch{
+        break;
+      }
+    }
+    if(submitted > 0){
+      state.speedRunAnalyticsQueue = getSpeedRunAnalyticsQueue().slice(submitted);
+      saveSpeedRunAnalyticsQueue();
+    }
+  }finally{
+    state.analyticsSyncing = false;
+  }
 }
 
 function getSpeedRunSplitTargets(){
@@ -2647,10 +2774,11 @@ function updateTimerDisplay(){
   if(state.playMode !== "speedrun"){
     timerValue.textContent = "0:00.0";
     timerStatus.textContent = "Switch to Speedrun to start the clock.";
+    updateWpmDisplay();
     return;
   }
   const session = state.session;
-  timerValue.textContent = formatTime(getElapsedMs());
+  timerValue.textContent = formatTime(getSpeedRunDisplayMs(session));
   if(!session.pool.length){
     timerStatus.textContent = "Choose a target with available questions.";
   }else if(session.speedRun.gaveUp){
@@ -2661,6 +2789,29 @@ function updateTimerDisplay(){
     timerStatus.textContent = `Running - ${session.solved.size}/${session.pool.length} solved.`;
   }else{
     timerStatus.textContent = "Starts when you begin typing.";
+  }
+  updateWpmDisplay();
+}
+
+function updateWpmDisplay(){
+  if(!wpmValue || !wpmStatus) return;
+  if(state.playMode !== "speedrun"){
+    wpmValue.textContent = "0.0";
+    wpmStatus.textContent = "Switch to Speedrun to track typing pace.";
+    return;
+  }
+  const session = state.session;
+  const elapsedMs = getSpeedRunDisplayMs(session);
+  const typedChars = getSpeedRunTypedChars(session);
+  wpmValue.textContent = formatWpm(getSpeedRunWpm(session, elapsedMs));
+  if(!session.pool.length){
+    wpmStatus.textContent = "Choose a target with available questions.";
+  }else if(session.speedRun.gaveUp || isTargetComplete()){
+    wpmStatus.textContent = `Final gross WPM from ${typedChars} typed characters.`;
+  }else if(session.speedRun.started){
+    wpmStatus.textContent = `Gross WPM from ${typedChars} typed characters.`;
+  }else{
+    wpmStatus.textContent = "Starts with your first typed character.";
   }
 }
 
@@ -2687,7 +2838,7 @@ function renderSplits(){
     name.textContent = target === "all" ? "Finish" : `First ${target}`;
 
     const current = document.createElement("span");
-    const liveAll = target === "all" && state.session.speedRun.started ? getElapsedMs() : null;
+    const liveAll = target === "all" && state.session.speedRun.started ? getSpeedRunDisplayMs(state.session) : null;
     const currentValue = state.session.speedRun.splits[label] || liveAll;
     current.textContent = currentValue ? formatTime(currentValue) : "-";
 
@@ -2779,6 +2930,7 @@ function finishSession(reason){
     const run = recordSpeedRun();
     state.lastCompletedRun = run;
     state.pendingSharedRun = buildPendingSharedRuns(run);
+    queueCompletedRunAnalytics(run);
   }else{
     stopSpeedRun();
     state.pendingSharedRun = null;
@@ -2841,10 +2993,14 @@ function showResultModal(reason){
   resultTitle.textContent = getResultTitle(reason);
 
   const finalTime = isSpeed && session.speedRun.started
-    ? formatTime(session.speedRun.elapsedMs || getElapsedMs())
+    ? formatTime(getSpeedRunDisplayMs(session))
+    : null;
+  const finalWpm = isSpeed && session.speedRun.started
+    ? formatWpm(getSpeedRunWpm(session, getSpeedRunDisplayMs(session)))
     : null;
   renderResultHero({
     time: finalTime,
+    wpm: finalWpm,
     solved: `${session.solved.size}/${session.pool.length}`,
     accuracy: `${pct}%`,
     lives: !isSpeed && session.livesRemaining !== null ? String(session.livesRemaining) : null
@@ -2858,9 +3014,10 @@ function showResultModal(reason){
     `Mode: ${getModeLabel()} / ${state.hard ? "Typed" : "Normal"}`,
     `Continent: ${state.selectedContinent}`,
     isSpeed ? `Target: ${getSpeedTargetLabel()}` : `Lives: ${state.lifeSetting === "unlimited" ? "Unlimited" : state.lifeSetting}`,
+    isSpeed ? `WPM: ${finalWpm || "0.0"}` : null,
     `Skipped unresolved: ${session.skipped.size}`,
     `Wrong at least once: ${session.incorrect.size}`
-  ];
+  ].filter(Boolean);
 
   for(const detail of details){
     const item = document.createElement("p");
@@ -2924,6 +3081,7 @@ function renderResultHero(items){
   resultHero.innerHTML = "";
   const entries = [];
   if(items.time) entries.push(["Time", items.time]);
+  if(items.wpm) entries.push(["WPM", items.wpm]);
   entries.push(["Solved", items.solved]);
   entries.push(["Accuracy", items.accuracy]);
   if(items.lives !== null) entries.push(["Lives left", items.lives]);
@@ -3001,6 +3159,19 @@ function formatTime(ms){
   const seconds = Math.floor((value % 60000) / 1000);
   const tenths = Math.floor((value % 1000) / 100);
   return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
+}
+
+function formatWpm(value){
+  const wpm = Number(value);
+  if(!Number.isFinite(wpm) || wpm <= 0) return "0.0";
+  return wpm >= 100 ? String(Math.round(wpm)) : wpm.toFixed(1);
+}
+
+function roundMetric(value, decimals=1){
+  const number = Number(value);
+  if(!Number.isFinite(number)) return 0;
+  const factor = 10 ** decimals;
+  return Math.round(number * factor) / factor;
 }
 
 function isRevisionMode(){

@@ -209,6 +209,7 @@ const LS_KEYS = {
   highScores:"high_scores",
   sessionPercentages:"session_percentages",
   speedRuns:"speed_run_records",
+  speedRunAnalyticsQueue:"speedrun_analytics_queue",
   playerName:"speedrun_player_name",
   playerId:"speedrun_player_id",
   playerNameHistory:"speedrun_player_name_history"

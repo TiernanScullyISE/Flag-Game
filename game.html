@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=world-map-20" />
+  <link rel="stylesheet" href="style.css?v=analytics-1" />
 </head>
 <body data-play-mode="practice" data-quiz-mode="flags">
   <header class="site-header with-nav compact-header">
@@ -86,6 +86,11 @@
             <p class="panel-label">Speedrun Timer</p>
             <p id="timer-value" class="timer-value">0:00.0</p>
             <p id="timer-status" class="timer-status">Starts when you begin typing.</p>
+          </div>
+          <div class="timer-card">
+            <p class="panel-label">Typing WPM</p>
+            <p id="wpm-value" class="timer-value compact-value">0.0</p>
+            <p id="wpm-status" class="timer-status">Gross WPM from typed characters.</p>
           </div>
           <div class="split-card">
             <div class="panel-heading">
@@ -171,8 +176,8 @@
   <script src="data.js" defer></script>
   <script src="utils.js" defer></script>
   <script src="leaderboard-config.js" defer></script>
-  <script src="leaderboard.js?v=world-map-20" defer></script>
+  <script src="leaderboard.js?v=analytics-1" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3" defer></script>
-  <script src="game.js?v=world-map-20" defer></script>
+  <script src="game.js?v=analytics-1" defer></script>
 </body>
 </html>

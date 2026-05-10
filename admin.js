@@ -1,11 +1,13 @@
 const adminPassword = document.getElementById("admin-password");
 const adminLoad = document.getElementById("admin-load");
+const adminAnalytics = document.getElementById("admin-analytics");
 const adminStatus = document.getElementById("admin-status");
 const adminList = document.getElementById("admin-list");
 
 function initAdmin(){
   adminPassword.value = sessionStorage.getItem("leaderboard_admin_password") || "";
   adminLoad.addEventListener("click", loadAdminQueue);
+  adminAnalytics.addEventListener("click", loadAnalytics);
   adminPassword.addEventListener("keydown", event=>{
     if(event.key === "Enter") loadAdminQueue();
   });
@@ -25,8 +27,24 @@ async function adminRequest(action, extra={}){
 
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
-  if(!response.ok) throw new Error(payload.error || text || `Admin request failed (${response.status}).`);
+  if(!response.ok) throw new Error(getAdminErrorMessage(payload, text, response.status));
   return payload;
+}
+
+function getAdminErrorMessage(payload, text, status){
+  const raw = payload && payload.error ? String(payload.error) : text || "";
+  if(raw.includes("PGRST205") && raw.includes("speedrun_analytics")){
+    return "Analytics table is missing from Supabase schema cache. Run the updated supabase/leaderboard.sql in Supabase SQL Editor, then try Load analytics again.";
+  }
+  try{
+    const nested = JSON.parse(raw);
+    if(nested.code === "PGRST205" && String(nested.message || "").includes("speedrun_analytics")){
+      return "Analytics table is missing from Supabase schema cache. Run the updated supabase/leaderboard.sql in Supabase SQL Editor, then try Load analytics again.";
+    }
+    return nested.message || nested.error || raw || `Admin request failed (${status}).`;
+  }catch{
+    return raw || `Admin request failed (${status}).`;
+  }
 }
 
 async function loadAdminQueue(){
@@ -45,6 +63,22 @@ async function loadAdminQueue(){
   }
 }
 
+async function loadAnalytics(){
+  adminAnalytics.disabled = true;
+  setAdminStatus("Loading analytics...");
+  adminList.innerHTML = "";
+
+  try{
+    const payload = await adminRequest("analytics");
+    renderAnalytics(payload.analytics || []);
+    setAdminStatus(`${(payload.analytics || []).length} completed speedrun analytics records loaded.`);
+  }catch(error){
+    setAdminStatus(error.message || "Could not load analytics.");
+  }finally{
+    adminAnalytics.disabled = false;
+  }
+}
+
 function renderAdminRuns(runs){
   adminList.innerHTML = "";
   if(!runs.length){
@@ -58,6 +92,68 @@ function renderAdminRuns(runs){
   for(const run of runs){
     adminList.appendChild(renderAdminRun(run));
   }
+}
+
+function renderAnalytics(records){
+  adminList.innerHTML = "";
+  if(!records.length){
+    const empty = document.createElement("p");
+    empty.className = "empty-mini leaderboard-page-empty";
+    empty.textContent = "No analytics records stored yet.";
+    adminList.appendChild(empty);
+    return;
+  }
+
+  for(const record of records){
+    adminList.appendChild(renderAnalyticsRecord(record));
+  }
+}
+
+function renderAnalyticsRecord(record){
+  const card = document.createElement("article");
+  card.className = "leaderboard-category-card admin-run-card";
+
+  const heading = document.createElement("header");
+  heading.className = "leaderboard-category-heading";
+  const kicker = document.createElement("p");
+  kicker.className = "panel-label";
+  kicker.textContent = `${record.which} - ${record.continent} - ${record.target_label}`;
+  const title = document.createElement("h2");
+  title.textContent = `${record.player_name} - ${formatAdminTime(record.time_ms)}`;
+  heading.append(kicker, title);
+
+  const facts = document.createElement("div");
+  facts.className = "leaderboard-expanded-facts";
+  facts.append(
+    factPill(`Created: ${new Date(record.created_at).toLocaleString()}`),
+    factPill(`WPM: ${formatAdminNumber(record.wpm)}`),
+    factPill(`Accuracy: ${record.correct_first_try}/${record.total}`),
+    factPill(`Recognition avg: ${formatAdminMs(record.avg_recognition_ms)}`),
+    factPill(`Typing avg: ${formatAdminMs(record.avg_typing_ms)}`),
+    factPill(`Solve avg: ${formatAdminMs(record.avg_solve_ms)}`)
+  );
+
+  const flags = Array.isArray(record.quality_flags) ? record.quality_flags : [];
+  if(flags.length) facts.append(factPill(`Flags: ${flags.join(", ")}`));
+
+  const route = document.createElement("ol");
+  route.className = "leaderboard-route-list";
+  const metrics = record.metrics && typeof record.metrics === "object" ? record.metrics : {};
+  const perQuestion = Array.isArray(metrics.perQuestion) ? metrics.perQuestion : [];
+  for(const entry of perQuestion.slice(0, 40)){
+    const item = document.createElement("li");
+    item.textContent = `${entry.index}. ${entry.country} - recognise ${formatAdminMs(entry.recognitionMs)}, type ${formatAdminMs(entry.typingMs)}, solve ${formatAdminMs(entry.solveMs)} - ${entry.attempts || 0} attempts`;
+    route.appendChild(item);
+  }
+
+  if(perQuestion.length > 40){
+    const item = document.createElement("li");
+    item.textContent = `${perQuestion.length - 40} more question records hidden in this view.`;
+    route.appendChild(item);
+  }
+
+  card.append(heading, facts, route);
+  return card;
 }
 
 function renderAdminRun(run){
@@ -172,6 +268,18 @@ function formatAdminTime(ms){
   const seconds = Math.floor((value % 60000) / 1000);
   const tenths = Math.floor((value % 1000) / 100);
   return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
+}
+
+function formatAdminMs(ms){
+  const value = Number(ms);
+  if(!Number.isFinite(value)) return "-";
+  return `${Math.round(value)} ms`;
+}
+
+function formatAdminNumber(value){
+  const number = Number(value);
+  if(!Number.isFinite(number)) return "-";
+  return number >= 100 ? String(Math.round(number)) : number.toFixed(1);
 }
 
 document.addEventListener("DOMContentLoaded", initAdmin);

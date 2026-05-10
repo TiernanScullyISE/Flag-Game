@@ -28,3 +28,7 @@ Recent commits use short, imperative summaries such as `Add speedrun mode and pr
 ## Agent-Specific Instructions
 
 Do not commit generated local state files or Supabase `service_role` secrets. Preserve the shared-data model: browser and desktop behavior should stay aligned through `data.js`.
+
+For Supabase Edge Functions, check whether `leaderboard-config.js` uses a legacy anon JWT or a `sb_publishable_...` key. Publishable keys are not JWTs, so browser requests must not send them as `Authorization: Bearer ...`, and functions that accept public browser requests must be deployed with `--no-verify-jwt`.
+
+If `deno` is missing in this environment, try `C:\Users\User\.deno\bin\deno.exe`. If `supabase projects list` reports that no access token is provided, do not guess: ask the user to run `supabase login` locally or persist their existing terminal token as a user environment variable.
