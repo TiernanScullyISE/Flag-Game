@@ -144,7 +144,7 @@
   function makeRunParams(detail, limit){
     const params = new URLSearchParams();
     const base = "mode_key,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits";
-    const detailed = `${base},route,telemetry,anti_cheat,verified,submission_method,status,review_reasons`;
+    const detailed = `${base},route,verified`;
     params.set("select", detail === "detailed" ? detailed : base);
     params.set("order", "mode_key.asc,time_ms.asc,created_at.asc");
     params.set("limit", String(limit));
@@ -156,13 +156,24 @@
       return await request(params);
     }catch(error){
       const message = error && error.message ? error.message.toLowerCase() : "";
-      if(!message.includes("route") && !message.includes("anti_cheat") && !message.includes("verified")){
+      if(!isDetailedColumnError(message)){
         throw error;
       }
       const fallback = makeRunParams("legacy", limit);
       if(modeKey) fallback.set("mode_key", `eq.${modeKey}`);
       return request(fallback);
     }
+  }
+
+  function isDetailedColumnError(message){
+    return [
+      "route",
+      "verified",
+      "permission denied",
+      "schema cache",
+      "could not find",
+      "does not exist"
+    ].some(text=>message.includes(text));
   }
 
   async function submitRun(run){
@@ -224,10 +235,39 @@
       total: Math.round(Number(run.total) || 0),
       typed_chars: Math.round(Number(run.typedChars) || 0),
       wpm: Number(run.wpm) || 0,
+      analytics_version: Math.round(Number(run.analyticsVersion) || 2),
+      run_id: cleanText(run.runId || run.clientRunId, "", 120),
+      device_number: cleanText(run.deviceNumber, "", 40),
+      known_player_names: Array.isArray(run.knownPlayerNames) ? run.knownPlayerNames : [],
+      leaderboard_names: Array.isArray(run.leaderboardNames) ? run.leaderboardNames : [],
+      mode: cleanText(run.mode || run.which, "flags", 12),
+      region: cleanText(run.region || run.continent, "All", 32),
+      country_set_version: cleanText(run.countrySetVersion, "", 80),
+      question_order_id: cleanText(run.questionOrderId, "", 120),
+      question_order: Array.isArray(run.questionOrder) ? run.questionOrder : [],
+      started_at: run.startedAt || "",
+      completed_at: run.completedAt || "",
+      total_duration_ms: Math.round(Number(run.totalDurationMs || run.timeMs) || 0),
+      solved_count: Math.round(Number(run.solvedCount || run.total) || 0),
+      final_correct_count: Math.round(Number(run.finalCorrectCount || run.total) || 0),
+      canonical_chars: Math.round(Number(run.canonicalChars) || 0),
+      wpm_variants: run.wpmVariants || {},
+      autocomplete_enabled: run.runContext ? run.runContext.autocompleteEnabled !== false : true,
+      aliases_enabled: run.runContext ? run.runContext.aliasesEnabled !== false : true,
+      strict_spelling_mode: run.runContext ? run.runContext.strictSpellingMode === true : false,
+      leaderboard_valid: run.leaderboardValid !== false,
+      analytics_only: run.analyticsOnly === true,
+      total_focus_lost_ms: Math.round(Number((run.telemetry && run.telemetry.focusLostMs) || (run.runContext && run.runContext.totalFocusLostMs)) || 0),
+      total_hidden_ms: Math.round(Number((run.telemetry && run.telemetry.hiddenMs) || (run.runContext && run.runContext.totalHiddenTabMs)) || 0),
+      paste_events_count: Math.round(Number((run.telemetry && run.telemetry.pasteEvents) || (run.runContext && run.runContext.pasteEventsCount)) || 0),
       splits: run.splits || {},
       route: Array.isArray(run.route) ? run.route : [],
+      question_analytics: Array.isArray(run.questionAnalytics) ? run.questionAnalytics : [],
+      derived_metrics: run.derivedMetrics || {},
+      run_context: run.runContext || {},
       telemetry: run.telemetry || {},
       anti_cheat: run.antiCheat || {},
+      data_quality_flags: Array.isArray(run.dataQualityFlags) ? run.dataQualityFlags : [],
       captured_at: run.capturedAt || new Date().toISOString()
     };
 

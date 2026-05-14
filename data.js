@@ -210,6 +210,8 @@ const LS_KEYS = {
   sessionPercentages:"session_percentages",
   speedRuns:"speed_run_records",
   speedRunAnalyticsQueue:"speedrun_analytics_queue",
+  speedRunDeviceAnalyticsHistory:"speedrun_device_analytics_history",
+  speedRunDeviceProfile:"speedrun_device_profile",
   playerName:"speedrun_player_name",
   playerId:"speedrun_player_id",
   playerNameHistory:"speedrun_player_name_history"

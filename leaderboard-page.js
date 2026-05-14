@@ -288,9 +288,11 @@ function renderExpandedRun(run){
   facts.className = "leaderboard-expanded-facts";
   facts.append(
     factPill(`Posted: ${run.date ? new Date(run.date).toLocaleString() : "Unknown"}`),
-    factPill(`Validation: ${run.verified ? "server verified" : "client checked"}`),
-    factPill(`Score: ${run.antiCheat && run.antiCheat.score !== undefined ? run.antiCheat.score : "-"} / 100`)
+    factPill(`Validation: ${run.verified ? "server verified" : "client checked"}`)
   );
+  if(run.antiCheat && run.antiCheat.score !== undefined){
+    facts.append(factPill(`Score: ${run.antiCheat.score} / 100`));
+  }
   panel.appendChild(facts);
 
   panel.appendChild(renderSplits(run));

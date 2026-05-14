@@ -75,9 +75,9 @@ window.LEADERBOARD_CONFIG = {
 
 Only commit the public browser key. Never put the `service_role` key, admin password or private function secrets in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted to the public leaderboard only when they are a personal best for that exact category and the player chooses to submit them.
 
-Posted runs include route order, splits and anti-cheat telemetry. The leaderboard page shows the top five by default; expand a run to inspect route details.
+Posted runs include private route order, splits and anti-cheat telemetry for server/admin review. The public leaderboard reads only simple approved result columns.
 
-Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include timing metrics such as time to first input, typing duration, solve time, WPM, attempts and quality flags; raw wrong answers are not stored. These records are not public and are available only through the admin function.
+Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include per-run context, per-question render/input/submit timings, raw attempts, accepted aliases, autocomplete/shortcut usage, typed-vs-canonical character counts, WPM variants, correction time, region breakdowns, mastery labels, device ID, submitted leaderboard names and quality flags. These records are private educational data and are available only through the admin function. The post-game summary can show the current browser's own local device progress without exposing anyone else's records.
 
 `admin.html` uses a private Supabase admin function and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review. The same admin page can load private analytics records for educational review.
 

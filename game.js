@@ -5,6 +5,10 @@ const MAX_LEADERBOARD_RUNS = 5;
 const MAX_SHARED_LEADERBOARD_RUNS = 5;
 const LEADERBOARD_REFRESH_MS = 30000;
 const MAX_ANALYTICS_QUEUE_RUNS = 50;
+const MAX_ANALYTICS_QUEUE_BYTES = 3500000;
+const ANALYTICS_SCHEMA_VERSION = 2;
+const NEAR_INSTANT_RECOGNITION_MS = 100;
+const IMPOSSIBLE_ACTIVE_WPM = 260;
 const WORLD_MAP_TOPOJSON_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 const WORLD_MAP_WIDTH = 1440;
 const WORLD_MAP_HEIGHT = 760;
@@ -182,6 +186,9 @@ const state = {
   playerName: storage.get(LS_KEYS.playerName, "Player"),
   playerId: storage.get(LS_KEYS.playerId, ""),
   playerNameHistory: storage.get(LS_KEYS.playerNameHistory, []),
+  deviceProfile: storage.get(LS_KEYS.speedRunDeviceProfile, {}),
+  deviceAnalyticsHistory: storage.get(LS_KEYS.speedRunDeviceAnalyticsHistory, []),
+  keyboardLayout: {available:false, reason:"not-checked"},
 
   reviseFlags: storage.get(LS_KEYS.reviseFlags, []),
   reviseCapitals: storage.get(LS_KEYS.reviseCapitals, []),
@@ -222,12 +229,18 @@ function makeSession(){
     route: [],
     currentRouteIndex: -1,
     security: makeSecurityTelemetry(),
+    analytics: makeRunAnalyticsState(),
     worldAnswerStartedMs: null,
+    worldAnswerStartedPerf: null,
+    worldMapVisiblePerf: null,
     worldLastSolvedMs: 0,
+    worldLastSolvedPerf: null,
+    worldPendingAttempts: [],
     worldWrongSubmissions: 0,
     speedRun: {
       started: false,
       startMs: 0,
+      startPerf: 0,
       elapsedMs: 0,
       timerId: null,
       typedChars: 0,
@@ -242,13 +255,34 @@ function makeSecurityTelemetry(){
   return {
     nonce: makeNonce(),
     startedAt: new Date().toISOString(),
+    completedAt: "",
     focusLosses: 0,
+    focusLostMs: 0,
+    focusLostStartedPerf: null,
     hiddenEvents: 0,
+    hiddenMs: 0,
+    hiddenStartedPerf: null,
     pasteEvents: 0,
     keyEvents: 0,
     inputEvents: 0,
     pointerEvents: 0,
     suspiciousEvents: []
+  };
+}
+
+function makeRunAnalyticsState(){
+  return {
+    version: ANALYTICS_SCHEMA_VERSION,
+    runId: makeNonce(),
+    createdAt: new Date().toISOString(),
+    startedAt: "",
+    completedAt: "",
+    startedPerf: null,
+    completedPerf: null,
+    countrySetVersion: getCountrySetVersion(),
+    questionOrder: [],
+    questionOrderId: "",
+    dataQualityFlags: []
   };
 }
 
@@ -371,6 +405,8 @@ function init(){
   state.playerId = getOrCreatePlayerId();
   state.playerNameHistory = getCleanPlayerNameHistory();
   state.playerName = getDefaultPlayerName();
+  state.deviceProfile = getOrCreateDeviceProfile();
+  rememberDeviceName(state.playerName, "local");
   if(resultPlayerNameInput){
     resultPlayerNameInput.value = state.playerName;
     resultPlayerNameInput.addEventListener("change", savePlayerName);
@@ -395,6 +431,7 @@ function init(){
   answerInput.addEventListener("paste", recordPasteAttempt);
   document.addEventListener("pointerdown", recordPointerActivity, {passive:true});
   window.addEventListener("blur", recordFocusLoss);
+  window.addEventListener("focus", recordFocusReturn);
   document.addEventListener("visibilitychange", recordVisibilityChange);
   reviseToggle.addEventListener("click", ()=>toggleRevise());
   lastBtn.addEventListener("click", ()=>lastQuestion());
@@ -411,6 +448,7 @@ function init(){
   populateContinents();
   populateSpeedTargets();
   resetSession();
+  captureKeyboardLayout().then(layout=>{ state.keyboardLayout = layout; });
   window.setTimeout(drainSpeedRunAnalyticsQueue, 0);
   window.setInterval(()=>{
     if(state.playMode === "speedrun") refreshSharedLeaderboard();
@@ -443,6 +481,56 @@ function getCleanPlayerNameHistory(){
   return clean.slice(0, 5);
 }
 
+function getOrCreateDeviceProfile(){
+  const existing = state.deviceProfile && typeof state.deviceProfile === "object" ? state.deviceProfile : {};
+  const profile = {
+    playerId: state.playerId,
+    deviceNumber: getDeviceNumber(state.playerId),
+    createdAt: existing.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    knownNames: Array.isArray(existing.knownNames) ? existing.knownNames : [],
+    leaderboardNames: Array.isArray(existing.leaderboardNames) ? existing.leaderboardNames : [],
+    submittedLeaderboardNames: Array.isArray(existing.submittedLeaderboardNames) ? existing.submittedLeaderboardNames : []
+  };
+  state.deviceProfile = profile;
+  saveDeviceProfile();
+  return profile;
+}
+
+function getDeviceNumber(playerId=state.playerId){
+  if(window.SpeedrunAnalytics && window.SpeedrunAnalytics.stableDeviceNumber){
+    return window.SpeedrunAnalytics.stableDeviceNumber(playerId);
+  }
+  return `D-${hashStringValue(playerId).toUpperCase()}`;
+}
+
+function saveDeviceProfile(){
+  if(!state.deviceProfile || typeof state.deviceProfile !== "object") return;
+  state.deviceProfile.updatedAt = new Date().toISOString();
+  storage.set(LS_KEYS.speedRunDeviceProfile, state.deviceProfile);
+}
+
+function rememberDeviceName(name, source="local"){
+  const sanitized = sanitizePlayerName(name);
+  if(!sanitized) return;
+  const profile = state.deviceProfile && typeof state.deviceProfile === "object"
+    ? state.deviceProfile
+    : getOrCreateDeviceProfile();
+  profile.playerId = state.playerId;
+  profile.deviceNumber = getDeviceNumber();
+  profile.knownNames = addUniqueLimited(profile.knownNames, sanitized, 12);
+  if(source === "leaderboard"){
+    profile.leaderboardNames = addUniqueLimited(profile.leaderboardNames, sanitized, 12);
+    profile.submittedLeaderboardNames = addUniqueLimited(profile.submittedLeaderboardNames, sanitized, 20);
+  }
+  saveDeviceProfile();
+}
+
+function addUniqueLimited(list, value, limit){
+  const output = [value, ...(Array.isArray(list) ? list : []).filter(item=>item !== value)];
+  return output.slice(0, limit);
+}
+
 function getDefaultPlayerName(){
   const saved = sanitizePlayerName(state.playerName);
   if(saved !== "Player") return saved;
@@ -453,6 +541,7 @@ function savePlayerName(){
   state.playerName = sanitizePlayerName(resultPlayerNameInput ? resultPlayerNameInput.value : state.playerName);
   if(resultPlayerNameInput) resultPlayerNameInput.value = state.playerName;
   storage.set(LS_KEYS.playerName, state.playerName);
+  rememberDeviceName(state.playerName, "local");
 }
 
 function rememberPostedPlayerName(name){
@@ -464,6 +553,7 @@ function rememberPostedPlayerName(name){
   ].slice(0, 5);
   storage.set(LS_KEYS.playerName, state.playerName);
   storage.set(LS_KEYS.playerNameHistory, state.playerNameHistory);
+  rememberDeviceName(sanitized, "leaderboard");
 }
 
 function isActiveSpeedRun(){
@@ -496,19 +586,25 @@ function recordSecurityEvent(type){
 }
 
 function recordAnswerKey(event){
-  ensureSpeedRunStarted();
+  if(isTypedCharacterKey(event) || event.key === "Backspace" || event.key === "Delete"){
+    ensureSpeedRunStarted();
+  }
   if(!isActiveSpeedRun()) return;
   const security = state.session.security;
   security.keyEvents += 1;
+  const entry = isWorldMode() ? null : getCurrentRouteEntry();
+  markQuestionFirstKey(entry);
   if(isTypedCharacterKey(event)){
     state.session.speedRun.typedChars += 1;
     updateWpmDisplay();
   }
-  const entry = getCurrentRouteEntry();
   if(entry){
     entry.keyEvents = (entry.keyEvents || 0) + 1;
     if(isTypedCharacterKey(event)){
       entry.typedChars = (entry.typedChars || 0) + 1;
+    }else if(event.key === "Backspace" || event.key === "Delete"){
+      entry.backspaces = (entry.backspaces || 0) + 1;
+      entry.deletedChars = (entry.deletedChars || 0) + (answerInput.selectionStart === answerInput.selectionEnd ? 1 : Math.abs((answerInput.selectionEnd || 0) - (answerInput.selectionStart || 0)));
     }
   }
 }
@@ -530,14 +626,15 @@ function recordAnswerInput(){
   if(isWorldMode()){
     if(answerInput.value.trim() && state.session.worldAnswerStartedMs === null){
       state.session.worldAnswerStartedMs = Math.round(getElapsedMs());
+      state.session.worldAnswerStartedPerf = performance.now();
     }
     return;
   }
-  const entry = getCurrentRouteEntry();
+  const entry = isWorldMode() ? null : getCurrentRouteEntry();
   if(entry){
     entry.inputEvents = (entry.inputEvents || 0) + 1;
     entry.maxInputLength = Math.max(entry.maxInputLength || 0, answerInput.value.length);
-    if(entry.firstInputMs === null) entry.firstInputMs = Math.round(getElapsedMs());
+    markQuestionFirstInput(entry);
   }
 }
 
@@ -545,8 +642,12 @@ function recordPasteAttempt(){
   ensureSpeedRunStarted();
   if(!isActiveSpeedRun()) return;
   state.session.security.pasteEvents += 1;
-  const entry = getCurrentRouteEntry();
-  if(entry) entry.pasteEvents = (entry.pasteEvents || 0) + 1;
+  const entry = isWorldMode() ? null : getCurrentRouteEntry();
+  if(entry){
+    entry.pasteEvents = (entry.pasteEvents || 0) + 1;
+    entry.pasteDetected = true;
+    addQuestionQualityFlag(entry, "paste-detected");
+  }
   recordSecurityEvent("paste");
 }
 
@@ -556,14 +657,90 @@ function recordPointerActivity(){
 
 function recordFocusLoss(){
   if(!isActiveSpeedRun()) return;
-  state.session.security.focusLosses += 1;
+  const security = state.session.security;
+  security.focusLosses += 1;
+  security.focusLostStartedPerf = performance.now();
+  const entry = isWorldMode() ? null : getCurrentRouteEntry();
+  if(entry) entry.focusLostStartedPerf = security.focusLostStartedPerf;
   recordSecurityEvent("blur");
 }
 
 function recordVisibilityChange(){
-  if(!isActiveSpeedRun() || document.visibilityState !== "hidden") return;
-  state.session.security.hiddenEvents += 1;
-  recordSecurityEvent("hidden");
+  if(!isActiveSpeedRun()) return;
+  const security = state.session.security;
+  if(document.visibilityState === "hidden"){
+    security.hiddenEvents += 1;
+    security.hiddenStartedPerf = performance.now();
+    const entry = isWorldMode() ? null : getCurrentRouteEntry();
+    if(entry) entry.hiddenStartedPerf = security.hiddenStartedPerf;
+    recordSecurityEvent("hidden");
+  }else{
+    finishHiddenPeriod();
+  }
+}
+
+function recordFocusReturn(){
+  if(!state.session || !state.session.security) return;
+  finishFocusLossPeriod();
+}
+
+function markQuestionFirstKey(entry){
+  if(!entry || entry.firstKeyAt !== null) return;
+  const perfNow = performance.now();
+  entry.firstKeyAt = Math.round(perfNow);
+  entry.firstKeyMs = Math.round(getElapsedMs());
+  if(entry.visiblePerf !== null && perfNow - entry.visiblePerf < NEAR_INSTANT_RECOGNITION_MS){
+    addQuestionQualityFlag(entry, entry.index === 1 ? "start-artefact" : "near-instant-answer");
+  }
+}
+
+function markQuestionFirstInput(entry){
+  if(!entry) return;
+  const perfNow = performance.now();
+  if(entry.firstInputMs === null) entry.firstInputMs = Math.round(getElapsedMs());
+  if(entry.firstInputAt === null) entry.firstInputAt = Math.round(perfNow);
+  if(entry.firstKeyAt === null) markQuestionFirstKey(entry);
+}
+
+function addQuestionQualityFlag(entry, flag){
+  if(!entry || !flag) return;
+  entry.dataQualityFlags = Array.isArray(entry.dataQualityFlags) ? entry.dataQualityFlags : [];
+  if(!entry.dataQualityFlags.includes(flag)) entry.dataQualityFlags.push(flag);
+}
+
+function finishFocusLossPeriod(){
+  const security = state.session && state.session.security;
+  if(!security || security.focusLostStartedPerf === null) return;
+  const now = performance.now();
+  const delta = Math.max(0, now - security.focusLostStartedPerf);
+  security.focusLostMs += delta;
+  const entry = isWorldMode() ? null : getCurrentRouteEntry();
+  if(entry && Number.isFinite(entry.focusLostStartedPerf)){
+    entry.focusLostDuringQuestionMs = (entry.focusLostDuringQuestionMs || 0) + Math.max(0, now - entry.focusLostStartedPerf);
+    entry.focusLostStartedPerf = null;
+    addQuestionQualityFlag(entry, "focus-lost");
+  }
+  security.focusLostStartedPerf = null;
+}
+
+function finishHiddenPeriod(){
+  const security = state.session && state.session.security;
+  if(!security || security.hiddenStartedPerf === null) return;
+  const now = performance.now();
+  const delta = Math.max(0, now - security.hiddenStartedPerf);
+  security.hiddenMs += delta;
+  const entry = getCurrentRouteEntry();
+  if(entry && Number.isFinite(entry.hiddenStartedPerf)){
+    entry.hiddenDuringQuestionMs = (entry.hiddenDuringQuestionMs || 0) + Math.max(0, now - entry.hiddenStartedPerf);
+    entry.hiddenStartedPerf = null;
+    addQuestionQualityFlag(entry, "hidden-tab");
+  }
+  security.hiddenStartedPerf = null;
+}
+
+function finaliseActiveInterruptionPeriods(){
+  finishFocusLossPeriod();
+  finishHiddenPeriod();
 }
 
 function keepAnswerInputFocused(){
@@ -689,6 +866,7 @@ async function loadQuestion(){
 
   if(session.pool.length === 0){
     session.pool = buildPool();
+    rememberQuestionOrder(session.pool);
   }
 
   if(isWorldMode()){
@@ -723,6 +901,7 @@ async function loadQuestion(){
 
   updateReviseButton();
   updateAllStatus();
+  await markCurrentQuestionVisible(session.correctCountry);
 
   if(state.hard){
     answerInput.value = "";
@@ -757,6 +936,32 @@ async function renderFlag(country){
   holder.replaceChildren(img);
 }
 
+function afterVisibleFrame(){
+  return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+}
+
+async function markCurrentQuestionVisible(country){
+  if(state.playMode !== "speedrun" || isWorldMode()) return;
+  const entry = getCurrentRouteEntry();
+  if(!entry || entry.country !== country || entry.visiblePerf !== null) return;
+  await afterVisibleFrame();
+  if(state.session.gameOver || getCurrentRouteEntry() !== entry) return;
+  const perfNow = performance.now();
+  entry.visiblePerf = perfNow;
+  entry.visibleAt = Math.round(perfNow);
+  entry.shownMs = Math.max(0, Math.round(getElapsedMs()));
+}
+
+async function markWorldMapVisible(){
+  if(state.playMode !== "speedrun" || !isWorldMode()) return;
+  await afterVisibleFrame();
+  if(state.session.gameOver) return;
+  const perfNow = performance.now();
+  state.session.worldMapVisiblePerf = perfNow;
+  state.session.worldLastSolvedPerf = perfNow;
+  state.session.worldLastSolvedMs = Math.max(0, Math.round(getElapsedMs()));
+}
+
 async function loadWorldMapRound(){
   const session = state.session;
   if(!session.pool.length){
@@ -777,6 +982,7 @@ async function loadWorldMapRound(){
 
   await renderWorldMap();
   updateAllStatus();
+  await markWorldMapVisible();
 
   answerInput.value = "";
   answerInput.disabled = false;
@@ -802,43 +1008,109 @@ function renderEmpty(){
 function recordRouteQuestion(country){
   const session = state.session;
   if(state.playMode !== "speedrun" || isWorldMode() || !country) return;
+  const canonicalAnswer = getExpectedAnswerForMode(country);
   const entry = {
+    runId: session.analytics.runId,
     index: session.route.length + 1,
+    questionIndex: session.route.length + 1,
+    countryId: getCountryId(country),
     country,
     continent: countryContinent[country] || "Unknown",
-    answer: getExpectedAnswerForMode(country),
+    answer: canonicalAnswer,
+    canonicalAnswer,
+    acceptedAnswer: "",
+    rawFinalInput: "",
+    allRawAttempts: [],
+    acceptedAlias: "",
+    aliasType: "unanswered",
+    answerCompletionType: "unanswered",
+    shortcutUsed: false,
+    autocompleteUsed: false,
+    hintUsed: false,
+    skipUsed: false,
     shownMs: Math.round(getElapsedMs()),
+    visibleAt: null,
+    visiblePerf: null,
     firstInputMs: null,
     firstSubmitMs: null,
+    firstKeyAt: null,
+    firstKeyMs: null,
+    firstInputAt: null,
+    firstSubmitAt: null,
+    firstWrongAt: null,
+    acceptedAt: null,
     solvedMs: null,
     attempts: 0,
     wrongAttempts: 0,
     inputEvents: 0,
     keyEvents: 0,
     typedChars: 0,
+    canonicalChars: countAnalyticsChars(canonicalAnswer),
+    wordCount: getAnalyticsWordCount(canonicalAnswer),
+    hasHyphen: canonicalAnswer.includes("-"),
+    hasDiacritics: hasAnalyticsDiacritics(canonicalAnswer),
+    hasAnd: /\band\b/i.test(canonicalAnswer),
+    nameComplexity: getAnalyticsNameComplexity(canonicalAnswer),
+    flagSimilarityGroup: null,
     maxInputLength: 0,
     pasteEvents: 0,
+    pasteDetected: false,
+    backspaces: 0,
+    deletedChars: 0,
+    focusLostDuringQuestionMs: 0,
+    hiddenDuringQuestionMs: 0,
+    dataQualityFlags: [],
     skipped: false
   };
   session.route.push(entry);
   session.currentRouteIndex = session.route.length - 1;
 }
 
-function recordRouteAttempt(value, correct){
+function recordRouteAttempt(value, correct, result={}, options={}){
   const entry = getCurrentRouteEntry();
   if(state.playMode !== "speedrun" || !entry) return;
   const now = Math.round(getElapsedMs());
+  const perfNow = performance.now();
+  const canonical = entry.canonicalAnswer || entry.answer || "";
+  const match = getAcceptedAnswerMatch(value, canonical, result);
+  const rawAttempt = {
+    rawInput: String(value || ""),
+    submittedAt: Math.round(perfNow),
+    submittedMs: now,
+    correct: !!correct,
+    editDistanceToCanonical: getAnalyticsEditDistance(value, canonical),
+    matchedAlias: match.acceptedAlias || "",
+    errorType: correct ? "correct" : getAnalyticsErrorType(value, canonical, match.acceptedAlias)
+  };
   entry.attempts += 1;
+  entry.allRawAttempts.push(rawAttempt);
   if(entry.firstSubmitMs === null) entry.firstSubmitMs = now;
-  if(entry.firstInputMs === null && value) entry.firstInputMs = now;
+  if(entry.firstSubmitAt === null) entry.firstSubmitAt = Math.round(perfNow);
+  if(entry.firstInputMs === null && value) markQuestionFirstInput(entry);
   entry.maxInputLength = Math.max(entry.maxInputLength || 0, value.length);
-  if(!correct) entry.wrongAttempts += 1;
+  if(!correct){
+    entry.wrongAttempts += 1;
+    if(entry.firstWrongAt === null) entry.firstWrongAt = Math.round(perfNow);
+    return;
+  }
+
+  entry.acceptedAnswer = canonical;
+  entry.rawFinalInput = String(value || "");
+  entry.acceptedAlias = match.acceptedAlias || "";
+  entry.aliasType = match.aliasType;
+  entry.shortcutUsed = match.shortcutUsed;
+  entry.autocompleteUsed = options.autoSubmit === true;
+  entry.answerCompletionType = getAnswerCompletionType(entry, match);
+  entry.acceptedAt = Math.round(perfNow);
+  if(entry.autocompleteUsed) addQuestionQualityFlag(entry, "autocomplete-submit");
 }
 
 function markRouteSolved(){
   const entry = getCurrentRouteEntry();
   if(state.playMode !== "speedrun" || !entry || entry.solvedMs !== null) return;
   entry.solvedMs = Math.round(getElapsedMs());
+  if(entry.acceptedAt === null) entry.acceptedAt = Math.round(performance.now());
+  updateQuestionDerivedTiming(entry);
 }
 
 function buildRouteSnapshot(route){
@@ -863,14 +1135,19 @@ function buildRouteSnapshot(route){
 }
 
 function buildTelemetrySnapshot(session){
+  finaliseActiveInterruptionPeriods();
   const security = session.security || makeSecurityTelemetry();
   return {
     nonce: security.nonce,
     playerId: state.playerId,
+    deviceNumber: getDeviceNumber(),
     startedAt: security.startedAt,
+    completedAt: security.completedAt || new Date().toISOString(),
     submittedAt: new Date().toISOString(),
     focusLosses: security.focusLosses || 0,
+    focusLostMs: Math.round(security.focusLostMs || 0),
     hiddenEvents: security.hiddenEvents || 0,
+    hiddenMs: Math.round(security.hiddenMs || 0),
     pasteEvents: security.pasteEvents || 0,
     keyEvents: security.keyEvents || 0,
     inputEvents: security.inputEvents || 0,
@@ -878,7 +1155,11 @@ function buildTelemetrySnapshot(session){
     wpm: roundMetric(getSpeedRunWpm(session, getSpeedRunDisplayMs(session)), 1),
     pointerEvents: security.pointerEvents || 0,
     suspiciousEvents: (security.suspiciousEvents || []).slice(0, 20),
-    webdriver: !!navigator.webdriver
+    webdriver: !!navigator.webdriver,
+    browser: getBrowserInfo(),
+    keyboardLayout: state.keyboardLayout || {available:false},
+    knownPlayerNames: getDeviceKnownNames(),
+    leaderboardNames: getDeviceLeaderboardNames()
   };
 }
 
@@ -914,6 +1195,380 @@ function hashRunRoute(route){
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function hashStringValue(value){
+  let hash = 2166136261;
+  const text = String(value || "");
+  for(let i=0;i<text.length;i++){
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function getCountrySetVersion(){
+  const aliasPairs = Object.entries(countryAliases || {})
+    .map(([country, aliases])=>`${country}:${(aliases || []).join(",")}`)
+    .join("|");
+  return `v${countries.length}-${hashStringValue(`${countries.join("|")}::${aliasPairs}`)}`;
+}
+
+function rememberQuestionOrder(pool){
+  const analytics = state.session && state.session.analytics;
+  if(!analytics || analytics.questionOrder.length) return;
+  analytics.questionOrder = Array.isArray(pool) ? [...pool] : [];
+  analytics.questionOrderId = hashStringValue(analytics.questionOrder.join("|"));
+}
+
+function buildRunContext(session, elapsed, route, questionAnalytics){
+  const analytics = session.analytics || makeRunAnalyticsState();
+  const actualQuestionOrder = questionAnalytics.map(item=>item.country).filter(Boolean);
+  return {
+    version: ANALYTICS_SCHEMA_VERSION,
+    runId: session.security.nonce,
+    playerName: sanitizePlayerName(state.playerName),
+    playerId: state.playerId,
+    deviceNumber: getDeviceNumber(),
+    knownPlayerNames: getDeviceKnownNames(),
+    leaderboardNames: getDeviceLeaderboardNames(),
+    mode: state.which,
+    region: state.selectedContinent,
+    difficulty: state.hard ? "hard" : "normal",
+    target: state.speedTarget,
+    targetLabel: getSpeedTargetLabel(),
+    countrySetVersion: analytics.countrySetVersion,
+    questionOrder: actualQuestionOrder.length ? actualQuestionOrder : analytics.questionOrder,
+    questionOrderId: hashStringValue((actualQuestionOrder.length ? actualQuestionOrder : analytics.questionOrder || []).join("|")),
+    startedAt: analytics.startedAt || session.security.startedAt,
+    completedAt: analytics.completedAt || new Date().toISOString(),
+    totalDurationMs: Math.round(elapsed || 0),
+    browser: getBrowserInfo(),
+    keyboardLayout: state.keyboardLayout || {available:false},
+    autocompleteEnabled: true,
+    aliasesEnabled: true,
+    strictSpellingMode: false,
+    leaderboardValid: true,
+    analyticsOnly: false,
+    totalFocusLostMs: Math.round(session.security.focusLostMs || 0),
+    totalHiddenTabMs: Math.round(session.security.hiddenMs || 0),
+    pasteEventsCount: session.security.pasteEvents || 0,
+    suspiciousTimingFlags: Array.from(new Set(questionAnalytics.flatMap(item=>item.dataQualityFlags || []))),
+    routeHash: hashRunRoute(route)
+  };
+}
+
+function getDeviceKnownNames(){
+  const profile = state.deviceProfile && typeof state.deviceProfile === "object" ? state.deviceProfile : {};
+  return Array.from(new Set([
+    ...getCleanPlayerNameHistory(),
+    ...(Array.isArray(profile.knownNames) ? profile.knownNames : []),
+    sanitizePlayerName(state.playerName)
+  ].filter(Boolean))).slice(0, 12);
+}
+
+function getDeviceLeaderboardNames(){
+  const profile = state.deviceProfile && typeof state.deviceProfile === "object" ? state.deviceProfile : {};
+  return Array.from(new Set([
+    ...(Array.isArray(profile.leaderboardNames) ? profile.leaderboardNames : []),
+    ...(Array.isArray(profile.submittedLeaderboardNames) ? profile.submittedLeaderboardNames : [])
+  ].filter(Boolean))).slice(0, 12);
+}
+
+function buildQuestionAnalyticsSnapshot(session){
+  finaliseActiveInterruptionPeriods();
+  return (session.route || [])
+    .filter(entry=>entry && entry.solvedMs !== null)
+    .map(entry=>{
+      updateQuestionDerivedTiming(entry);
+      const attempts = (entry.allRawAttempts || []).map(attempt=>({
+        rawInput: attempt.rawInput || "",
+        submittedAt: attempt.submittedAt,
+        submittedMs: attempt.submittedMs,
+        correct: attempt.correct === true,
+        editDistanceToCanonical: attempt.editDistanceToCanonical,
+        matchedAlias: attempt.matchedAlias || "",
+        errorType: attempt.errorType || getAnalyticsErrorType(attempt.rawInput, entry.canonicalAnswer, attempt.matchedAlias)
+      }));
+      return {
+        runId: session.security.nonce,
+        questionIndex: entry.questionIndex || entry.index,
+        countryId: entry.countryId || getCountryId(entry.country),
+        country: entry.country,
+        continent: entry.continent,
+        canonicalAnswer: entry.canonicalAnswer || entry.answer,
+        acceptedAnswer: entry.acceptedAnswer || entry.answer,
+        rawFinalInput: entry.rawFinalInput || "",
+        allRawAttempts: attempts.map(attempt=>attempt.rawInput),
+        acceptedAlias: entry.acceptedAlias || "",
+        aliasType: entry.aliasType || "unknown",
+        answerCompletionType: entry.answerCompletionType || "unknown",
+        shortcutUsed: !!entry.shortcutUsed,
+        autocompleteUsed: !!entry.autocompleteUsed,
+        hintUsed: !!entry.hintUsed,
+        skipUsed: !!entry.skipUsed,
+        attempts,
+        attemptsCount: entry.attempts || attempts.length,
+        wrongSubmits: entry.wrongAttempts || 0,
+        typedChars: entry.typedChars || 0,
+        canonicalChars: entry.canonicalChars || countAnalyticsChars(entry.canonicalAnswer || entry.answer),
+        wordCount: entry.wordCount || getAnalyticsWordCount(entry.canonicalAnswer || entry.answer),
+        hasHyphen: !!entry.hasHyphen,
+        hasDiacritics: !!entry.hasDiacritics,
+        hasAnd: !!entry.hasAnd,
+        nameComplexity: entry.nameComplexity || getAnalyticsNameComplexity(entry.canonicalAnswer || entry.answer),
+        flagSimilarityGroup: entry.flagSimilarityGroup || null,
+        visibleAt: entry.visibleAt,
+        firstKeyAt: entry.firstKeyAt,
+        firstInputAt: entry.firstInputAt,
+        firstSubmitAt: entry.firstSubmitAt,
+        firstWrongAt: entry.firstWrongAt,
+        acceptedAt: entry.acceptedAt,
+        recognitionMs: entry.recognitionMs,
+        firstAttemptMs: entry.firstAttemptMs,
+        finalSolveMs: entry.finalSolveMs,
+        activeTypingMs: entry.activeTypingMs,
+        correctionMs: entry.correctionMs,
+        backspaces: entry.backspaces || 0,
+        deletedChars: entry.deletedChars || 0,
+        pasteDetected: !!entry.pasteDetected,
+        focusLostDuringQuestionMs: Math.round(entry.focusLostDuringQuestionMs || 0),
+        hiddenDuringQuestionMs: Math.round(entry.hiddenDuringQuestionMs || 0),
+        dataQualityFlags: Array.from(new Set(entry.dataQualityFlags || []))
+      };
+    });
+}
+
+function updateQuestionDerivedTiming(entry){
+  if(!entry) return;
+  const visibleAt = Number(entry.visibleAt);
+  const firstKeyAt = entry.firstKeyAt === null ? null : Number(entry.firstKeyAt);
+  const firstSubmitAt = entry.firstSubmitAt === null ? null : Number(entry.firstSubmitAt);
+  const acceptedAt = entry.acceptedAt === null ? null : Number(entry.acceptedAt);
+  if(Number.isFinite(visibleAt) && Number.isFinite(firstKeyAt)){
+    entry.recognitionMs = Math.max(0, Math.round(firstKeyAt - visibleAt));
+    if(entry.recognitionMs < NEAR_INSTANT_RECOGNITION_MS){
+      addQuestionQualityFlag(entry, entry.index === 1 ? "start-artefact" : "near-instant-answer");
+    }
+  }else{
+    entry.recognitionMs = null;
+    addQuestionQualityFlag(entry, "missing-recognition-time");
+  }
+  if(Number.isFinite(visibleAt) && Number.isFinite(firstSubmitAt)){
+    entry.firstAttemptMs = Math.max(0, Math.round(firstSubmitAt - visibleAt));
+  }else{
+    entry.firstAttemptMs = null;
+  }
+  if(Number.isFinite(visibleAt) && Number.isFinite(acceptedAt)){
+    entry.finalSolveMs = Math.max(0, Math.round(acceptedAt - visibleAt));
+  }else{
+    entry.finalSolveMs = null;
+  }
+  if(Number.isFinite(firstKeyAt) && Number.isFinite(acceptedAt)){
+    const interruptions = Math.round((entry.focusLostDuringQuestionMs || 0) + (entry.hiddenDuringQuestionMs || 0));
+    entry.activeTypingMs = Math.max(0, Math.round(acceptedAt - firstKeyAt - interruptions));
+  }else{
+    entry.activeTypingMs = null;
+  }
+  if((entry.wrongAttempts || 0) > 0 && Number.isFinite(firstSubmitAt) && Number.isFinite(acceptedAt)){
+    entry.correctionMs = Math.max(0, Math.round(acceptedAt - firstSubmitAt));
+  }else{
+    entry.correctionMs = 0;
+  }
+  if(entry.activeTypingMs && entry.typedChars && getWpmFromChars(entry.typedChars, entry.activeTypingMs) > IMPOSSIBLE_ACTIVE_WPM){
+    addQuestionQualityFlag(entry, "impossible-active-typing-speed");
+  }
+}
+
+function buildRunDerivedMetrics(summary){
+  const engine = window.SpeedrunAnalytics;
+  if(engine && engine.deriveRunMetrics){
+    return engine.deriveRunMetrics({
+      totalDurationMs: summary.timeMs,
+      totalQuestions: summary.total,
+      solvedCount: summary.total,
+      finalCorrectCount: summary.total,
+      firstTryCorrectCount: summary.correct,
+      questionAnalytics: summary.questionAnalytics,
+      telemetry: state.session && state.session.security ? {
+        pasteEvents: state.session.security.pasteEvents,
+        focusLostMs: state.session.security.focusLostMs,
+        hiddenMs: state.session.security.hiddenMs
+      } : {}
+    });
+  }
+  return buildFallbackDerivedMetrics(summary);
+}
+
+function buildFallbackDerivedMetrics(summary){
+  const questions = Array.isArray(summary.questionAnalytics) ? summary.questionAnalytics : [];
+  const totalDurationMs = Number(summary.timeMs) || 0;
+  const totalTypedChars = questions.reduce((sum, question)=>sum + (Number(question.typedChars) || 0), 0);
+  const totalCanonicalChars = questions.reduce((sum, question)=>sum + (Number(question.canonicalChars) || 0), 0);
+  const activeTypingMs = questions.reduce((sum, question)=>sum + (Number(question.activeTypingMs) || 0), 0);
+  return {
+    version: ANALYTICS_SCHEMA_VERSION,
+    totalQuestions: summary.total,
+    solvedCount: summary.total,
+    totalDurationMs,
+    totalTypedChars,
+    totalCanonicalChars,
+    totalActiveTypingMs: activeTypingMs,
+    effectiveCanonicalWpm: roundMetric(getWpmFromChars(totalCanonicalChars, totalDurationMs), 2),
+    actualInputWpm: roundMetric(getWpmFromChars(totalTypedChars, activeTypingMs), 2),
+    activeInputWpm: roundMetric(getWpmFromChars(totalTypedChars, activeTypingMs), 2),
+    speedrunInputWpm: roundMetric(getWpmFromChars(totalTypedChars, totalDurationMs), 2),
+    noShortcutAdjustedWpm: roundMetric(getWpmFromChars(totalCanonicalChars, totalDurationMs), 2),
+    countriesPerMinute: totalDurationMs ? roundMetric((summary.total / (totalDurationMs / 60000)), 2) : 0,
+    shortcutUsageRate: questions.length ? roundMetric(questions.filter(item=>item.shortcutUsed).length / questions.length, 4) : 0,
+    autocompleteUsageRate: questions.length ? roundMetric(questions.filter(item=>item.autocompleteUsed).length / questions.length, 4) : 0,
+    dataQualityFlags: Array.from(new Set(questions.flatMap(item=>item.dataQualityFlags || [])))
+  };
+}
+
+function getAcceptedAnswerMatch(value, canonicalAnswer, result={}){
+  const raw = String(value || "").trim();
+  const normalised = normalise(raw);
+  const canonicalNormalised = normalise(canonicalAnswer || "");
+  if(normalised && normalised === canonicalNormalised){
+    return {
+      acceptedAlias: "",
+      aliasType: "full-canonical",
+      shortcutUsed: false
+    };
+  }
+  const aliases = getAliasesForCanonicalAnswer(canonicalAnswer);
+  const matchedAlias = aliases.find(alias=>normalise(alias) === normalised) || result.matchedAlias || "";
+  if(matchedAlias){
+    return {
+      acceptedAlias: matchedAlias,
+      aliasType: countAnalyticsChars(matchedAlias) < countAnalyticsChars(canonicalAnswer) ? "shortcut" : "exact-alias",
+      shortcutUsed: countAnalyticsChars(matchedAlias) < countAnalyticsChars(canonicalAnswer)
+    };
+  }
+  if(result.fuzzyOk || result.fuzzy){
+    return {
+      acceptedAlias: "",
+      aliasType: "fuzzy",
+      shortcutUsed: false
+    };
+  }
+  return {
+    acceptedAlias: "",
+    aliasType: "unknown",
+    shortcutUsed: false
+  };
+}
+
+function getAliasesForCanonicalAnswer(canonicalAnswer){
+  const aliases = [];
+  const canonical = String(canonicalAnswer || "");
+  if(countryAliases[canonical]) aliases.push(...countryAliases[canonical]);
+  if(WORLD_COUNTRY_EXTRA_ALIASES[canonical]) aliases.push(...WORLD_COUNTRY_EXTRA_ALIASES[canonical]);
+  const code = (alpha2Overrides[canonical] || "").toLowerCase();
+  if(WORLD_COUNTRY_EXTRA_ALIAS_CODES[code]) aliases.push(...WORLD_COUNTRY_EXTRA_ALIAS_CODES[code]);
+  if(capitalAliases[canonical]) aliases.push(...capitalAliases[canonical]);
+  return Array.from(new Set(aliases));
+}
+
+function getAnswerCompletionType(entry, match){
+  if((entry.wrongAttempts || 0) > 0) return "corrected-after-mistakes";
+  if(entry.autocompleteUsed) return "autocomplete";
+  return match.aliasType || "full-canonical";
+}
+
+function makeRawAttemptRecord(value, correct, result, perfNow, elapsedMs, canonicalAnswer){
+  const match = getAcceptedAnswerMatch(value, canonicalAnswer, result || {});
+  return {
+    rawInput: String(value || ""),
+    submittedAt: Math.round(perfNow),
+    submittedMs: Math.round(elapsedMs || 0),
+    correct: !!correct,
+    editDistanceToCanonical: getAnalyticsEditDistance(value, canonicalAnswer),
+    matchedAlias: match.acceptedAlias || "",
+    errorType: correct ? "correct" : getAnalyticsErrorType(value, canonicalAnswer, match.acceptedAlias)
+  };
+}
+
+function getCountryId(country){
+  return (alpha2Overrides[country] || normalise(country).replace(/\s+/g, "-")).toLowerCase();
+}
+
+function countAnalyticsChars(value){
+  const engine = window.SpeedrunAnalytics;
+  return engine && engine.countAnswerChars
+    ? engine.countAnswerChars(value)
+    : Array.from(String(value || "").replace(/\s+/g, "")).length;
+}
+
+function getAnalyticsWordCount(value){
+  const engine = window.SpeedrunAnalytics;
+  return engine && engine.wordCount
+    ? engine.wordCount(value)
+    : String(value || "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasAnalyticsDiacritics(value){
+  const engine = window.SpeedrunAnalytics;
+  return engine && engine.hasDiacritics
+    ? engine.hasDiacritics(value)
+    : /[\u00c0-\u024f]/.test(String(value || ""));
+}
+
+function getAnalyticsNameComplexity(value){
+  const engine = window.SpeedrunAnalytics;
+  return engine && engine.nameComplexity ? engine.nameComplexity(value) : countAnalyticsChars(value);
+}
+
+function getAnalyticsEditDistance(value, canonicalAnswer){
+  const engine = window.SpeedrunAnalytics;
+  if(engine && engine.editDistance) return engine.editDistance(value, canonicalAnswer);
+  return levenshtein(value, canonicalAnswer);
+}
+
+function getAnalyticsErrorType(value, canonicalAnswer, matchedAlias){
+  const engine = window.SpeedrunAnalytics;
+  return engine && engine.classifyError
+    ? engine.classifyError(value, canonicalAnswer, matchedAlias)
+    : "unknown";
+}
+
+function getWpmFromChars(chars, ms){
+  const minutes = Math.max(0, Number(ms) || 0) / 60000;
+  return minutes ? ((Number(chars) || 0) / 5) / minutes : 0;
+}
+
+function getBrowserInfo(){
+  const nav = window.navigator || {};
+  return {
+    userAgent: nav.userAgent || "",
+    language: nav.language || "",
+    languages: Array.isArray(nav.languages) ? nav.languages.slice(0, 6) : [],
+    platform: nav.platform || "",
+    hardwareConcurrency: nav.hardwareConcurrency || null,
+    deviceMemory: nav.deviceMemory || null,
+    maxTouchPoints: nav.maxTouchPoints || 0,
+    screen: window.screen ? {
+      width: window.screen.width,
+      height: window.screen.height,
+      pixelRatio: window.devicePixelRatio || 1
+    } : null
+  };
+}
+
+async function captureKeyboardLayout(){
+  if(!navigator.keyboard || !navigator.keyboard.getLayoutMap){
+    return {available:false, reason:"keyboard-layout-api-unavailable"};
+  }
+  try{
+    const layout = await navigator.keyboard.getLayoutMap();
+    const keys = ["KeyA","KeyQ","KeyW","KeyZ","Semicolon","Quote","Comma","Period","Slash","Minus","Equal"];
+    const sample = {};
+    for(const key of keys) sample[key] = layout.get(key) || "";
+    return {available:true, sample};
+  }catch(error){
+    return {available:false, reason:error && error.name ? error.name : "layout-read-failed"};
+  }
 }
 
 function toggleAnswerUi(){
@@ -983,7 +1638,7 @@ function checkAutoSubmitText(){
   const value = answerInput.value.trim();
   if(!value) return;
   const result = evaluateTextAnswer(value, false);
-  if(result.exact || result.aliasOk) checkText({allowFuzzy:false});
+  if(result.exact || result.aliasOk) checkText({allowFuzzy:false, autoSubmit:true});
 }
 
 function checkText(options={}){
@@ -1000,7 +1655,7 @@ function checkText(options={}){
   const result = evaluateTextAnswer(value, options.allowFuzzy !== false);
   const accepted = result.exact || result.aliasOk || result.fuzzyOk;
   const firstAttempt = registerAttempt();
-  recordRouteAttempt(value, accepted);
+  recordRouteAttempt(value, accepted, result, options);
 
   if(accepted){
     submitBtn.disabled = true;
@@ -1021,7 +1676,7 @@ function checkAutoSubmitWorldText(){
   if(!value) return;
   const result = evaluateWorldCountryAnswer(value, false);
   if(result.country && result.inPool && !result.alreadySolved){
-    checkWorldMapText({allowFuzzy:false});
+    checkWorldMapText({allowFuzzy:false, autoSubmit:true});
   }
 }
 
@@ -1034,7 +1689,7 @@ function checkWorldMapText(options={}){
   ensureSpeedRunStarted();
   const result = evaluateWorldCountryAnswer(value, options.allowFuzzy !== false);
   if(result.country && result.inPool && !result.alreadySolved){
-    handleWorldCorrect(result.country, result.fuzzy ? "Correct! (Close enough)" : "Correct!");
+    handleWorldCorrect(result.country, result.fuzzy ? "Correct! (Close enough)" : "Correct!", value, result, options);
     return;
   }
 
@@ -1052,7 +1707,7 @@ function checkWorldMapText(options={}){
     return;
   }
 
-  handleWorldIncorrect();
+  handleWorldIncorrect(value, result);
   answerInput.select();
 }
 
@@ -1061,11 +1716,19 @@ function evaluateWorldCountryAnswer(value, allowFuzzy=true){
   const session = state.session;
   const exactCountry = getCountryAnswerIndex().get(normalised) || null;
   const country = exactCountry || (allowFuzzy ? getUniqueFuzzyWorldCountry(value) : null);
+  const match = country ? getAcceptedAnswerMatch(value, country, {
+    exact: normalised === normalise(country),
+    aliasOk: !!exactCountry && normalised !== normalise(country),
+    fuzzyOk: !!country && !exactCountry
+  }) : {};
   const inPool = !!country && session.pool.includes(country);
   return {
     country,
     exact: !!exactCountry,
     fuzzy: !!country && !exactCountry,
+    matchedAlias: match.acceptedAlias || "",
+    aliasType: match.aliasType || "",
+    shortcutUsed: !!match.shortcutUsed,
     inPool,
     alreadySolved: !!country && session.solved.has(country)
   };
@@ -1102,15 +1765,17 @@ function addCountryAnswerIndexValue(index, value, country){
   if(key && !index.has(key)) index.set(key, country);
 }
 
-function handleWorldCorrect(country, message="Correct!"){
+function handleWorldCorrect(country, message="Correct!", rawInput="", result={}, options={}){
   const session = state.session;
   registerWorldCorrect(country);
   setFeedback(`${message} ${country} filled in.`, true);
   showAnswerFlash(true);
-  recordWorldRouteSolved(country);
+  recordWorldRouteSolved(country, rawInput, result, options);
   markWorldSolved(country);
   answerInput.value = "";
   session.worldAnswerStartedMs = null;
+  session.worldAnswerStartedPerf = null;
+  session.worldPendingAttempts = [];
   keepAnswerInputFocused();
   updateHighScore();
   updateWorldAnswerStatus();
@@ -1135,11 +1800,14 @@ function registerWorldCorrect(country){
   session.questionAnswered = true;
 }
 
-function handleWorldIncorrect(){
+function handleWorldIncorrect(rawInput="", result={}){
   const session = state.session;
   if(state.playMode === "speedrun") startSpeedRun();
   session.currentWrongAttempts += 1;
   session.worldWrongSubmissions += 1;
+  if(state.playMode === "speedrun"){
+    session.worldPendingAttempts.push(makeRawAttemptRecord(rawInput, false, result, performance.now(), getElapsedMs(), rawInput));
+  }
   session.streak = 0;
   if(state.playMode === "practice"){
     session.totalFirstAttempts += 1;
@@ -1163,46 +1831,97 @@ function markWorldSolved(country){
   session.solved.add(country);
   session.skipped.delete(country);
   session.worldLastSolvedMs = Math.round(getElapsedMs());
+  session.worldLastSolvedPerf = performance.now();
   captureSpeedRunSplit();
 }
 
-function recordWorldRouteSolved(country){
+function recordWorldRouteSolved(country, rawInput="", result={}, options={}){
   const session = state.session;
   if(state.playMode !== "speedrun" || !country) return;
   const now = Math.round(getElapsedMs());
+  const perfNow = performance.now();
+  const visiblePerf = session.worldLastSolvedPerf || session.worldMapVisiblePerf || perfNow;
   const shownMs = Math.max(0, Math.round(session.worldLastSolvedMs || 0));
   const firstInputMs = session.worldAnswerStartedMs === null
     ? now
     : Math.max(shownMs, Math.round(session.worldAnswerStartedMs));
-  session.route.push({
+  const match = getAcceptedAnswerMatch(rawInput || country, country, result);
+  const attempts = [
+    ...session.worldPendingAttempts,
+    makeRawAttemptRecord(rawInput || country, true, result, perfNow, now, country)
+  ];
+  const wrongAttempts = attempts.filter(attempt=>attempt.correct === false).length;
+  const typedChars = Math.max(0, Array.from(String(rawInput || "").replace(/\s+/g, "")).length);
+  const entry = {
+    runId: session.analytics.runId,
     index: session.route.length + 1,
+    questionIndex: session.route.length + 1,
+    countryId: getCountryId(country),
     country,
     continent: getCountryContinentForCurrentMode(country),
     answer: country,
+    canonicalAnswer: country,
+    acceptedAnswer: country,
+    rawFinalInput: rawInput || country,
+    allRawAttempts: attempts,
+    acceptedAlias: match.acceptedAlias || "",
+    aliasType: match.aliasType || "full-canonical",
+    answerCompletionType: match.aliasType || "full-canonical",
+    shortcutUsed: match.shortcutUsed || false,
+    autocompleteUsed: options.autoSubmit === true,
+    hintUsed: false,
+    skipUsed: false,
     shownMs,
+    visibleAt: Math.round(visiblePerf),
+    visiblePerf,
     firstInputMs,
     firstSubmitMs: now,
+    firstKeyAt: session.worldAnswerStartedPerf ? Math.round(session.worldAnswerStartedPerf) : Math.round(perfNow),
+    firstKeyMs: firstInputMs,
+    firstInputAt: session.worldAnswerStartedPerf ? Math.round(session.worldAnswerStartedPerf) : Math.round(perfNow),
+    firstSubmitAt: Math.round(perfNow),
+    firstWrongAt: attempts.find(attempt=>attempt.correct === false)?.submittedAt || null,
+    acceptedAt: Math.round(perfNow),
     solvedMs: now,
-    attempts: 1,
-    wrongAttempts: 0,
+    attempts: attempts.length,
+    wrongAttempts,
     inputEvents: 0,
     keyEvents: 0,
-    typedChars: 0,
-    maxInputLength: country.length,
+    typedChars,
+    canonicalChars: countAnalyticsChars(country),
+    wordCount: getAnalyticsWordCount(country),
+    hasHyphen: country.includes("-"),
+    hasDiacritics: hasAnalyticsDiacritics(country),
+    hasAnd: /\band\b/i.test(country),
+    nameComplexity: getAnalyticsNameComplexity(country),
+    flagSimilarityGroup: null,
+    maxInputLength: String(rawInput || "").length,
     pasteEvents: 0,
+    pasteDetected: false,
+    backspaces: 0,
+    deletedChars: 0,
+    focusLostDuringQuestionMs: 0,
+    hiddenDuringQuestionMs: 0,
+    dataQualityFlags: [],
     skipped: false
-  });
+  };
+  updateQuestionDerivedTiming(entry);
+  session.route.push(entry);
   session.currentRouteIndex = session.route.length - 1;
 }
 
 function evaluateTextAnswer(value, allowFuzzy=true){
   const correct = getCorrectAnswer();
   const exact = normalise(value) === normalise(correct);
-  const aliasOk = isAlias(value);
+  const match = getAcceptedAnswerMatch(value, correct, {exact});
+  const aliasOk = !!match.acceptedAlias;
   return {
     exact,
     aliasOk,
-    fuzzyOk: allowFuzzy && fuzzyMatch(value, correct)
+    fuzzyOk: allowFuzzy && fuzzyMatch(value, correct),
+    matchedAlias: match.acceptedAlias || "",
+    aliasType: match.aliasType || (exact ? "full-canonical" : ""),
+    shortcutUsed: !!match.shortcutUsed
   };
 }
 
@@ -1336,7 +2055,11 @@ function nextQuestion(){
   if(session.gameOver || !session.correctCountry) return;
   if(!session.solved.has(session.correctCountry)){
     const entry = getCurrentRouteEntry();
-    if(entry) entry.skipped = true;
+    if(entry){
+      entry.skipped = true;
+      entry.skipUsed = true;
+      addQuestionQualityFlag(entry, "skipped");
+    }
     session.skipped.add(session.correctCountry);
     if(session.history.length && session.history[session.history.length-1] === session.correctCountry){
       session.history.pop();
@@ -1436,8 +2159,11 @@ function startSpeedRun(){
   if(session.speedRun.started || !session.pool.length) return;
   session.speedRun.started = true;
   session.speedRun.startMs = Date.now();
+  session.speedRun.startPerf = performance.now();
   session.speedRun.elapsedMs = 0;
   session.security.startedAt = new Date().toISOString();
+  session.analytics.startedAt = session.security.startedAt;
+  session.analytics.startedPerf = session.speedRun.startPerf;
   if(session.speedRun.timerId) window.clearInterval(session.speedRun.timerId);
   session.speedRun.timerId = window.setInterval(updateTimerDisplay, TIMER_TICK_MS);
   updateTimerDisplay();
@@ -1447,6 +2173,10 @@ function stopSpeedRun(){
   const session = state.session;
   if(session.speedRun.started){
     session.speedRun.elapsedMs = getElapsedMs();
+    finaliseActiveInterruptionPeriods();
+    session.analytics.completedAt = new Date().toISOString();
+    session.analytics.completedPerf = performance.now();
+    session.security.completedAt = session.analytics.completedAt;
   }
   if(session.speedRun.timerId){
     window.clearInterval(session.speedRun.timerId);
@@ -1457,7 +2187,7 @@ function stopSpeedRun(){
 function getElapsedMs(){
   const session = state.session;
   if(!session.speedRun.started) return session.speedRun.elapsedMs || 0;
-  return Date.now() - session.speedRun.startMs;
+  return performance.now() - session.speedRun.startPerf;
 }
 
 function getSpeedRunDisplayMs(session=state.session){
@@ -1499,6 +2229,13 @@ function recordSpeedRun(){
   session.speedRun.splits.all = elapsed;
   session.speedRun.recorded = true;
   const route = buildRouteSnapshot(session.route);
+  const questionAnalytics = buildQuestionAnalyticsSnapshot(session);
+  const derivedMetrics = buildRunDerivedMetrics({
+    timeMs: elapsed,
+    total: session.pool.length,
+    correct: session.correctFirstTry,
+    questionAnalytics
+  });
   const telemetry = buildTelemetrySnapshot(session);
   const antiCheat = buildClientRunEvidence(route, telemetry);
 
@@ -1527,12 +2264,24 @@ function recordSpeedRun(){
     timeMs: Math.round(elapsed),
     typedChars,
     wpm,
+    canonicalChars: derivedMetrics.totalCanonicalChars || 0,
+    wpmVariants: {
+      effectiveCanonicalWpm: derivedMetrics.effectiveCanonicalWpm || 0,
+      actualInputWpm: derivedMetrics.actualInputWpm || 0,
+      speedrunInputWpm: derivedMetrics.speedrunInputWpm || wpm,
+      noShortcutAdjustedWpm: derivedMetrics.noShortcutAdjustedWpm || 0,
+      noShortcutAdjustedWpmEstimated: true,
+      recognitionOnlyPace: derivedMetrics.recognitionOnlyPace || 0
+    },
     date: new Date().toISOString(),
     correct: session.correctFirstTry,
     total: session.pool.length,
     target: getSpeedTargetLabel(),
     splits: {...session.speedRun.splits},
     route,
+    questionAnalytics,
+    derivedMetrics,
+    runContext: buildRunContext(session, elapsed, route, questionAnalytics),
     telemetry,
     antiCheat,
     isPersonalBest: previousBest === null || Math.round(elapsed) < previousBest,
@@ -1771,7 +2520,14 @@ async function postPendingSharedRun(){
   for(const run of pendingRuns){
     const result = await submitSharedSpeedRun({
       ...run,
-      playerName: state.playerName
+      playerName: state.playerName,
+      telemetry: {
+        ...(run.telemetry || {}),
+        playerId: state.playerId,
+        deviceNumber: getDeviceNumber(),
+        knownPlayerNames: getDeviceKnownNames(),
+        leaderboardNames: getDeviceLeaderboardNames()
+      }
     });
     if(!result){
       if(leaderboardPublishStatus){
@@ -1805,44 +2561,97 @@ function queueCompletedRunAnalytics(run){
   if(!run || !run.telemetry || !run.telemetry.nonce) return;
   const analyticsRun = buildCompletedRunAnalytics(run);
   if(!analyticsRun) return;
+  saveDeviceAnalyticsHistory(analyticsRun);
   const queue = getSpeedRunAnalyticsQueue()
     .filter(item=>item && item.clientRunId !== analyticsRun.clientRunId);
   queue.push(analyticsRun);
-  state.speedRunAnalyticsQueue = queue.slice(-MAX_ANALYTICS_QUEUE_RUNS);
+  state.speedRunAnalyticsQueue = trimAnalyticsQueue(queue);
   saveSpeedRunAnalyticsQueue();
   drainSpeedRunAnalyticsQueue();
 }
 
 function buildCompletedRunAnalytics(run){
   const route = Array.isArray(run.route) ? run.route : [];
+  const questionAnalytics = Array.isArray(run.questionAnalytics) ? run.questionAnalytics : [];
   const telemetry = run.telemetry || {};
   const clientRunId = String(telemetry.nonce || "");
   if(!clientRunId || !route.length) return null;
+  const derivedMetrics = run.derivedMetrics || buildRunDerivedMetrics({
+    timeMs: run.timeMs,
+    total: run.total,
+    correct: run.correct,
+    questionAnalytics
+  });
   return {
+    analyticsVersion: ANALYTICS_SCHEMA_VERSION,
     clientRunId,
+    runId: clientRunId,
     playerName: sanitizePlayerName(run.playerName || state.playerName),
     playerId: state.playerId,
+    deviceNumber: getDeviceNumber(),
+    knownPlayerNames: getDeviceKnownNames(),
+    leaderboardNames: getDeviceLeaderboardNames(),
     modeKey: run.modeKey,
     which: run.which,
+    mode: run.which,
     continent: run.continent,
+    region: run.continent,
     difficulty: run.difficulty,
     target: run.targetValue,
     targetLabel: run.targetLabel,
+    countrySetVersion: run.runContext && run.runContext.countrySetVersion,
+    questionOrder: run.runContext && run.runContext.questionOrder,
+    questionOrderId: run.runContext && run.runContext.questionOrderId,
+    startedAt: run.runContext && run.runContext.startedAt,
+    completedAt: run.runContext && run.runContext.completedAt,
     timeMs: run.timeMs,
+    totalDurationMs: run.timeMs,
     correct: run.correct,
     total: run.total,
+    solvedCount: run.total,
+    firstTryCorrectCount: run.correct,
+    finalCorrectCount: run.total,
     typedChars: run.typedChars || 0,
+    canonicalChars: run.canonicalChars || derivedMetrics.totalCanonicalChars || 0,
     wpm: run.wpm || 0,
+    wpmVariants: run.wpmVariants || {},
     splits: run.splits || {},
     route,
+    questionAnalytics,
+    derivedMetrics,
+    runContext: run.runContext || {},
     telemetry,
     antiCheat: run.antiCheat || {},
+    dataQualityFlags: derivedMetrics.dataQualityFlags || [],
+    leaderboardValid: !(derivedMetrics.dataQualityFlags || []).includes("suspicious-leaderboard-run"),
+    analyticsOnly: !run.isPersonalBest,
     capturedAt: new Date().toISOString()
   };
 }
 
 function getSpeedRunAnalyticsQueue(){
   return Array.isArray(state.speedRunAnalyticsQueue) ? state.speedRunAnalyticsQueue : [];
+}
+
+function trimAnalyticsQueue(queue){
+  const items = Array.isArray(queue) ? queue.slice(-MAX_ANALYTICS_QUEUE_RUNS) : [];
+  while(items.length > 1 && JSON.stringify(items).length > MAX_ANALYTICS_QUEUE_BYTES){
+    items.shift();
+  }
+  return items;
+}
+
+function saveDeviceAnalyticsHistory(run){
+  if(!run || !run.clientRunId) return;
+  const history = getDeviceAnalyticsHistory()
+    .filter(item=>item && item.clientRunId !== run.clientRunId);
+  history.push(run);
+  state.deviceAnalyticsHistory = trimAnalyticsQueue(history);
+  storage.set(LS_KEYS.speedRunDeviceAnalyticsHistory, state.deviceAnalyticsHistory);
+}
+
+function getDeviceAnalyticsHistory(){
+  return Array.isArray(state.deviceAnalyticsHistory) ? state.deviceAnalyticsHistory : [];
 }
 
 function saveSpeedRunAnalyticsQueue(){
@@ -2807,9 +3616,9 @@ function updateWpmDisplay(){
   if(!session.pool.length){
     wpmStatus.textContent = "Choose a target with available questions.";
   }else if(session.speedRun.gaveUp || isTargetComplete()){
-    wpmStatus.textContent = `Final gross WPM from ${typedChars} typed characters.`;
+    wpmStatus.textContent = `Final speedrun WPM from ${typedChars} actual typed characters.`;
   }else if(session.speedRun.started){
-    wpmStatus.textContent = `Gross WPM from ${typedChars} typed characters.`;
+    wpmStatus.textContent = `Speedrun WPM from ${typedChars} actual typed characters.`;
   }else{
     wpmStatus.textContent = "Starts with your first typed character.";
   }
@@ -2998,6 +3807,9 @@ function showResultModal(reason){
   const finalWpm = isSpeed && session.speedRun.started
     ? formatWpm(getSpeedRunWpm(session, getSpeedRunDisplayMs(session)))
     : null;
+  const finalMetrics = isSpeed && state.lastCompletedRun && state.lastCompletedRun.derivedMetrics
+    ? state.lastCompletedRun.derivedMetrics
+    : null;
   renderResultHero({
     time: finalTime,
     wpm: finalWpm,
@@ -3014,7 +3826,12 @@ function showResultModal(reason){
     `Mode: ${getModeLabel()} / ${state.hard ? "Typed" : "Normal"}`,
     `Continent: ${state.selectedContinent}`,
     isSpeed ? `Target: ${getSpeedTargetLabel()}` : `Lives: ${state.lifeSetting === "unlimited" ? "Unlimited" : state.lifeSetting}`,
-    isSpeed ? `WPM: ${finalWpm || "0.0"}` : null,
+    isSpeed ? `Speedrun WPM: ${finalWpm || "0.0"}` : null,
+    isSpeed && finalMetrics ? `Canonical WPM: ${formatWpm(finalMetrics.effectiveCanonicalWpm)}` : null,
+    isSpeed && finalMetrics ? `Active input WPM: ${formatWpm(finalMetrics.activeInputWpm)}` : null,
+    isSpeed && finalMetrics ? `No-shortcut adjusted WPM: ${formatWpm(finalMetrics.noShortcutAdjustedWpm)} estimated` : null,
+    isSpeed && finalMetrics ? `Countries per minute: ${formatMetric(finalMetrics.countriesPerMinute, 2)}` : null,
+    isSpeed && finalMetrics ? `Shortcut use: ${formatPercent(finalMetrics.shortcutUsageRate)}` : null,
     `Skipped unresolved: ${session.skipped.size}`,
     `Wrong at least once: ${session.incorrect.size}`
   ].filter(Boolean);
@@ -3029,6 +3846,10 @@ function showResultModal(reason){
     const wrong = document.createElement("p");
     wrong.textContent = `Review: ${Array.from(session.incorrect).sort().join(", ")}`;
     resultDetails.appendChild(wrong);
+  }
+
+  if(isSpeed){
+    renderDeviceProgressSummary();
   }
 
   renderLeaderboardPublishPrompt(reason);
@@ -3098,6 +3919,52 @@ function renderResultHero(items){
   }
 }
 
+function renderDeviceProgressSummary(){
+  const history = getDeviceAnalyticsHistory();
+  if(!history.length || !window.SpeedrunAnalytics) return;
+  const latest = history[history.length - 1];
+  const engine = window.SpeedrunAnalytics;
+  const deviceNumber = getDeviceNumber();
+  const mastery = engine.aggregateCountryMastery(history);
+  const latestRecord = engine.normaliseRecord(latest);
+  const latestMetrics = engine.deriveRunMetrics(latestRecord);
+  const analysis = engine.generateRunAnalysis(latestRecord, latestMetrics, mastery);
+  const needsRevision = mastery
+    .filter(item=>item.masteryLevel === "Needs revision" || item.masteryLevel === "Error-prone")
+    .slice(0, 5)
+    .map(item=>item.country);
+  const names = getDeviceKnownNames();
+
+  const section = document.createElement("section");
+  section.className = "device-progress-summary";
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Your device progress";
+  section.appendChild(heading);
+
+  const facts = [
+    `Device: ${deviceNumber}`,
+    `Runs on this device: ${history.length}`,
+    names.length ? `Names on this device: ${names.join(", ")}` : null,
+    `Median solve: ${formatTimeCompact(latestMetrics.medianFinalSolveMs)}`,
+    `Data quality: ${latestMetrics.dataQualityScore}/100`
+  ].filter(Boolean);
+  for(const fact of facts){
+    const p = document.createElement("p");
+    p.textContent = fact;
+    section.appendChild(p);
+  }
+
+  const recommendation = (analysis.recommendations || [])[0]
+    || (needsRevision.length ? `Revision targets: ${needsRevision.join(", ")}.` : "");
+  if(recommendation){
+    const p = document.createElement("p");
+    p.textContent = recommendation;
+    section.appendChild(p);
+  }
+  resultDetails.appendChild(section);
+}
+
 function getResultTitle(reason){
   if(reason === "gameover") return "Game over";
   if(reason === "giveup") return "Run ended";
@@ -3161,10 +4028,28 @@ function formatTime(ms){
   return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
 }
 
+function formatTimeCompact(ms){
+  const value = Number(ms);
+  if(!Number.isFinite(value)) return "unknown";
+  return value >= 1000 ? `${(value / 1000).toFixed(1).replace(/\.0$/, "")}s` : `${Math.round(value)}ms`;
+}
+
 function formatWpm(value){
   const wpm = Number(value);
   if(!Number.isFinite(wpm) || wpm <= 0) return "0.0";
   return wpm >= 100 ? String(Math.round(wpm)) : wpm.toFixed(1);
+}
+
+function formatMetric(value, decimals=1){
+  const number = Number(value);
+  if(!Number.isFinite(number)) return "-";
+  return number.toFixed(decimals).replace(/\.?0+$/, "");
+}
+
+function formatPercent(value){
+  const number = Number(value);
+  if(!Number.isFinite(number)) return "0%";
+  return `${(number * 100).toFixed(1).replace(/\.0$/, "")}%`;
 }
 
 function roundMetric(value, decimals=1){
