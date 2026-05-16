@@ -7,7 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  <script src="theme.js?v=theme-1"></script>
+  <link rel="stylesheet" href="style.css?v=capital-map-11" />
 </head>
 <body>
   <header class="site-header with-nav">
@@ -23,7 +24,7 @@
   <main class="container">
     <section class="page-intro">
       <p class="section-kicker">Revision</p>
-      <h1>Review the countries you deliberately marked for another pass.</h1>
+      <h1>Review saved countries or browse capital flashcards by continent.</h1>
     </section>
 
     <div class="segment-switch">
@@ -34,6 +35,10 @@
       <label class="segment-radio">
         <input type="radio" name="revise-mode" value="flags">
         <span>Flag Revise</span>
+      </label>
+      <label class="segment-radio">
+        <input type="radio" name="revise-mode" value="flashcards">
+        <span>Capital Flashcards</span>
       </label>
     </div>
 
@@ -51,8 +56,10 @@
     <p>Your revision items are stored in localStorage.</p>
   </footer>
 
-  <script src="data.js" defer></script>
+  <script src="data.js?v=capital-map-11" defer></script>
   <script src="utils.js" defer></script>
-  <script src="revise.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3" defer></script>
+  <script src="map-view.js?v=capital-map-11" defer></script>
+  <script src="revise.js?v=capital-map-11" defer></script>
 </body>
 </html>

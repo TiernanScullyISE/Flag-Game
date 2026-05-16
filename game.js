@@ -894,7 +894,7 @@ async function loadQuestion(){
   recordRouteQuestion(session.correctCountry);
   answerInput.placeholder = "Type your answer...";
 
-  await renderFlag(session.correctCountry);
+  await renderQuestionVisual(session.correctCountry);
   countryLabel.textContent = state.which === "capitals"
     ? `What is the capital of ${session.correctCountry}?`
     : "";
@@ -911,7 +911,7 @@ async function loadQuestion(){
   }else{
     setupMcq();
   }
-  lastBtn.disabled = session.history.length <= 1 || state.playMode === "speedrun";
+  lastBtn.disabled = session.history.length <= 1;
 }
 
 function getQuestionCandidates(){
@@ -928,12 +928,40 @@ function getQuestionCandidates(){
 }
 
 async function renderFlag(country){
+  cancelQuestionFocusMapRender();
   questionVisual.innerHTML = "";
   const holder = document.createElement("div");
   holder.className = "flag-holder";
   questionVisual.appendChild(holder);
   const img = await createFlagImg(country, 430, `Flag of ${country}`);
   holder.replaceChildren(img);
+}
+
+async function renderQuestionVisual(country){
+  if(state.which === "capitals"){
+    await renderCapitalQuestionMap(country);
+    return;
+  }
+  await renderFlag(country);
+}
+
+async function renderCapitalQuestionMap(country){
+  if(window.CountryFocusMap && typeof window.CountryFocusMap.render === "function"){
+    await window.CountryFocusMap.render(questionVisual, country, {
+      continent: countryContinent[country] || undefined,
+      showCountryName:true,
+      showCapital:true,
+      showCapitalLabel:false
+    });
+    return;
+  }
+  await renderFlag(country);
+}
+
+function cancelQuestionFocusMapRender(){
+  if(window.CountryFocusMap && typeof window.CountryFocusMap.cancel === "function"){
+    window.CountryFocusMap.cancel(questionVisual);
+  }
 }
 
 function afterVisibleFrame(){
@@ -994,6 +1022,7 @@ async function loadWorldMapRound(){
 }
 
 function renderEmpty(){
+  cancelQuestionFocusMapRender();
   questionVisual.innerHTML = "";
   const empty = document.createElement("div");
   empty.className = "flag-fallback";
@@ -1114,24 +1143,44 @@ function markRouteSolved(){
 }
 
 function buildRouteSnapshot(route){
-  return route.map(entry=>({
-    index: entry.index,
-    country: entry.country,
-    continent: entry.continent,
-    answer: entry.answer,
-    shownMs: Math.round(entry.shownMs || 0),
-    firstInputMs: entry.firstInputMs === null ? null : Math.round(entry.firstInputMs),
-    firstSubmitMs: entry.firstSubmitMs === null ? null : Math.round(entry.firstSubmitMs),
-    solvedMs: entry.solvedMs === null ? null : Math.round(entry.solvedMs),
-    attempts: entry.attempts || 0,
-    wrongAttempts: entry.wrongAttempts || 0,
-    inputEvents: entry.inputEvents || 0,
-    keyEvents: entry.keyEvents || 0,
-    typedChars: entry.typedChars || 0,
-    maxInputLength: entry.maxInputLength || 0,
-    pasteEvents: entry.pasteEvents || 0,
-    skipped: !!entry.skipped
-  }));
+  const previousAttemptsByCountry = new Map();
+  return route.map(entry=>{
+    const country = entry.country || "";
+    const previous = previousAttemptsByCountry.get(country) || {attempts:0, wrongAttempts:0};
+    const solved = entry.solvedMs !== null && entry.solvedMs !== undefined;
+    const ownAttempts = entry.attempts || 0;
+    const ownWrongAttempts = entry.wrongAttempts || 0;
+    const attempts = solved ? ownAttempts + previous.attempts : ownAttempts;
+    const wrongAttempts = solved ? ownWrongAttempts + previous.wrongAttempts : ownWrongAttempts;
+
+    if(solved){
+      previousAttemptsByCountry.delete(country);
+    }else{
+      previousAttemptsByCountry.set(country, {
+        attempts: previous.attempts + ownAttempts,
+        wrongAttempts: previous.wrongAttempts + ownWrongAttempts
+      });
+    }
+
+    return {
+      index: entry.index,
+      country: entry.country,
+      continent: entry.continent,
+      answer: entry.answer,
+      shownMs: Math.round(entry.shownMs || 0),
+      firstInputMs: entry.firstInputMs === null ? null : Math.round(entry.firstInputMs),
+      firstSubmitMs: entry.firstSubmitMs === null ? null : Math.round(entry.firstSubmitMs),
+      solvedMs: entry.solvedMs === null ? null : Math.round(entry.solvedMs),
+      attempts,
+      wrongAttempts,
+      inputEvents: entry.inputEvents || 0,
+      keyEvents: entry.keyEvents || 0,
+      typedChars: entry.typedChars || 0,
+      maxInputLength: entry.maxInputLength || 0,
+      pasteEvents: entry.pasteEvents || 0,
+      skipped: !!entry.skipped
+    };
+  });
 }
 
 function buildTelemetrySnapshot(session){
@@ -1277,11 +1326,27 @@ function getDeviceLeaderboardNames(){
 
 function buildQuestionAnalyticsSnapshot(session){
   finaliseActiveInterruptionPeriods();
+  const previousAttemptsByCountry = new Map();
   return (session.route || [])
-    .filter(entry=>entry && entry.solvedMs !== null)
-    .map(entry=>{
+    .reduce((items, entry)=>{
+      if(!entry) return items;
+      const country = entry.country || "";
+      const previous = previousAttemptsByCountry.get(country) || {attempts:0, wrongAttempts:0, rawAttempts:[]};
+      const ownAttempts = entry.attempts || 0;
+      const ownWrongAttempts = entry.wrongAttempts || 0;
+      const ownRawAttempts = Array.isArray(entry.allRawAttempts) ? entry.allRawAttempts : [];
+      if(entry.solvedMs === null || entry.solvedMs === undefined){
+        previousAttemptsByCountry.set(country, {
+          attempts: previous.attempts + ownAttempts,
+          wrongAttempts: previous.wrongAttempts + ownWrongAttempts,
+          rawAttempts: [...previous.rawAttempts, ...ownRawAttempts]
+        });
+        return items;
+      }
+
       updateQuestionDerivedTiming(entry);
-      const attempts = (entry.allRawAttempts || []).map(attempt=>({
+      const combinedRawAttempts = [...previous.rawAttempts, ...ownRawAttempts];
+      const attempts = combinedRawAttempts.map(attempt=>({
         rawInput: attempt.rawInput || "",
         submittedAt: attempt.submittedAt,
         submittedMs: attempt.submittedMs,
@@ -1290,7 +1355,11 @@ function buildQuestionAnalyticsSnapshot(session){
         matchedAlias: attempt.matchedAlias || "",
         errorType: attempt.errorType || getAnalyticsErrorType(attempt.rawInput, entry.canonicalAnswer, attempt.matchedAlias)
       }));
-      return {
+      const attemptsCount = previous.attempts + ownAttempts;
+      const wrongSubmits = previous.wrongAttempts + ownWrongAttempts;
+      previousAttemptsByCountry.delete(country);
+
+      items.push({
         runId: session.security.nonce,
         questionIndex: entry.questionIndex || entry.index,
         countryId: entry.countryId || getCountryId(entry.country),
@@ -1302,14 +1371,14 @@ function buildQuestionAnalyticsSnapshot(session){
         allRawAttempts: attempts.map(attempt=>attempt.rawInput),
         acceptedAlias: entry.acceptedAlias || "",
         aliasType: entry.aliasType || "unknown",
-        answerCompletionType: entry.answerCompletionType || "unknown",
+        answerCompletionType: wrongSubmits > 0 ? "corrected-after-mistakes" : entry.answerCompletionType || "unknown",
         shortcutUsed: !!entry.shortcutUsed,
         autocompleteUsed: !!entry.autocompleteUsed,
         hintUsed: !!entry.hintUsed,
         skipUsed: !!entry.skipUsed,
         attempts,
-        attemptsCount: entry.attempts || attempts.length,
-        wrongSubmits: entry.wrongAttempts || 0,
+        attemptsCount,
+        wrongSubmits,
         typedChars: entry.typedChars || 0,
         canonicalChars: entry.canonicalChars || countAnalyticsChars(entry.canonicalAnswer || entry.answer),
         wordCount: entry.wordCount || getAnalyticsWordCount(entry.canonicalAnswer || entry.answer),
@@ -1335,8 +1404,9 @@ function buildQuestionAnalyticsSnapshot(session){
         focusLostDuringQuestionMs: Math.round(entry.focusLostDuringQuestionMs || 0),
         hiddenDuringQuestionMs: Math.round(entry.hiddenDuringQuestionMs || 0),
         dataQualityFlags: Array.from(new Set(entry.dataQualityFlags || []))
-      };
-    });
+      });
+      return items;
+    }, []);
 }
 
 function updateQuestionDerivedTiming(entry){
@@ -2061,9 +2131,6 @@ function nextQuestion(){
       addQuestionQualityFlag(entry, "skipped");
     }
     session.skipped.add(session.correctCountry);
-    if(session.history.length && session.history[session.history.length-1] === session.correctCountry){
-      session.history.pop();
-    }
   }
   loadQuestion();
 }
@@ -2071,7 +2138,7 @@ function nextQuestion(){
 async function lastQuestion(){
   const session = state.session;
   if(isWorldMode()) return;
-  if(state.playMode === "speedrun" || session.history.length < 2 || session.gameOver) return;
+  if(session.history.length < 2 || session.gameOver) return;
 
   session.history.pop();
   const previous = session.history.pop();
@@ -2080,12 +2147,14 @@ async function lastQuestion(){
   session.questionAnswered = session.answered.has(previous);
   session.currentWrongAttempts = 0;
   session.history.push(previous);
+  recordRouteQuestion(previous);
 
-  await renderFlag(previous);
+  await renderQuestionVisual(previous);
   countryLabel.textContent = state.which === "capitals" ? `What is the capital of ${previous}?` : "";
   clearFeedback();
   updateReviseButton();
   updateAllStatus();
+  lastBtn.disabled = session.history.length <= 1;
 
   if(state.hard){
     answerInput.value = "";
@@ -2700,6 +2769,7 @@ function getSpeedRunSplitTargets(){
 
 async function renderWorldMap(){
   if(!isWorldMode()) return;
+  cancelQuestionFocusMapRender();
   const token = ++worldMapState.renderToken;
   if(worldMapState.features){
     questionVisual.innerHTML = "";

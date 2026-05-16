@@ -102,6 +102,35 @@
     return (text || fallback).slice(0, maxLength);
   }
 
+  function normaliseSubmissionRoute(route){
+    if(!Array.isArray(route)) return [];
+    const previousAttemptsByCountry = new Map();
+    return route.map(entry=>{
+      const country = cleanText(entry && entry.country, "", 120);
+      const previous = previousAttemptsByCountry.get(country) || {attempts:0, wrongAttempts:0};
+      const solved = entry && entry.solvedMs !== null && entry.solvedMs !== undefined;
+      const ownAttempts = Math.max(0, Math.round(Number(entry && entry.attempts) || 0));
+      const ownWrongAttempts = Math.max(0, Math.round(Number(entry && entry.wrongAttempts) || 0));
+      const attempts = solved ? ownAttempts + previous.attempts : ownAttempts;
+      const wrongAttempts = solved ? ownWrongAttempts + previous.wrongAttempts : ownWrongAttempts;
+
+      if(solved){
+        previousAttemptsByCountry.delete(country);
+      }else{
+        previousAttemptsByCountry.set(country, {
+          attempts: previous.attempts + ownAttempts,
+          wrongAttempts: previous.wrongAttempts + ownWrongAttempts
+        });
+      }
+
+      return {
+        ...entry,
+        attempts,
+        wrongAttempts
+      };
+    });
+  }
+
   function normalizeRun(row){
     return {
       modeKey: row.mode_key || "",
@@ -177,6 +206,7 @@
   }
 
   async function submitRun(run){
+    const route = normaliseSubmissionRoute(run.route);
     const payload = {
       player_name: cleanText(run.playerName, "Player", 24),
       mode_key: cleanText(run.modeKey, "unknown", 80),
@@ -189,7 +219,7 @@
       correct_first_try: Math.round(Number(run.correct) || 0),
       total: Math.round(Number(run.total) || 0),
       splits: run.splits || {},
-      route: Array.isArray(run.route) ? run.route : [],
+      route,
       telemetry: run.telemetry || {},
       anti_cheat: run.antiCheat || {},
       submission_method: run.submissionMethod || "direct",
@@ -220,6 +250,7 @@
       throw new Error("Speedrun analytics function is not configured.");
     }
     const key = config.supabaseAnonKey.trim();
+    const route = normaliseSubmissionRoute(run.route);
     const payload = {
       client_run_id: cleanText(run.clientRunId, "", 120),
       player_name: cleanText(run.playerName, "Player", 24),
@@ -261,7 +292,7 @@
       total_hidden_ms: Math.round(Number((run.telemetry && run.telemetry.hiddenMs) || (run.runContext && run.runContext.totalHiddenTabMs)) || 0),
       paste_events_count: Math.round(Number((run.telemetry && run.telemetry.pasteEvents) || (run.runContext && run.runContext.pasteEventsCount)) || 0),
       splits: run.splits || {},
-      route: Array.isArray(run.route) ? run.route : [],
+      route,
       question_analytics: Array.isArray(run.questionAnalytics) ? run.questionAnalytics : [],
       derived_metrics: run.derivedMetrics || {},
       run_context: run.runContext || {},

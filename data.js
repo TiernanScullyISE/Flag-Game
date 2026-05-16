@@ -178,6 +178,7 @@ const countryAliases = {
   "Central African Republic":["car"],
   "North Korea":["dprk"],
   "United Arab Emirates":["uae"],
+  "Guinea-Bissau":["guinea bissau"],
   "Türkiye":["turkey"],
   "North Macedonia":["macedonia"],
   "South Africa":["rsa"],
