@@ -56,6 +56,24 @@ python -m http.server 8000
 
 The web version can also be served directly by GitHub Pages from the repo root.
 
+## Local Checks
+
+Run the lightweight data, wiring and syntax checks from the repository root:
+
+```powershell
+npm.cmd test
+```
+
+For browser-level smoke tests, install the dev dependencies and Playwright browsers once, then run:
+
+```powershell
+npm.cmd install
+npx.cmd playwright install
+npm.cmd run test:browser
+```
+
+Playwright is only test tooling. It is not loaded by the live static site and does not affect runtime performance.
+
 ## Shared Speedrun Leaderboard
 
 GitHub Pages is static, so shared speedrun records and private learning analytics are handled by Supabase. The browser-facing project URL, public browser key and function URLs live in `leaderboard-config.js`.

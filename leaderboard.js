@@ -144,6 +144,10 @@
       date: row.created_at || "",
       correct: Number(row.correct_first_try) || 0,
       total: Number(row.total) || 0,
+      typedChars: Number(row.typed_chars) || Number(row.typedChars) || 0,
+      canonicalChars: Number(row.canonical_chars) || Number(row.canonicalChars) || 0,
+      wpm: Number(row.wpm) || 0,
+      wpmVariants: row.wpm_variants || row.wpmVariants || {},
       target: row.target_label || row.target || "",
       splits: row.splits || {},
       route: Array.isArray(row.route) ? row.route : [],
@@ -158,14 +162,14 @@
   }
 
   async function fetchRuns(filters, limit=10){
-    const params = makeRunParams("detailed", limit);
+    const params = makeRunParams("full", limit);
     params.set("mode_key", `eq.${filters.modeKey}`);
     const rows = await requestWithLegacyFallback(params, limit, filters.modeKey);
     return Array.isArray(rows) ? rows.map(normalizeRun) : [];
   }
 
   async function fetchAllRuns(limit=5000){
-    const params = makeRunParams("detailed", limit);
+    const params = makeRunParams("full", limit);
     const rows = await requestWithLegacyFallback(params, limit);
     return Array.isArray(rows) ? rows.map(normalizeRun) : [];
   }
@@ -173,8 +177,9 @@
   function makeRunParams(detail, limit){
     const params = new URLSearchParams();
     const base = "mode_key,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits";
-    const detailed = `${base},route,verified`;
-    params.set("select", detail === "detailed" ? detailed : base);
+    const route = `${base},route,verified`;
+    const full = `${route},typed_chars,canonical_chars,wpm,wpm_variants`;
+    params.set("select", detail === "full" ? full : detail === "route" ? route : base);
     params.set("order", "mode_key.asc,time_ms.asc,created_at.asc");
     params.set("limit", String(limit));
     return params;
@@ -188,9 +193,19 @@
       if(!isDetailedColumnError(message)){
         throw error;
       }
-      const fallback = makeRunParams("legacy", limit);
-      if(modeKey) fallback.set("mode_key", `eq.${modeKey}`);
-      return request(fallback);
+      try{
+        const routeFallback = makeRunParams("route", limit);
+        if(modeKey) routeFallback.set("mode_key", `eq.${modeKey}`);
+        return await request(routeFallback);
+      }catch(routeError){
+        const routeMessage = routeError && routeError.message ? routeError.message.toLowerCase() : "";
+        if(!isDetailedColumnError(routeMessage)){
+          throw routeError;
+        }
+        const fallback = makeRunParams("legacy", limit);
+        if(modeKey) fallback.set("mode_key", `eq.${modeKey}`);
+        return request(fallback);
+      }
     }
   }
 
@@ -218,10 +233,16 @@
       time_ms: Math.round(Number(run.timeMs) || 0),
       correct_first_try: Math.round(Number(run.correct) || 0),
       total: Math.round(Number(run.total) || 0),
+      typed_chars: Math.round(Number(run.typedChars) || 0),
+      canonical_chars: Math.round(Number(run.canonicalChars) || 0),
+      wpm: Number(run.wpm) || 0,
+      wpm_variants: run.wpmVariants || {},
       splits: run.splits || {},
       route,
       telemetry: run.telemetry || {},
       anti_cheat: run.antiCheat || {},
+      run_context: run.runContext || {},
+      derived_metrics: run.derivedMetrics || {},
       submission_method: run.submissionMethod || "direct",
       verified: !!run.verified
     };

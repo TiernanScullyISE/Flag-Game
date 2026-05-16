@@ -1,23 +1,42 @@
 const adminPassword = document.getElementById("admin-password");
+const adminRememberPassword = document.getElementById("admin-remember-password");
 const adminLoad = document.getElementById("admin-load");
 const adminAnalytics = document.getElementById("admin-analytics");
 const adminStatus = document.getElementById("admin-status");
 const adminList = document.getElementById("admin-list");
 
+const ADMIN_PASSWORD_STORAGE_KEY = "leaderboard_admin_password";
+const ADMIN_PASSWORD_REMEMBER_KEY = "leaderboard_admin_password_remember";
+
 function initAdmin(){
-  adminPassword.value = sessionStorage.getItem("leaderboard_admin_password") || "";
+  const rememberPassword = sessionStorage.getItem(ADMIN_PASSWORD_REMEMBER_KEY) === "true";
+  adminRememberPassword.checked = rememberPassword;
+  adminPassword.value = rememberPassword ? sessionStorage.getItem(ADMIN_PASSWORD_STORAGE_KEY) || "" : "";
+
   adminLoad.addEventListener("click", loadAdminQueue);
   adminAnalytics.addEventListener("click", loadAnalytics);
+  adminRememberPassword.addEventListener("change", syncAdminPasswordStorage);
+  adminPassword.addEventListener("input", syncAdminPasswordStorage);
   adminPassword.addEventListener("keydown", event=>{
     if(event.key === "Enter") loadAdminQueue();
   });
+}
+
+function syncAdminPasswordStorage(){
+  if(adminRememberPassword.checked){
+    sessionStorage.setItem(ADMIN_PASSWORD_REMEMBER_KEY, "true");
+    sessionStorage.setItem(ADMIN_PASSWORD_STORAGE_KEY, adminPassword.value);
+    return;
+  }
+  sessionStorage.removeItem(ADMIN_PASSWORD_REMEMBER_KEY);
+  sessionStorage.removeItem(ADMIN_PASSWORD_STORAGE_KEY);
 }
 
 async function adminRequest(action, extra={}){
   const config = window.LEADERBOARD_CONFIG || {};
   if(!config.adminFunctionUrl) throw new Error("Admin function is not configured.");
   const password = adminPassword.value;
-  sessionStorage.setItem("leaderboard_admin_password", password);
+  syncAdminPasswordStorage();
 
   const response = await fetch(config.adminFunctionUrl, {
     method: "POST",

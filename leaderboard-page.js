@@ -4,6 +4,7 @@ const FETCH_LIMIT = 5000;
 
 const leaderboardPageState = {
   categories: [],
+  allRuns: [],
   runsByKey: new Map(),
   runLimitByKey: new Map(),
   loading: false,
@@ -15,6 +16,7 @@ const continentFilter = document.getElementById("leaderboard-continent");
 const targetFilter = document.getElementById("leaderboard-target");
 const withScoresFilter = document.getElementById("leaderboard-with-scores");
 const refreshBtn = document.getElementById("leaderboard-refresh");
+const highlightsEl = document.getElementById("leaderboard-highlights");
 const statusEl = document.getElementById("leaderboard-page-status");
 const gridEl = document.getElementById("leaderboard-page-grid");
 
@@ -99,6 +101,8 @@ async function loadSharedLeaderboards(){
   if(!window.sharedLeaderboard || !window.sharedLeaderboard.isConfigured()){
     leaderboardPageState.loading = false;
     leaderboardPageState.error = "Shared leaderboard is not configured.";
+    leaderboardPageState.allRuns = [];
+    leaderboardPageState.runsByKey = new Map();
     refreshBtn.disabled = false;
     renderLeaderboardPage();
     return;
@@ -106,8 +110,11 @@ async function loadSharedLeaderboards(){
 
   try{
     const runs = await window.sharedLeaderboard.fetchAllRuns(FETCH_LIMIT);
+    leaderboardPageState.allRuns = runs;
     leaderboardPageState.runsByKey = groupRunsByCategory(runs);
   }catch(error){
+    leaderboardPageState.allRuns = [];
+    leaderboardPageState.runsByKey = new Map();
     leaderboardPageState.error = error.message || "Shared leaderboard unavailable.";
   }finally{
     leaderboardPageState.loading = false;
@@ -135,6 +142,7 @@ function groupRunsByCategory(runs){
 }
 
 function renderLeaderboardPage(){
+  renderGlobalHighlights();
   gridEl.innerHTML = "";
 
   const filtered = leaderboardPageState.categories.filter(category=>{
@@ -165,6 +173,178 @@ function renderLeaderboardPage(){
   for(const category of filtered){
     gridEl.appendChild(renderCategoryCard(category));
   }
+}
+
+function renderGlobalHighlights(){
+  if(!highlightsEl) return;
+  highlightsEl.innerHTML = "";
+  highlightsEl.append(
+    renderFastestWpmCard(),
+    renderFirstPlacesCard()
+  );
+}
+
+function renderFastestWpmCard(){
+  if(leaderboardPageState.loading){
+    return renderHighlightCard("Fastest WPM", "Any posted run", [], "Loading fastest WPM runs...");
+  }
+  if(leaderboardPageState.error){
+    return renderHighlightCard("Fastest WPM", "Any posted run", [], leaderboardPageState.error);
+  }
+
+  const entries = leaderboardPageState.allRuns
+    .map(run=>({run, wpm:getRunWpm(run)}))
+    .filter(entry=>entry.wpm > 0)
+    .sort((left,right)=>right.wpm - left.wpm || left.run.timeMs - right.run.timeMs)
+    .slice(0, PAGE_TOP_RUNS);
+
+  return renderHighlightCard("Fastest WPM", "Top 5 on any run ever", entries, "No WPM data available yet.", renderWpmHighlightRow);
+}
+
+function renderFirstPlacesCard(){
+  if(leaderboardPageState.loading){
+    return renderHighlightCard("Most 1st Places", "Across all categories", [], "Loading runner rankings...");
+  }
+  if(leaderboardPageState.error){
+    return renderHighlightCard("Most 1st Places", "Across all categories", [], leaderboardPageState.error);
+  }
+
+  const entries = getFirstPlaceRankings().slice(0, PAGE_TOP_RUNS);
+  return renderHighlightCard("Most 1st Places", "Top 5 runners", entries, "No first-place runs posted yet.", renderFirstPlaceHighlightRow);
+}
+
+function renderHighlightCard(titleText, kickerText, entries, emptyText, renderRow){
+  const card = document.createElement("article");
+  card.className = "leaderboard-highlight-card";
+
+  const heading = document.createElement("header");
+  heading.className = "leaderboard-category-heading";
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "leaderboard-category-title";
+  const kicker = document.createElement("p");
+  kicker.className = "panel-label";
+  kicker.textContent = kickerText;
+  const title = document.createElement("h2");
+  title.textContent = titleText;
+  titleWrap.append(kicker, title);
+  heading.appendChild(titleWrap);
+  card.appendChild(heading);
+
+  const list = document.createElement("div");
+  list.className = "leaderboard-highlight-list";
+  if(!entries.length || !renderRow){
+    list.appendChild(emptyMiniPage(emptyText));
+  }else{
+    entries.forEach((entry,index)=>list.appendChild(renderRow(entry, index)));
+  }
+  card.appendChild(list);
+  return card;
+}
+
+function renderWpmHighlightRow(entry, index){
+  const row = document.createElement("div");
+  row.className = "leaderboard-highlight-row";
+
+  const rank = document.createElement("strong");
+  rank.textContent = `#${index + 1}`;
+  const name = document.createElement("span");
+  name.textContent = entry.run.playerName || "Player";
+  const value = document.createElement("span");
+  value.textContent = formatLeaderboardWpm(entry.wpm);
+  const meta = document.createElement("span");
+  meta.textContent = `${getRunCategoryLabel(entry.run)} - ${formatLeaderboardTime(entry.run.timeMs)}`;
+
+  row.append(rank, name, value, meta);
+  return row;
+}
+
+function renderFirstPlaceHighlightRow(entry, index){
+  const row = document.createElement("div");
+  row.className = "leaderboard-highlight-row";
+
+  const rank = document.createElement("strong");
+  rank.textContent = `#${index + 1}`;
+  const name = document.createElement("span");
+  name.textContent = entry.name;
+  const value = document.createElement("span");
+  value.textContent = `${entry.firstPlaces} 1st place${entry.firstPlaces === 1 ? "" : "s"}`;
+  const meta = document.createElement("span");
+  meta.textContent = `${entry.totalRuns} posted runs - best ${formatLeaderboardTime(entry.bestTimeMs)}`;
+
+  row.append(rank, name, value, meta);
+  return row;
+}
+
+function getFirstPlaceRankings(){
+  const runners = new Map();
+  const allRuns = leaderboardPageState.allRuns || [];
+
+  for(const run of allRuns){
+    const key = getRunnerKey(run.playerName);
+    if(!key) continue;
+    const entry = runners.get(key) || {
+      name: run.playerName || "Player",
+      firstPlaces: 0,
+      totalRuns: 0,
+      bestTimeMs: Number.POSITIVE_INFINITY
+    };
+    entry.totalRuns += 1;
+    entry.bestTimeMs = Math.min(entry.bestTimeMs, Number(run.timeMs) || Number.POSITIVE_INFINITY);
+    runners.set(key, entry);
+  }
+
+  for(const group of leaderboardPageState.runsByKey.values()){
+    if(!group.length) continue;
+    const winner = group[0];
+    const key = getRunnerKey(winner.playerName);
+    if(!key) continue;
+    const entry = runners.get(key) || {
+      name: winner.playerName || "Player",
+      firstPlaces: 0,
+      totalRuns: 0,
+      bestTimeMs: Number(winner.timeMs) || Number.POSITIVE_INFINITY
+    };
+    entry.firstPlaces += 1;
+    runners.set(key, entry);
+  }
+
+  return Array.from(runners.values())
+    .filter(entry=>entry.firstPlaces > 0)
+    .sort((left,right)=>
+      right.firstPlaces - left.firstPlaces
+      || left.bestTimeMs - right.bestTimeMs
+      || right.totalRuns - left.totalRuns
+      || left.name.localeCompare(right.name)
+    );
+}
+
+function getRunnerKey(name){
+  const key = String(name || "Player").trim().toLowerCase();
+  return key || "player";
+}
+
+function getRunWpm(run){
+  const direct = Number(run && run.wpm);
+  if(Number.isFinite(direct) && direct > 0) return direct;
+
+  const typedChars = getRunTypedChars(run);
+  const timeMs = Number(run && run.timeMs) || 0;
+  if(typedChars <= 0 || timeMs <= 0) return 0;
+  return (typedChars / 5) / (timeMs / 60000);
+}
+
+function getRunTypedChars(run){
+  const direct = Number(run && run.typedChars);
+  if(Number.isFinite(direct) && direct > 0) return direct;
+  const route = Array.isArray(run && run.route) ? run.route : [];
+  return route.reduce((sum, entry)=>sum + Math.max(0, Number(entry && entry.typedChars) || 0), 0);
+}
+
+function getRunCategoryLabel(run){
+  const mode = getLeaderboardModeLabel(run.which);
+  const continent = run.continent || "All";
+  const target = run.targetLabel || run.target || "All";
+  return `${mode} - ${continent} - ${target}`;
 }
 
 function renderStatus(filtered){
@@ -383,10 +563,18 @@ function emptyMiniPage(text){
 
 function formatLeaderboardTime(ms){
   const value = Math.max(0, Math.round(ms || 0));
+  if(!Number.isFinite(value)) return "0:00.0";
   const minutes = Math.floor(value / 60000);
   const seconds = Math.floor((value % 60000) / 1000);
   const tenths = Math.floor((value % 1000) / 100);
   return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
+}
+
+function formatLeaderboardWpm(value){
+  const wpm = Number(value);
+  if(!Number.isFinite(wpm) || wpm <= 0) return "0.0 WPM";
+  const display = wpm >= 100 ? String(Math.round(wpm)) : wpm.toFixed(1);
+  return `${display} WPM`;
 }
 
 document.addEventListener("DOMContentLoaded", initLeaderboardPage);
