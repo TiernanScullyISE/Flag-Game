@@ -227,7 +227,10 @@
     }catch(error){
       if(renderTokens.get(target) !== token) return;
       const message = error && error.message ? error.message : "Map could not load.";
-      target.replaceChildren(createStatus(message));
+      target.replaceChildren(createStatus(message, {
+        retryLabel:"Try again",
+        onRetry:()=>render(target, country, options)
+      }));
     }
   }
 
@@ -262,7 +265,7 @@
     if(featureLoadPromise) return featureLoadPromise;
     featureLoadPromise = (async ()=>{
       if(!window.topojson || !window.topojson.feature){
-        throw new Error("Map library did not load. Check your connection and refresh.");
+        throw new Error("Map library did not load. Check your connection and try again.");
       }
       const response = await fetch(FOCUS_MAP_TOPOJSON_URL);
       if(!response.ok) throw new Error(`Country outline map failed to load (${response.status}).`);
@@ -285,7 +288,10 @@
         .filter(feature=>!!feature.properties.quizCountry || !!feature.properties.contextName);
       applyFeatureReplacements(featureCache);
       return featureCache;
-    })();
+    })().catch(error=>{
+      featureLoadPromise = null;
+      throw error;
+    });
     return featureLoadPromise;
   }
 
@@ -531,10 +537,21 @@
     panelGroup.appendChild(marker);
   }
 
-  function createStatus(text){
+  function createStatus(text, options={}){
     const status = document.createElement("div");
     status.className = "country-focus-map-status";
-    status.textContent = text;
+    const message = document.createElement("span");
+    message.textContent = text;
+    status.appendChild(message);
+    if(typeof options.onRetry === "function"){
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn primary map-retry-btn";
+      button.dataset.loadRetry = "true";
+      button.textContent = options.retryLabel || "Retry";
+      button.addEventListener("click", options.onRetry);
+      status.appendChild(button);
+    }
     return status;
   }
 

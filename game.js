@@ -201,7 +201,10 @@ const resultClose = document.getElementById("result-close");
 function init(){
   playModeButtons.forEach(button=>{
     button.addEventListener("click", ()=>{
-      if(state.playMode === button.dataset.playMode) return;
+      if(state.playMode === button.dataset.playMode){
+        retryVisibleQuestionLoad();
+        return;
+      }
       state.playMode = button.dataset.playMode;
       if(state.playMode === "speedrun" && isRevisionMode()) state.selectedContinent = "All";
       if(state.playMode === "speedrun"){
@@ -217,7 +220,10 @@ function init(){
 
   quizButtons.forEach(button=>{
     button.addEventListener("click", ()=>{
-      if(state.which === button.dataset.mode) return;
+      if(state.which === button.dataset.mode){
+        retryVisibleQuestionLoad();
+        return;
+      }
       state.which = button.dataset.mode;
       state.selectedContinent = "All";
       if(isWorldMode()){
@@ -304,6 +310,13 @@ function init(){
   window.setInterval(()=>{
     if(state.playMode === "speedrun") refreshSharedLeaderboard();
   }, LEADERBOARD_REFRESH_MS);
+}
+
+function retryVisibleQuestionLoad(){
+  const retryButton = questionVisual && questionVisual.querySelector("[data-load-retry]");
+  if(!retryButton) return false;
+  retryButton.click();
+  return true;
 }
 
 function sanitizePlayerName(value){
@@ -859,8 +872,18 @@ async function loadWorldMapRound(){
     : `Type any ${state.selectedContinent} country...`;
   mcqBtns.forEach(button=>{ button.textContent = ""; button.disabled = true; });
 
-  await renderWorldMap();
+  const mapRendered = await renderWorldMap();
+  if(session !== state.session || !isWorldMode()) return;
   updateAllStatus();
+  if(!mapRendered){
+    answerInput.value = "";
+    answerInput.disabled = true;
+    submitBtn.disabled = true;
+    lastBtn.disabled = true;
+    nextBtn.disabled = true;
+    giveupBtn.disabled = true;
+    return;
+  }
   await markWorldMapVisible();
 
   answerInput.value = "";
@@ -2710,34 +2733,50 @@ function getSpeedRunSplitTargets(){
 }
 
 async function renderWorldMap(){
-  if(!isWorldMode()) return;
+  if(!isWorldMode()) return false;
   cancelQuestionFocusMapRender();
   const token = ++worldMapState.renderToken;
   if(worldMapState.features){
     questionVisual.innerHTML = "";
     questionVisual.appendChild(createWorldMapShell(worldMapState.features));
-    return;
+    return true;
   }
   questionVisual.innerHTML = "";
   questionVisual.appendChild(createWorldMapStatus("Loading country outlines..."));
 
   try{
     const features = await loadWorldMapFeatures();
-    if(token !== worldMapState.renderToken || !isWorldMode()) return;
+    if(token !== worldMapState.renderToken || !isWorldMode()) return false;
     questionVisual.innerHTML = "";
     questionVisual.appendChild(createWorldMapShell(features));
+    return true;
   }catch(error){
-    if(token !== worldMapState.renderToken || !isWorldMode()) return;
+    if(token !== worldMapState.renderToken || !isWorldMode()) return false;
     worldMapState.error = error && error.message ? error.message : "Country outline map could not load.";
     questionVisual.innerHTML = "";
-    questionVisual.appendChild(createWorldMapStatus(worldMapState.error));
+    questionVisual.appendChild(createWorldMapStatus(worldMapState.error, {
+      retryLabel:"Try again",
+      onRetry:()=>loadWorldMapRound()
+    }));
+    return false;
   }
 }
 
-function createWorldMapStatus(text){
+function createWorldMapStatus(text, options={}){
   const status = document.createElement("div");
   status.className = "world-map-status";
-  status.textContent = text;
+  const message = document.createElement("span");
+  message.textContent = text;
+  status.appendChild(message);
+  if(typeof options.onRetry === "function"){
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn primary map-retry-btn";
+    button.dataset.loadRetry = "true";
+    button.textContent = options.retryLabel || "Retry";
+    button.addEventListener("click", options.onRetry);
+    status.appendChild(button);
+  }
   return status;
 }
 
@@ -2745,9 +2784,10 @@ async function loadWorldMapFeatures(){
   if(worldMapState.features) return worldMapState.features;
   if(worldMapState.loadPromise) return worldMapState.loadPromise;
 
+  worldMapState.error = "";
   worldMapState.loadPromise = (async ()=>{
     if(!window.topojson || !window.topojson.feature){
-      throw new Error("Map libraries did not load. Check your connection and refresh.");
+      throw new Error("Map libraries did not load. Check your connection and try again.");
     }
     const response = await fetch(WORLD_MAP_TOPOJSON_URL);
     if(!response.ok) throw new Error(`Country outline map failed to load (${response.status}).`);
@@ -2770,7 +2810,10 @@ async function loadWorldMapFeatures(){
       .filter(feature=>!!feature.properties.quizCountry || !!feature.properties.contextName);
     addSyntheticWorldMapFeatures(worldMapState.features);
     return worldMapState.features;
-  })();
+  })().catch(error=>{
+    worldMapState.loadPromise = null;
+    throw error;
+  });
 
   return worldMapState.loadPromise;
 }
