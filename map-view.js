@@ -7,6 +7,9 @@
   const FOCUS_MAP_COUNTRY_ZOOM_PADDING_RATIO = 0.42;
   const FOCUS_MAP_COUNTRY_ZOOM_MIN_LON_SPAN = 2.2;
   const FOCUS_MAP_COUNTRY_ZOOM_MIN_LAT_SPAN = 1.6;
+  const FOCUS_MAP_DETAIL_PANEL_WIDTH = 440;
+  const FOCUS_MAP_DETAIL_PANEL_HEIGHT = 286;
+  const FOCUS_MAP_DETAIL_PANEL_MARGIN = 26;
   const FOCUS_MAP_MAIN_BOUNDS = [-180, -58, 180, 84];
   const FOCUS_MAP_CONTINENT_BOUNDS = {
     "Africa":[-27, -36, 58, 38],
@@ -253,6 +256,7 @@
       showCountryName: options.showCountryName !== false,
       showCapital,
       showCapitalLabel: options.showCapitalLabel !== false,
+      showCapitalUnderName: options.showCapitalUnderName === true,
       capitalPoint,
       capitalEstimated: !!(capitalPoint && capitalPoint.estimated),
       capitalName: getCapitalName(country),
@@ -286,6 +290,7 @@
           };
         })
         .filter(feature=>!!feature.properties.quizCountry || !!feature.properties.contextName);
+      normaliseIrelandUnitedKingdomFeatures(featureCache);
       applyFeatureReplacements(featureCache);
       return featureCache;
     })().catch(error=>{
@@ -310,13 +315,11 @@
     };
     const targetFeature = features.find(feature=>feature.properties.quizCountry === targetCountry) || null;
     const useCountryZoom = shouldUseCountryZoom(targetCountry, targetFeature, basePanel, options);
-    const panel = useCountryZoom
+    const detailPanel = useCountryZoom
       ? makeCountryZoomPanel(basePanel, targetFeature, targetCountry, continent, options)
-      : basePanel;
-    const visibleCountries = useCountryZoom
-      ? new Set([targetCountry])
-      : new Set(getCountriesForContinent(continent));
-    if(!useCountryZoom) visibleCountries.add(targetCountry);
+      : null;
+    const visibleCountries = new Set(getCountriesForContinent(continent));
+    visibleCountries.add(targetCountry);
     const renderFeatures = features.filter(feature=>{
       const country = feature.properties.quizCountry;
       return visibleCountries.has(country) || feature.properties.contextContinent === continent;
@@ -326,7 +329,7 @@
     shell.className = [
       "country-focus-map",
       options.showCapital ? "has-capital" : "has-country",
-      useCountryZoom ? "is-country-zoom" : "is-continent-view"
+      detailPanel ? "has-detail-inset" : "is-continent-view"
     ].join(" ");
     const svg = svgNode("svg", {
       viewBox:`0 0 ${FOCUS_MAP_WIDTH} ${FOCUS_MAP_HEIGHT}`,
@@ -346,15 +349,32 @@
       height:FOCUS_MAP_HEIGHT,
       rx:18
     }));
-    drawPanel(svg, renderFeatures, panel, targetCountry, options, shellId);
+    const panelOptions = {...options, hasDetailInset: !!detailPanel};
+    drawPanel(svg, renderFeatures, basePanel, targetCountry, panelOptions, shellId);
+    if(detailPanel){
+      drawPanel(svg, renderFeatures, detailPanel, targetCountry, panelOptions, shellId);
+    }
     shell.appendChild(svg);
     if(options.showCountryName){
-      const label = document.createElement("div");
-      label.className = "country-focus-map-country-name";
-      label.textContent = targetCountry;
-      shell.appendChild(label);
+      shell.appendChild(createMapCaption(targetCountry, options));
     }
     return shell;
+  }
+
+  function createMapCaption(country, options){
+    const caption = document.createElement("div");
+    caption.className = "country-focus-map-caption";
+    const countryLabel = document.createElement("div");
+    countryLabel.className = "country-focus-map-country-name";
+    countryLabel.textContent = country;
+    caption.appendChild(countryLabel);
+    if(options.showCapitalUnderName && options.showCapital){
+      const capital = document.createElement("div");
+      capital.className = "country-focus-map-capital-name";
+      capital.textContent = getCapitalName(country);
+      caption.appendChild(capital);
+    }
+    return caption;
   }
 
   function shouldUseCountryZoom(targetCountry, targetFeature, panel, options){
@@ -370,13 +390,69 @@
   }
 
   function makeCountryZoomPanel(basePanel, targetFeature, targetCountry, continent, options){
+    const position = getDetailPanelPosition(basePanel, targetFeature);
     return {
       ...basePanel,
       id:`country-${normalise(targetCountry).replace(/\s+/g, "-") || "selected"}`,
-      label: options.countryZoomLabel || `${continent} detail`,
+      label: options.countryZoomLabel || `${targetCountry} detail`,
+      x:position.x,
+      y:position.y,
+      width:FOCUS_MAP_DETAIL_PANEL_WIDTH,
+      height:FOCUS_MAP_DETAIL_PANEL_HEIGHT,
       bounds: getCountryZoomBounds(targetFeature, basePanel.bounds, targetCountry, options) || basePanel.bounds,
       countryZoom:true
     };
+  }
+
+  function getDetailPanelPosition(basePanel, targetFeature){
+    const margin = FOCUS_MAP_DETAIL_PANEL_MARGIN;
+    const width = FOCUS_MAP_DETAIL_PANEL_WIDTH;
+    const height = FOCUS_MAP_DETAIL_PANEL_HEIGHT;
+    const candidates = [
+      {x:basePanel.width - width - margin, y:basePanel.height - height - margin},
+      {x:margin, y:basePanel.height - height - margin},
+      {x:basePanel.width - width - margin, y:margin},
+      {x:margin, y:margin}
+    ];
+    const targetBounds = targetFeature ? getProjectedBounds(targetFeature, basePanel) : null;
+    if(!targetBounds) return candidates[0];
+
+    const targetRect = getPaddedTargetRect(targetBounds);
+    const clear = candidates.filter(candidate=>!rectsIntersect(targetRect, {
+      left:candidate.x,
+      top:candidate.y,
+      right:candidate.x + width,
+      bottom:candidate.y + height
+    }));
+    if(clear.length) return clear[0];
+
+    const targetX = targetBounds.x;
+    const targetY = targetBounds.y;
+    return candidates
+      .map(candidate=>({
+        ...candidate,
+        distance: Math.hypot(candidate.x + width / 2 - targetX, candidate.y + height / 2 - targetY)
+      }))
+      .sort((left, right)=>right.distance - left.distance)[0];
+  }
+
+  function getPaddedTargetRect(bounds){
+    const minHalfSize = 34;
+    const halfWidth = Math.max(bounds.width / 2, minHalfSize);
+    const halfHeight = Math.max(bounds.height / 2, minHalfSize);
+    return {
+      left:bounds.x - halfWidth,
+      top:bounds.y - halfHeight,
+      right:bounds.x + halfWidth,
+      bottom:bounds.y + halfHeight
+    };
+  }
+
+  function rectsIntersect(left, right){
+    return left.left < right.right
+      && left.right > right.left
+      && left.top < right.bottom
+      && left.bottom > right.top;
   }
 
   function drawPanel(svg, features, panel, targetCountry, options, shellId){
@@ -414,6 +490,10 @@
 
     for(const feature of panelFeatures){
       const country = feature.properties.quizCountry;
+      if(country === "Ireland"){
+        drawUnifiedIrelandCountry(mapLayer, feature, panel, targetCountry, shellId);
+        continue;
+      }
       const pathDataList = makePathList(feature, panel);
       if(!pathDataList.length) continue;
       for(const pathData of pathDataList){
@@ -436,6 +516,8 @@
     }
 
     if(options.showCapital && options.capitalPoint){
+      const showCapitalLabel = options.showCapitalLabel !== false
+        && (!options.hasDetailInset || panel.countryZoom);
       drawCapitalMarker(
         panelGroup,
         panel,
@@ -443,7 +525,7 @@
         options.capitalPoint,
         options.capitalName,
         options.capitalEstimated,
-        options.showCapitalLabel
+        showCapitalLabel
       );
     }
 
@@ -455,6 +537,31 @@
     label.textContent = panel.label;
     panelGroup.appendChild(label);
     svg.appendChild(panelGroup);
+  }
+
+  function drawUnifiedIrelandCountry(mapLayer, feature, panel, targetCountry, shellId){
+    const pathData = makePathList(feature, panel).join("");
+    if(!pathData) return;
+    const fillPath = svgNode("path", {
+      class:getCountryClass("Ireland", targetCountry),
+      d:pathData
+    });
+    fillPath.dataset.country = "Ireland";
+    fillPath.style.stroke = "none";
+    if(targetCountry === "Ireland"){
+      applyTargetCountryFill(fillPath, feature, "Ireland", shellId);
+    }
+    mapLayer.appendChild(fillPath);
+
+    const outlinePath = makeExteriorOutlinePath(feature, panel);
+    if(!outlinePath) return;
+    const outline = svgNode("path", {
+      class:`${getCountryClass("Ireland", targetCountry)} is-ireland-outline`,
+      d:outlinePath
+    });
+    outline.dataset.country = "Ireland";
+    if(targetCountry !== "Ireland") outline.classList.add("is-muted-outline");
+    mapLayer.appendChild(outline);
   }
 
   function drawTargetMarker(panelGroup, panelFeatures, panel, targetCountry){
@@ -589,6 +696,79 @@
     }
   }
 
+  function normaliseIrelandUnitedKingdomFeatures(features){
+    const ireland = features.find(feature=>feature.properties && feature.properties.quizCountry === "Ireland");
+    const uk = features.find(feature=>feature.properties && feature.properties.quizCountry === "United Kingdom");
+    if(!ireland || !uk) return;
+
+    const ukPolygons = getFeaturePolygons(uk);
+    const northernIreland = [];
+    const remainingUk = [];
+    for(const polygon of ukPolygons){
+      if(isNorthernIrelandPolygon(polygon)){
+        northernIreland.push(polygon);
+      }else{
+        remainingUk.push(polygon);
+      }
+    }
+    if(!northernIreland.length || !remainingUk.length) return;
+
+    setFeaturePolygons(uk, remainingUk);
+    setFeaturePolygons(ireland, [...getFeaturePolygons(ireland), ...northernIreland]);
+  }
+
+  function getFeaturePolygons(feature){
+    const geometry = feature && feature.geometry ? feature.geometry : {};
+    if(geometry.type === "Polygon") return [geometry.coordinates];
+    if(geometry.type === "MultiPolygon") return geometry.coordinates;
+    return [];
+  }
+
+  function setFeaturePolygons(feature, polygons){
+    if(!feature || !feature.geometry || !Array.isArray(polygons) || !polygons.length) return;
+    if(polygons.length === 1){
+      feature.geometry = {...feature.geometry, type:"Polygon", coordinates:polygons[0]};
+    }else{
+      feature.geometry = {...feature.geometry, type:"MultiPolygon", coordinates:polygons};
+    }
+  }
+
+  function isNorthernIrelandPolygon(polygon){
+    const bounds = getPolygonGeoBounds(polygon);
+    if(!bounds) return false;
+    const centreLon = (bounds.left + bounds.right) / 2;
+    const centreLat = (bounds.bottom + bounds.top) / 2;
+    return centreLon > -8.6
+      && centreLon < -5.2
+      && centreLat > 53.9
+      && centreLat < 55.6
+      && bounds.right < -5.0;
+  }
+
+  function getPolygonGeoBounds(polygon){
+    if(!Array.isArray(polygon)) return null;
+    let left = Infinity;
+    let right = -Infinity;
+    let bottom = Infinity;
+    let top = -Infinity;
+    let count = 0;
+    for(const ring of polygon){
+      if(!Array.isArray(ring)) continue;
+      for(const point of ring){
+        if(!Array.isArray(point) || point.length < 2) continue;
+        const lon = Number(point[0]);
+        const lat = Number(point[1]);
+        if(!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+        left = Math.min(left, lon);
+        right = Math.max(right, lon);
+        bottom = Math.min(bottom, lat);
+        top = Math.max(top, lat);
+        count += 1;
+      }
+    }
+    return count ? {left, right, bottom, top} : null;
+  }
+
   function getCountryZoomBounds(feature, referenceBounds, country="", options={}){
     const overrideBounds = getCountryZoomOverrideBounds(country, options);
     if(overrideBounds) return overrideBounds;
@@ -689,6 +869,51 @@
     return polygons
       .map(polygon=>makePolygonPath(polygon, panel, country))
       .filter(Boolean);
+  }
+
+  function makeExteriorOutlinePath(feature, panel){
+    const segmentCounts = new Map();
+    const polygons = getFeaturePolygons(feature);
+    for(const polygon of polygons){
+      for(const ring of polygon){
+        for(let i=1;i<ring.length;i++){
+          const key = getSegmentKey(ring[i - 1], ring[i]);
+          if(key) segmentCounts.set(key, (segmentCounts.get(key) || 0) + 1);
+        }
+      }
+    }
+
+    const segments = [];
+    for(const polygon of polygons){
+      for(const ring of polygon){
+        for(let i=1;i<ring.length;i++){
+          const start = ring[i - 1];
+          const end = ring[i];
+          const key = getSegmentKey(start, end);
+          if(!key || segmentCounts.get(key) !== 1) continue;
+          const projectedStart = projectPoint(start, panel);
+          const projectedEnd = projectPoint(end, panel);
+          if(!projectedStart || !projectedEnd) continue;
+          segments.push(`M${formatNumber(projectedStart[0])},${formatNumber(projectedStart[1])}L${formatNumber(projectedEnd[0])},${formatNumber(projectedEnd[1])}`);
+        }
+      }
+    }
+    return segments.join("");
+  }
+
+  function getSegmentKey(start, end){
+    const startKey = getPointKey(start);
+    const endKey = getPointKey(end);
+    if(!startKey || !endKey || startKey === endKey) return "";
+    return startKey < endKey ? `${startKey}|${endKey}` : `${endKey}|${startKey}`;
+  }
+
+  function getPointKey(point){
+    if(!Array.isArray(point) || point.length < 2) return "";
+    const lon = Number(point[0]);
+    const lat = Number(point[1]);
+    if(!Number.isFinite(lon) || !Number.isFinite(lat)) return "";
+    return `${lon.toFixed(5)},${lat.toFixed(5)}`;
   }
 
   function makePolygonPath(polygon, panel, country){

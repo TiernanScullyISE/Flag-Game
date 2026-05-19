@@ -707,17 +707,18 @@ body[data-quiz-mode="world"] #next-btn{
   min-height:242px;
   display:grid;
   place-items:center;
-  padding:10px;
+  padding:8px;
 }
 
 .question-visual img{
-  width:min(520px, 100%);
-  height:230px;
+  width:auto;
+  max-width:min(520px, calc(100% - 16px));
+  height:auto;
   max-height:46vh;
   object-fit:contain;
-  border:2px solid var(--ink);
-  border-radius:10px;
-  background:#fff;
+  border:2px solid #101820;
+  border-radius:6px;
+  background:transparent;
   padding:0;
   box-shadow:0 18px 36px rgba(23,32,41,.24);
 }
@@ -793,6 +794,12 @@ body[data-quiz-mode="world"] #next-btn{
   stroke:var(--gold);
   stroke-width:4.2;
   opacity:1;
+}
+
+.world-map-country.is-ireland-outline{
+  fill:none!important;
+  stroke-linejoin:round;
+  stroke-linecap:round;
 }
 
 .world-map-marker-layer,
@@ -917,6 +924,10 @@ body[data-quiz-mode="world"] #next-btn{
   stroke-width:1.4;
 }
 
+.country-focus-map.has-detail-inset .country-focus-map-panel-bg{
+  stroke-width:1.8;
+}
+
 .country-focus-map-panel-label{
   fill:#172029;
   font-family:"Space Grotesk", sans-serif;
@@ -948,6 +959,19 @@ body[data-quiz-mode="world"] #next-btn{
   stroke-width:2.2;
 }
 
+.country-focus-map-country.is-ireland-outline{
+  fill:none!important;
+  stroke:#101820!important;
+  stroke-width:2.2;
+  stroke-linejoin:round;
+  stroke-linecap:round;
+}
+
+.country-focus-map-country.is-ireland-outline.is-muted-outline{
+  stroke:#506069!important;
+  stroke-width:.72;
+}
+
 .country-focus-map-target-marker,
 .country-focus-map-capital-marker{
   pointer-events:none;
@@ -967,9 +991,9 @@ body[data-quiz-mode="world"] #next-btn{
 
 .country-focus-map-capital-line{
   stroke:#101820;
-  stroke-width:2.5;
+  stroke-width:3.1;
   stroke-linecap:round;
-  opacity:.86;
+  opacity:.94;
 }
 
 .country-focus-map-capital-pulse{
@@ -985,17 +1009,23 @@ body[data-quiz-mode="world"] #next-btn{
 }
 
 .country-focus-map-capital-label-bg{
-  fill:rgba(16,24,32,.94);
-  stroke:rgba(255,249,238,.88);
-  stroke-width:1.4;
+  fill:#101820;
+  stroke:#fff9ee;
+  stroke-width:2;
 }
 
 .country-focus-map-capital-label{
   fill:#fff9ee;
   font-family:"Space Grotesk", sans-serif;
-  font-size:17px;
+  font-size:19px;
   font-weight:800;
   letter-spacing:0;
+}
+
+.country-focus-map-caption{
+  display:grid;
+  gap:4px;
+  text-align:center;
 }
 
 .country-focus-map-country-name{
@@ -1005,6 +1035,14 @@ body[data-quiz-mode="world"] #next-btn{
   font-weight:800;
   line-height:1.1;
   text-align:center;
+}
+
+.country-focus-map-capital-name{
+  color:var(--accent-dark);
+  font-family:"Space Grotesk", sans-serif;
+  font-size:1.08rem;
+  font-weight:800;
+  line-height:1.15;
 }
 
 .country-focus-map-status{
@@ -1276,7 +1314,8 @@ html[data-theme="dark"] .leaderboard-full-row span:nth-child(3),
 html[data-theme="dark"] .leaderboard-highlight-row strong,
 html[data-theme="dark"] .leaderboard-highlight-row span:nth-child(2),
 html[data-theme="dark"] .leaderboard-highlight-row span:nth-child(3),
-html[data-theme="dark"] .country-focus-map-country-name{
+html[data-theme="dark"] .country-focus-map-country-name,
+html[data-theme="dark"] .country-focus-map-capital-name{
   color:var(--ink)!important;
 }
 
@@ -1309,13 +1348,16 @@ html[data-theme="dark"] .nav-row #next-btn{
 }
 
 .card .flag{
-  width:100%;
-  height:154px;
+  width:calc(100% - 16px);
+  height:auto;
+  max-height:154px;
   object-fit:contain;
   display:block;
-  border-bottom:1px solid var(--line);
-  background:#fff;
-  padding:8px;
+  border:2px solid #101820;
+  border-radius:6px;
+  background:transparent;
+  padding:0;
+  margin:8px auto 0;
 }
 
 .card .title{
@@ -1381,6 +1423,10 @@ html[data-theme="dark"] .nav-row #next-btn{
 
 .revise-flashcard .country-focus-map svg{
   max-height:380px;
+}
+
+.revise-flashcard .country-focus-map-caption{
+  margin-top:2px;
 }
 
 .revise-flashcard-controls{
@@ -2101,7 +2147,7 @@ body[data-quiz-mode="world"] .nav-row{
   .question-visual{min-height:210px}
   body[data-quiz-mode="world"] .question-visual{min-height:430px}
   .flag-holder{min-height:210px;padding:8px}
-  .question-visual img{height:200px}
+  .question-visual img{max-height:200px}
   .stats{grid-template-columns:1fr}
   .nav-row{justify-content:stretch;flex-wrap:wrap}
   .nav-row .btn{flex:1}

@@ -102,6 +102,31 @@
     return (text || fallback).slice(0, maxLength);
   }
 
+  function getFiniteTiming(value){
+    if(value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function clampSubmissionTiming(entry){
+    const visibleAt = getFiniteTiming(entry && entry.visibleAt);
+    if(visibleAt !== null){
+      for(const key of ["firstKeyAt", "firstInputAt", "firstSubmitAt", "firstWrongAt", "acceptedAt"]){
+        const value = getFiniteTiming(entry[key]);
+        if(value !== null && value < visibleAt) entry[key] = Math.round(visibleAt);
+      }
+    }
+
+    const shownMs = getFiniteTiming(entry && entry.shownMs);
+    if(shownMs !== null){
+      for(const key of ["firstKeyMs", "firstInputMs", "firstSubmitMs", "solvedMs"]){
+        const value = getFiniteTiming(entry[key]);
+        if(value !== null && value < shownMs) entry[key] = Math.round(shownMs);
+      }
+    }
+    return entry;
+  }
+
   function normaliseSubmissionRoute(route){
     if(!Array.isArray(route)) return [];
     const previousAttemptsByCountry = new Map();
@@ -123,12 +148,23 @@
         });
       }
 
-      return {
+      return clampSubmissionTiming({
         ...entry,
         attempts,
         wrongAttempts
-      };
+      });
     });
+  }
+
+  function routeEntryIsSolved(entry){
+    return !!entry && entry.solvedMs !== null && entry.solvedMs !== undefined;
+  }
+
+  function countFirstTrySolved(route){
+    return (Array.isArray(route) ? route : [])
+      .filter(routeEntryIsSolved)
+      .filter(entry=>(Number(entry.wrongAttempts) || 0) === 0)
+      .length;
   }
 
   function normalizeRun(row){
@@ -222,6 +258,7 @@
 
   async function submitRun(run){
     const route = normaliseSubmissionRoute(run.route);
+    const correctFirstTry = countFirstTrySolved(route);
     const payload = {
       player_name: cleanText(run.playerName, "Player", 24),
       mode_key: cleanText(run.modeKey, "unknown", 80),
@@ -231,7 +268,7 @@
       target: cleanText(run.target, "all", 12),
       target_label: cleanText(run.targetLabel, "All", 24),
       time_ms: Math.round(Number(run.timeMs) || 0),
-      correct_first_try: Math.round(Number(run.correct) || 0),
+      correct_first_try: correctFirstTry,
       total: Math.round(Number(run.total) || 0),
       typed_chars: Math.round(Number(run.typedChars) || 0),
       canonical_chars: Math.round(Number(run.canonicalChars) || 0),
@@ -272,6 +309,7 @@
     }
     const key = config.supabaseAnonKey.trim();
     const route = normaliseSubmissionRoute(run.route);
+    const correctFirstTry = countFirstTrySolved(route);
     const payload = {
       client_run_id: cleanText(run.clientRunId, "", 120),
       player_name: cleanText(run.playerName, "Player", 24),
@@ -283,7 +321,7 @@
       target: cleanText(run.target, "all", 12),
       target_label: cleanText(run.targetLabel, "All", 24),
       time_ms: Math.round(Number(run.timeMs) || 0),
-      correct_first_try: Math.round(Number(run.correct) || 0),
+      correct_first_try: correctFirstTry,
       total: Math.round(Number(run.total) || 0),
       typed_chars: Math.round(Number(run.typedChars) || 0),
       wpm: Number(run.wpm) || 0,

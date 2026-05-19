@@ -132,7 +132,8 @@ async function renderFlashcard(items){
     await window.CountryFocusMap.render(map, country, {
       continent: countryContinent[country] || undefined,
       showCountryName:true,
-      showCapital:true
+      showCapital:true,
+      showCapitalUnderName:true
     });
   }else{
     const fallback=document.createElement("div");

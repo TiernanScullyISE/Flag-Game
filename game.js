@@ -572,6 +572,31 @@ function addQuestionQualityFlag(entry, flag){
   if(!entry.dataQualityFlags.includes(flag)) entry.dataQualityFlags.push(flag);
 }
 
+function getFiniteTiming(value){
+  if(value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function clampQuestionTiming(entry){
+  if(!entry) return;
+  const visibleAt = getFiniteTiming(entry.visibleAt);
+  if(visibleAt !== null){
+    for(const key of ["firstKeyAt", "firstInputAt", "firstSubmitAt", "firstWrongAt", "acceptedAt"]){
+      const value = getFiniteTiming(entry[key]);
+      if(value !== null && value < visibleAt) entry[key] = Math.round(visibleAt);
+    }
+  }
+
+  const shownMs = getFiniteTiming(entry.shownMs);
+  if(shownMs !== null){
+    for(const key of ["firstKeyMs", "firstInputMs", "firstSubmitMs", "solvedMs"]){
+      const value = getFiniteTiming(entry[key]);
+      if(value !== null && value < shownMs) entry[key] = Math.round(shownMs);
+    }
+  }
+}
+
 function finishFocusLossPeriod(){
   const security = state.session && state.session.security;
   if(!security || security.focusLostStartedPerf === null) return;
@@ -1019,6 +1044,7 @@ function markRouteSolved(){
 function buildRouteSnapshot(route){
   const previousAttemptsByCountry = new Map();
   return route.map(entry=>{
+    clampQuestionTiming(entry);
     const country = entry.country || "";
     const previous = previousAttemptsByCountry.get(country) || {attempts:0, wrongAttempts:0};
     const solved = entry.solvedMs !== null && entry.solvedMs !== undefined;
@@ -1057,6 +1083,17 @@ function buildRouteSnapshot(route){
   });
 }
 
+function routeEntryIsSolved(entry){
+  return !!entry && entry.solvedMs !== null && entry.solvedMs !== undefined;
+}
+
+function countFirstTrySolved(route){
+  return (Array.isArray(route) ? route : [])
+    .filter(routeEntryIsSolved)
+    .filter(entry=>(Number(entry.wrongAttempts) || 0) === 0)
+    .length;
+}
+
 function buildTelemetrySnapshot(session){
   finaliseActiveInterruptionPeriods();
   const security = session.security || makeSecurityTelemetry();
@@ -1088,7 +1125,7 @@ function buildTelemetrySnapshot(session){
 }
 
 function buildClientRunEvidence(route, telemetry){
-  const solvedRoute = route.filter(entry=>entry.solvedMs !== null);
+  const solvedRoute = route.filter(routeEntryIsSolved);
   const fastestQuestionMs = solvedRoute.reduce((fastest, entry)=>{
     const submitMs = entry.firstSubmitMs === null ? entry.solvedMs : entry.firstSubmitMs;
     const delta = Math.max(0, (submitMs || 0) - (entry.shownMs || 0));
@@ -1100,7 +1137,7 @@ function buildClientRunEvidence(route, telemetry){
     routeHash: hashRunRoute(route),
     routeLength: route.length,
     solvedCount: solvedRoute.length,
-    firstTrySolvedCount: solvedRoute.filter(entry=>(entry.wrongAttempts || 0) === 0).length,
+    firstTrySolvedCount: countFirstTrySolved(route),
     telemetryCounts: {
       keyEvents: telemetry.keyEvents || 0,
       inputEvents: telemetry.inputEvents || 0,
@@ -1206,6 +1243,7 @@ function buildQuestionAnalyticsSnapshot(session){
   return (session.route || [])
     .reduce((items, entry)=>{
       if(!entry) return items;
+      clampQuestionTiming(entry);
       const country = entry.country || "";
       const previous = previousAttemptsByCountry.get(country) || {attempts:0, wrongAttempts:0, rawAttempts:[]};
       const ownAttempts = entry.attempts || 0;
@@ -1287,11 +1325,12 @@ function buildQuestionAnalyticsSnapshot(session){
 
 function updateQuestionDerivedTiming(entry){
   if(!entry) return;
-  const visibleAt = Number(entry.visibleAt);
-  const firstKeyAt = entry.firstKeyAt === null ? null : Number(entry.firstKeyAt);
-  const firstSubmitAt = entry.firstSubmitAt === null ? null : Number(entry.firstSubmitAt);
-  const acceptedAt = entry.acceptedAt === null ? null : Number(entry.acceptedAt);
-  if(Number.isFinite(visibleAt) && Number.isFinite(firstKeyAt)){
+  clampQuestionTiming(entry);
+  const visibleAt = getFiniteTiming(entry.visibleAt);
+  const firstKeyAt = getFiniteTiming(entry.firstKeyAt);
+  const firstSubmitAt = getFiniteTiming(entry.firstSubmitAt);
+  const acceptedAt = getFiniteTiming(entry.acceptedAt);
+  if(visibleAt !== null && firstKeyAt !== null){
     entry.recognitionMs = Math.max(0, Math.round(firstKeyAt - visibleAt));
     if(entry.recognitionMs < NEAR_INSTANT_RECOGNITION_MS){
       addQuestionQualityFlag(entry, entry.index === 1 ? "start-artefact" : "near-instant-answer");
@@ -1300,23 +1339,23 @@ function updateQuestionDerivedTiming(entry){
     entry.recognitionMs = null;
     addQuestionQualityFlag(entry, "missing-recognition-time");
   }
-  if(Number.isFinite(visibleAt) && Number.isFinite(firstSubmitAt)){
+  if(visibleAt !== null && firstSubmitAt !== null){
     entry.firstAttemptMs = Math.max(0, Math.round(firstSubmitAt - visibleAt));
   }else{
     entry.firstAttemptMs = null;
   }
-  if(Number.isFinite(visibleAt) && Number.isFinite(acceptedAt)){
+  if(visibleAt !== null && acceptedAt !== null){
     entry.finalSolveMs = Math.max(0, Math.round(acceptedAt - visibleAt));
   }else{
     entry.finalSolveMs = null;
   }
-  if(Number.isFinite(firstKeyAt) && Number.isFinite(acceptedAt)){
+  if(firstKeyAt !== null && acceptedAt !== null){
     const interruptions = Math.round((entry.focusLostDuringQuestionMs || 0) + (entry.hiddenDuringQuestionMs || 0));
     entry.activeTypingMs = Math.max(0, Math.round(acceptedAt - firstKeyAt - interruptions));
   }else{
     entry.activeTypingMs = null;
   }
-  if((entry.wrongAttempts || 0) > 0 && Number.isFinite(firstSubmitAt) && Number.isFinite(acceptedAt)){
+  if((entry.wrongAttempts || 0) > 0 && firstSubmitAt !== null && acceptedAt !== null){
     entry.correctionMs = Math.max(0, Math.round(acceptedAt - firstSubmitAt));
   }else{
     entry.correctionMs = 0;
@@ -2210,11 +2249,12 @@ function recordSpeedRun(){
   session.speedRun.splits.all = elapsed;
   session.speedRun.recorded = true;
   const route = buildRouteSnapshot(session.route);
+  const correct = countFirstTrySolved(route);
   const questionAnalytics = buildQuestionAnalyticsSnapshot(session);
   const derivedMetrics = buildRunDerivedMetrics({
     timeMs: elapsed,
     total: session.pool.length,
-    correct: session.correctFirstTry,
+    correct,
     questionAnalytics
   });
   const telemetry = buildTelemetrySnapshot(session);
@@ -2255,7 +2295,7 @@ function recordSpeedRun(){
       recognitionOnlyPace: derivedMetrics.recognitionOnlyPace || 0
     },
     date: new Date().toISOString(),
-    correct: session.correctFirstTry,
+    correct,
     total: session.pool.length,
     target: getSpeedTargetLabel(),
     splits: {...session.speedRun.splits},
@@ -2320,10 +2360,7 @@ function buildSplitRun(sourceRun, split){
   const canonicalChars = getRouteCanonicalChars(route);
   const wpm = roundMetric(getWpmFromChars(typedChars, timeMs), 1);
   const questionAnalytics = getSplitQuestionAnalytics(sourceRun, route);
-  const correct = route
-    .filter(entry=>entry.solvedMs !== null)
-    .filter(entry=>(entry.wrongAttempts || 0) === 0)
-    .length;
+  const correct = countFirstTrySolved(route);
   const derivedMetrics = buildRunDerivedMetrics({
     timeMs,
     total: split,
@@ -2808,6 +2845,7 @@ async function loadWorldMapFeatures(){
         };
       })
       .filter(feature=>!!feature.properties.quizCountry || !!feature.properties.contextName);
+    normaliseWorldMapIrelandUnitedKingdomFeatures(worldMapState.features);
     addSyntheticWorldMapFeatures(worldMapState.features);
     return worldMapState.features;
   })().catch(error=>{
@@ -2846,6 +2884,79 @@ function addSyntheticWorldMapFeatures(features){
   if(!present.has("Tuvalu")){
     features.push(makeSyntheticWorldMapCountry("Tuvalu", 179.2, -8.52, 0.42, 0.28));
   }
+}
+
+function normaliseWorldMapIrelandUnitedKingdomFeatures(features){
+  const ireland = features.find(feature=>feature.properties && feature.properties.quizCountry === "Ireland");
+  const uk = features.find(feature=>feature.properties && feature.properties.quizCountry === "United Kingdom");
+  if(!ireland || !uk) return;
+
+  const ukPolygons = getWorldMapFeaturePolygons(uk);
+  const northernIreland = [];
+  const remainingUk = [];
+  for(const polygon of ukPolygons){
+    if(isWorldMapNorthernIrelandPolygon(polygon)){
+      northernIreland.push(polygon);
+    }else{
+      remainingUk.push(polygon);
+    }
+  }
+  if(!northernIreland.length || !remainingUk.length) return;
+
+  setWorldMapFeaturePolygons(uk, remainingUk);
+  setWorldMapFeaturePolygons(ireland, [...getWorldMapFeaturePolygons(ireland), ...northernIreland]);
+}
+
+function getWorldMapFeaturePolygons(feature){
+  const geometry = feature && feature.geometry ? feature.geometry : {};
+  if(geometry.type === "Polygon") return [geometry.coordinates];
+  if(geometry.type === "MultiPolygon") return geometry.coordinates;
+  return [];
+}
+
+function setWorldMapFeaturePolygons(feature, polygons){
+  if(!feature || !feature.geometry || !Array.isArray(polygons) || !polygons.length) return;
+  if(polygons.length === 1){
+    feature.geometry = {...feature.geometry, type:"Polygon", coordinates:polygons[0]};
+  }else{
+    feature.geometry = {...feature.geometry, type:"MultiPolygon", coordinates:polygons};
+  }
+}
+
+function isWorldMapNorthernIrelandPolygon(polygon){
+  const bounds = getWorldMapPolygonGeoBounds(polygon);
+  if(!bounds) return false;
+  const centreLon = (bounds.left + bounds.right) / 2;
+  const centreLat = (bounds.bottom + bounds.top) / 2;
+  return centreLon > -8.6
+    && centreLon < -5.2
+    && centreLat > 53.9
+    && centreLat < 55.6
+    && bounds.right < -5.0;
+}
+
+function getWorldMapPolygonGeoBounds(polygon){
+  if(!Array.isArray(polygon)) return null;
+  let left = Infinity;
+  let right = -Infinity;
+  let bottom = Infinity;
+  let top = -Infinity;
+  let count = 0;
+  for(const ring of polygon){
+    if(!Array.isArray(ring)) continue;
+    for(const point of ring){
+      if(!Array.isArray(point) || point.length < 2) continue;
+      const lon = Number(point[0]);
+      const lat = Number(point[1]);
+      if(!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+      left = Math.min(left, lon);
+      right = Math.max(right, lon);
+      bottom = Math.min(bottom, lat);
+      top = Math.max(top, lat);
+      count += 1;
+    }
+  }
+  return count ? {left, right, bottom, top} : null;
 }
 
 function makeSyntheticWorldMapCountry(country, lon, lat, width, height){
@@ -3006,12 +3117,16 @@ function drawWorldMapPanel(svg, features, panel){
   for(const feature of panelFeatures){
     const country = feature.properties.quizCountry;
     const contextOwner = resolveWorldMapCountry(feature.properties.contextOwnerCountry);
+    if(country === "Ireland"){
+      drawUnifiedWorldMapIrelandCountry(mapLayer, feature, panel);
+      continue;
+    }
     const pathDataList = makeWorldMapPathList(feature, panel);
     if(!pathDataList.length) continue;
 
     for(const pathData of pathDataList){
       const ownerIsSolved = !!contextOwner && state.session.solved.has(contextOwner);
-      const classCountry = country || (ownerIsSolved ? contextOwner : null);
+      const classCountry = country || contextOwner || null;
       const countryPath = svgNode("path", {
         class:getWorldMapCountryClass(classCountry),
         d:pathData
@@ -3049,6 +3164,34 @@ function drawWorldMapPanel(svg, features, panel){
   svg.appendChild(panelGroup);
 }
 
+function drawUnifiedWorldMapIrelandCountry(mapLayer, feature, panel){
+  const pathData = makeWorldMapPathList(feature, panel).join("");
+  if(!pathData) return;
+  const fillPath = svgNode("path", {
+    class:getWorldMapCountryClass("Ireland"),
+    d:pathData
+  });
+  fillPath.dataset.country = "Ireland";
+  fillPath.dataset.panel = panel.id;
+  fillPath.style.stroke = "none";
+  if(state.session.solved.has("Ireland") && alpha2Overrides.Ireland){
+    fillPath.style.fill = `url(#${getWorldMapPatternId("Ireland")})`;
+  }
+  rememberWorldMapCountryPath("Ireland", fillPath);
+  mapLayer.appendChild(fillPath);
+
+  const outlinePath = makeWorldMapExteriorOutlinePath(feature, panel);
+  if(!outlinePath) return;
+  const outline = svgNode("path", {
+    class:`${getWorldMapCountryClass("Ireland")} is-ireland-outline`,
+    d:outlinePath
+  });
+  outline.dataset.country = "Ireland";
+  outline.dataset.panel = panel.id;
+  rememberWorldMapCountryPath("Ireland", outline);
+  mapLayer.appendChild(outline);
+}
+
 function getWorldMapPanelFeatures(features, panel){
   if(panel.id === "main") return features;
   return features.filter(feature=>featureHasPointsInWorldBounds(feature, getWorldMapPanelView(panel).bounds));
@@ -3080,6 +3223,51 @@ function makeWorldMapPathList(feature, panel){
   return polygons
     .map(polygon=>makeWorldMapPolygonPath(polygon, panel, country))
     .filter(Boolean);
+}
+
+function makeWorldMapExteriorOutlinePath(feature, panel){
+  const segmentCounts = new Map();
+  const polygons = getWorldMapFeaturePolygons(feature);
+  for(const polygon of polygons){
+    for(const ring of polygon){
+      for(let i=1;i<ring.length;i++){
+        const key = getWorldMapSegmentKey(ring[i - 1], ring[i]);
+        if(key) segmentCounts.set(key, (segmentCounts.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  const segments = [];
+  for(const polygon of polygons){
+    for(const ring of polygon){
+      for(let i=1;i<ring.length;i++){
+        const start = ring[i - 1];
+        const end = ring[i];
+        const key = getWorldMapSegmentKey(start, end);
+        if(!key || segmentCounts.get(key) !== 1) continue;
+        const projectedStart = projectWorldMapPoint(start, panel);
+        const projectedEnd = projectWorldMapPoint(end, panel);
+        if(!projectedStart || !projectedEnd) continue;
+        segments.push(`M${formatWorldMapNumber(projectedStart[0])},${formatWorldMapNumber(projectedStart[1])}L${formatWorldMapNumber(projectedEnd[0])},${formatWorldMapNumber(projectedEnd[1])}`);
+      }
+    }
+  }
+  return segments.join("");
+}
+
+function getWorldMapSegmentKey(start, end){
+  const startKey = getWorldMapPointKey(start);
+  const endKey = getWorldMapPointKey(end);
+  if(!startKey || !endKey || startKey === endKey) return "";
+  return startKey < endKey ? `${startKey}|${endKey}` : `${endKey}|${startKey}`;
+}
+
+function getWorldMapPointKey(point){
+  if(!Array.isArray(point) || point.length < 2) return "";
+  const lon = Number(point[0]);
+  const lat = Number(point[1]);
+  if(!Number.isFinite(lon) || !Number.isFinite(lat)) return "";
+  return `${lon.toFixed(5)},${lat.toFixed(5)}`;
 }
 
 function makeWorldMapPolygonPath(polygon, panel, country){
@@ -3336,8 +3524,15 @@ function updateWorldMapCountrySolved(country){
   if(!isWorldMode() || !country) return;
   const paths = worldMapState.pathElementsByCountry.get(country) || [];
   for(const path of paths){
-    path.className.baseVal = getWorldMapCountryClass(country);
-    path.style.fill = getWorldMapSolvedBaseFill(country);
+    const isIrelandOutline = country === "Ireland" && path.classList.contains("is-ireland-outline");
+    path.className.baseVal = isIrelandOutline
+      ? `${getWorldMapCountryClass(country)} is-ireland-outline`
+      : getWorldMapCountryClass(country);
+    if(isIrelandOutline){
+      path.style.fill = "none";
+    }else{
+      path.style.fill = getWorldMapSolvedBaseFill(country);
+    }
     pulseWorldMapCountryPath(path);
   }
   const markers = worldMapState.markerElementsByCountry.get(country) || [];
