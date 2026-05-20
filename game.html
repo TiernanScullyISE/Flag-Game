@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="theme.js?v=theme-1"></script>
-  <link rel="stylesheet" href="style.css?v=capital-map-19" />
+  <link rel="stylesheet" href="style.css?v=capital-map-20" />
 </head>
 <body data-play-mode="practice" data-quiz-mode="flags">
   <header class="site-header with-nav compact-header">
@@ -124,9 +124,12 @@
           <button class="mcq-btn"></button>
         </div>
 
-        <div id="text-answer" class="text-answer">
-          <input id="answer-input" type="text" placeholder="Type your answer..." autocomplete="off" />
-          <button id="submit-btn" class="btn primary">Submit</button>
+        <div class="answer-control-row">
+          <div id="text-answer" class="text-answer">
+            <input id="answer-input" type="text" placeholder="Type your answer..." autocomplete="off" />
+            <button id="submit-btn" class="btn primary">Submit</button>
+          </div>
+          <button id="giveup-btn" class="btn danger">Give up</button>
         </div>
 
         <p id="feedback" class="feedback"></p>
@@ -141,7 +144,6 @@
         <div class="nav-row">
           <button id="last-btn" class="btn subtle">Last</button>
           <button id="next-btn" class="btn subtle">Skip / Next</button>
-          <button id="giveup-btn" class="btn danger">Give up</button>
         </div>
       </section>
     </section>
@@ -182,6 +184,6 @@
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3" defer></script>
   <script src="map-view.js?v=capital-map-17" defer></script>
   <script src="world-map-config.js?v=capital-map-11" defer></script>
-  <script src="game.js?v=capital-map-22" defer></script>
+  <script src="game.js?v=capital-map-24" defer></script>
 </body>
 </html>

@@ -650,6 +650,8 @@ function syncModeButtons(){
   hardToggle.checked = state.hard;
   hardToggle.disabled = state.playMode === "speedrun" || isWorldMode();
   hardLabel.textContent = state.playMode === "speedrun" || isWorldMode() ? "Typing required" : "Hard mode";
+  giveupBtn.textContent = state.playMode === "speedrun" ? "Restart" : "Give up";
+  giveupBtn.setAttribute("aria-label", state.playMode === "speedrun" ? "Restart run" : "Give up");
   lifeSelect.value = state.lifeSetting;
   speedTargetSelect.value = state.speedTarget;
 }
@@ -2110,12 +2112,16 @@ async function lastQuestion(){
 function giveUp(){
   const session = state.session;
   if(!session.pool.length){
-    renderEmpty();
+    if(state.playMode === "speedrun"){
+      resetSession();
+    }else{
+      renderEmpty();
+    }
     return;
   }
   if(state.playMode === "speedrun"){
-    session.speedRun.gaveUp = true;
-    stopSpeedRun();
+    resetSession();
+    return;
   }
   for(const country of session.pool.filter(item=>!session.solved.has(item))){
     session.incorrect.add(country);
@@ -4169,6 +4175,42 @@ function renderResultHero(items){
   }
 }
 
+function getCompletedRunCountryScope(record){
+  const scope = new Set();
+  const questions = Array.isArray(record && record.questionAnalytics) ? record.questionAnalytics : [];
+  for(const question of questions){
+    if(question && question.country) scope.add(question.country);
+  }
+  const route = Array.isArray(record && record.route) ? record.route : [];
+  for(const entry of route){
+    if(entry && entry.country) scope.add(entry.country);
+  }
+  return scope;
+}
+
+function completedRunRegionIsUsable(region){
+  return !!region && region !== "All" && region !== "unknown";
+}
+
+function countryMatchesCompletedRunRegion(country, region, mode){
+  if(!completedRunRegionIsUsable(region)) return true;
+  if(mode === "world") return getWorldMapCountryContinents(country).includes(region);
+  return countryContinent[country] === region;
+}
+
+function scopeMasteryToCompletedRun(mastery, latestRecord){
+  const items = Array.isArray(mastery) ? mastery : [];
+  const countryScope = getCompletedRunCountryScope(latestRecord);
+  if(countryScope.size){
+    return items.filter(item=>item && countryScope.has(item.country));
+  }
+
+  const region = latestRecord && latestRecord.region;
+  const mode = latestRecord && latestRecord.mode;
+  if(!completedRunRegionIsUsable(region)) return items;
+  return items.filter(item=>item && countryMatchesCompletedRunRegion(item.country, region, mode));
+}
+
 function renderDeviceProgressSummary(){
   const history = getDeviceAnalyticsHistory();
   if(!history.length || !window.SpeedrunAnalytics) return;
@@ -4178,8 +4220,9 @@ function renderDeviceProgressSummary(){
   const mastery = engine.aggregateCountryMastery(history);
   const latestRecord = engine.normaliseRecord(latest);
   const latestMetrics = engine.deriveRunMetrics(latestRecord);
-  const analysis = engine.generateRunAnalysis(latestRecord, latestMetrics, mastery);
-  const needsRevision = mastery
+  const runScopedMastery = scopeMasteryToCompletedRun(mastery, latestRecord);
+  const analysis = engine.generateRunAnalysis(latestRecord, latestMetrics, runScopedMastery);
+  const needsRevision = runScopedMastery
     .filter(item=>item.masteryLevel === "Needs revision" || item.masteryLevel === "Error-prone")
     .slice(0, 5)
     .map(item=>item.country);
