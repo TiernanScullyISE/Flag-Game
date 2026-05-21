@@ -13,6 +13,14 @@ const WORLD_MAP_PANELS = [
   {id:"seasia", label:"SE Asia detail", x:1040, y:508, width:210, height:236, bounds:[94, -12, 132, 24]},
   {id:"oceania", label:"Oceania detail", x:1258, y:508, width:174, height:236, bounds:[112, -49, 205, 16]}
 ];
+const WORLD_MAP_CONTINENT_DETAIL_PANELS = {
+  "Asia":[
+    {id:"continent-asia-gulf", label:"Gulf detail", x:24, y:506, width:300, height:230, bounds:[32, 11, 60, 34], autoPlace:true}
+  ],
+  "North America":[
+    {id:"continent-north-america-caribbean", label:"Lesser Antilles detail", x:24, y:476, width:360, height:260, bounds:[-63.8, 10.2, -59.2, 18.7], autoPlace:true, preferredCorners:["bottom-left"]}
+  ]
+};
 const WORLD_MAP_CONTINENT_BOUNDS = {
   "Africa":[-20, -36, 55, 38],
   "Asia":[25, -12, 190, 82],

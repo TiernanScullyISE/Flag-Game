@@ -7,6 +7,10 @@ This repository contains a flag and capital quiz with two front ends. The static
 ## Build, Test, and Development Commands
 
 - `python -m http.server 8000`: serve the web version locally from the repository root, then open `http://127.0.0.1:8000/index.html`.
+- `npm.cmd install`: install JavaScript dev dependencies, including the local Playwright test runner.
+- `npx.cmd playwright install chromium`: install the Playwright Chromium browser binary if browser tests report a missing executable.
+- `npm.cmd test`: run data validation, JavaScript smoke checks, and Python syntax checks.
+- `npm.cmd run test:browser`: run Playwright browser page checks.
 - `pip install -r requirements.txt`: install desktop dependencies (`requests`, `Pillow`).
 - `python flag.py`: run the Tkinter desktop application.
 - `python -m py_compile flag.py flag_data.py`: quick syntax check for Python changes.
@@ -19,7 +23,7 @@ Use 4-space indentation for Python and existing JavaScript indentation patterns.
 
 ## Testing Guidelines
 
-No automated test suite is currently configured. For web changes, run the static server and manually exercise normal mode, hard mode, revision lists, continent filters, lives, speedrun mode, and persistence in `localStorage`. For desktop changes, run `python flag.py` and verify flag loading, typed answers, multiple-choice flow, and ignored local `.txt` persistence. Run `python -m py_compile flag.py flag_data.py` after Python edits.
+For web changes, run `npm.cmd test`. For rendered UI or browser-flow changes, run `npm.cmd run test:browser`; if Playwright is missing, run `npm.cmd install`, and if the browser executable is missing, run `npx.cmd playwright install chromium`, then rerun the browser tests. Also run the static server and manually exercise normal mode, hard mode, revision lists, continent filters, lives, speedrun mode, and persistence in `localStorage` for substantial gameplay changes. For desktop changes, run `python flag.py` and verify flag loading, typed answers, multiple-choice flow, and ignored local `.txt` persistence. Run `python -m py_compile flag.py flag_data.py` after Python edits.
 
 ## Commit & Pull Request Guidelines
 
@@ -34,3 +38,7 @@ For Supabase Edge Functions, check whether `leaderboard-config.js` uses a legacy
 If `deno` is missing in this environment, try `C:\Users\User\.deno\bin\deno.exe`. If `supabase projects list` reports that no access token is provided, do not guess: ask the user to run `supabase login` locally or persist their existing terminal token as a user environment variable.
 
 When Supabase deployment is needed and the user's normal PowerShell is already authenticated, prefer running the deployment with `sandbox_permissions: "require_escalated"` so it uses the local Supabase auth context instead of stopping at pasteable commands. Use the ignored private Supabase source path, for example `.private-supabase-backup\supabase`, or the private server repository; never re-add Supabase SQL or Edge Function source to this public repository. If `admin_password.txt` exists locally, it may be read for setting the `ADMIN_PASSWORD` secret, but never print the password or commit that file.
+
+When local tooling is missing but the remedy is clear, fix it before handing work back. Examples: run `npm.cmd install` when local Node dev dependencies are absent, run `npx.cmd playwright install chromium` when Playwright reports a missing browser executable, and retry Supabase CLI/deploy commands through the escalated local PowerShell route when sandboxing blocks network access or local auth. Do not ask the user to paste secrets, and do not store credentials in the repository.
+
+If browser verification of map or flag rendering fails with CDN/network errors such as `ERR_NETWORK_ACCESS_DENIED`, rerun the focused browser check with `sandbox_permissions: "require_escalated"` before treating it as an application regression.

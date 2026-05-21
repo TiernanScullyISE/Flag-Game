@@ -3039,8 +3039,8 @@ function createWorldMapShell(features){
   });
   svg.appendChild(background);
 
-  const panels = getWorldMapPanels();
   const renderFeatures = getWorldMapRenderFeatures(features);
+  const panels = resolveWorldMapPanelPlacements(getWorldMapPanels(), renderFeatures);
   for(const panel of panels){
     drawWorldMapPanel(svg, renderFeatures, panel);
   }
@@ -3055,7 +3055,7 @@ function createWorldMapShell(features){
 function getWorldMapPanels(){
   if(state.selectedContinent === "All") return WORLD_MAP_PANELS;
   const bounds = WORLD_MAP_CONTINENT_BOUNDS[state.selectedContinent] || WORLD_MAP_MAIN_BOUNDS;
-  return [{
+  const mainPanel = {
     id:`continent-${normalise(state.selectedContinent).replace(/\s+/g, "-") || "selected"}`,
     label:state.selectedContinent,
     x:0,
@@ -3064,7 +3064,125 @@ function getWorldMapPanels(){
     height:WORLD_MAP_HEIGHT,
     bounds,
     full:true
-  }];
+  };
+  return [mainPanel, ...getWorldMapContinentDetailPanels(state.selectedContinent)];
+}
+
+function getWorldMapContinentDetailPanels(continent){
+  const panels = typeof WORLD_MAP_CONTINENT_DETAIL_PANELS === "undefined"
+    ? null
+    : WORLD_MAP_CONTINENT_DETAIL_PANELS[continent];
+  return Array.isArray(panels) ? panels : [];
+}
+
+function resolveWorldMapPanelPlacements(panels, features){
+  if(!Array.isArray(panels) || panels.length <= 1) return panels;
+  const [mainPanel, ...detailPanels] = panels;
+  if(!mainPanel.full) return panels;
+
+  const countryRects = getWorldMapBlockingCountryRects(features, mainPanel);
+  const occupiedRects = [];
+  const placedPanels = [mainPanel];
+  for(const panel of detailPanels){
+    const placedPanel = panel.autoPlace
+      ? resolveWorldMapDetailPanelPlacement(panel, mainPanel, countryRects, occupiedRects)
+      : panel;
+    placedPanels.push(placedPanel);
+    occupiedRects.push(getWorldMapPanelRect(placedPanel));
+  }
+  return placedPanels;
+}
+
+function getWorldMapBlockingCountryRects(features, mainPanel){
+  const pool = new Set(state.session.pool || []);
+  return features
+    .filter(feature=>{
+      const country = feature.properties.quizCountry;
+      return country && pool.has(country);
+    })
+    .map(feature=>getWorldMapProjectedBounds(feature, mainPanel))
+    .filter(Boolean)
+    .map(bounds=>({
+      left:bounds.left,
+      top:bounds.top,
+      right:bounds.right,
+      bottom:bounds.bottom
+    }));
+}
+
+function resolveWorldMapDetailPanelPlacement(panel, mainPanel, countryRects, occupiedRects){
+  const candidates = getWorldMapCornerCandidates(panel, mainPanel);
+  if(!candidates.length) return panel;
+  const ranked = candidates
+    .map((candidate, index)=>({
+      ...candidate,
+      index,
+      score:getWorldMapPlacementScore(candidate.rect, countryRects, occupiedRects)
+    }))
+    .sort((left, right)=>
+      left.score.occupiedCount - right.score.occupiedCount
+      || left.score.countryCount - right.score.countryCount
+      || left.score.countryArea - right.score.countryArea
+      || left.index - right.index
+    );
+  const best = ranked[0];
+  return {...panel, x:best.x, y:best.y};
+}
+
+function getWorldMapCornerCandidates(panel, mainPanel){
+  const margin = Number.isFinite(panel.cornerMargin) ? panel.cornerMargin : 24;
+  const corners = Array.isArray(panel.preferredCorners) && panel.preferredCorners.length
+    ? panel.preferredCorners
+    : ["bottom-left", "bottom-right", "top-left", "top-right"];
+  const positions = {
+    "bottom-left": {x:margin, y:mainPanel.height - panel.height - margin},
+    "bottom-right": {x:mainPanel.width - panel.width - margin, y:mainPanel.height - panel.height - margin},
+    "top-left": {x:margin, y:margin},
+    "top-right": {x:mainPanel.width - panel.width - margin, y:margin}
+  };
+  return corners
+    .map(corner=>positions[corner])
+    .filter(Boolean)
+    .map(position=>({
+      x:position.x,
+      y:position.y,
+      rect:getWorldMapPanelRect({...panel, x:position.x, y:position.y})
+    }));
+}
+
+function getWorldMapPanelRect(panel){
+  return {
+    left:panel.x,
+    top:panel.y,
+    right:panel.x + panel.width,
+    bottom:panel.y + panel.height
+  };
+}
+
+function getWorldMapPlacementScore(panelRect, countryRects, occupiedRects){
+  const countryConflicts = countryRects
+    .filter(rect=>worldMapRectsIntersect(panelRect, rect, 6));
+  const occupiedCount = occupiedRects
+    .filter(rect=>worldMapRectsIntersect(panelRect, rect, 10))
+    .length;
+  return {
+    occupiedCount,
+    countryCount:countryConflicts.length,
+    countryArea:countryConflicts.reduce((total, rect)=>total + getWorldMapRectIntersectionArea(panelRect, rect), 0)
+  };
+}
+
+function worldMapRectsIntersect(left, right, padding=0){
+  return left.left - padding < right.right
+    && left.right + padding > right.left
+    && left.top - padding < right.bottom
+    && left.bottom + padding > right.top;
+}
+
+function getWorldMapRectIntersectionArea(left, right){
+  const overlapWidth = Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left));
+  const overlapHeight = Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top));
+  return overlapWidth * overlapHeight;
 }
 
 function getWorldMapRenderFeatures(features){
@@ -3460,7 +3578,11 @@ function getWorldMapProjectedBounds(feature, panel){
     x:(minX + maxX) / 2,
     y:(minY + maxY) / 2,
     width:maxX - minX,
-    height:maxY - minY
+    height:maxY - minY,
+    left:minX,
+    top:minY,
+    right:maxX,
+    bottom:maxY
   };
 }
 
