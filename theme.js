@@ -1,22 +1,21 @@
 (function(){
   const STORAGE_KEY = "flagGameTheme";
   const DARK = "dark";
+  const LIGHT = "light";
 
   function getStoredTheme(){
     try{
-      return localStorage.getItem(STORAGE_KEY) === DARK ? DARK : "light";
+      const value = localStorage.getItem(STORAGE_KEY);
+      if(value === LIGHT) return LIGHT;
+      return DARK;
     }catch{
-      return "light";
+      return DARK;
     }
   }
 
   function setStoredTheme(theme){
     try{
-      if(theme === DARK){
-        localStorage.setItem(STORAGE_KEY, DARK);
-      }else{
-        localStorage.removeItem(STORAGE_KEY);
-      }
+      localStorage.setItem(STORAGE_KEY, theme === LIGHT ? LIGHT : DARK);
     }catch{
       // Theme preference is optional.
     }

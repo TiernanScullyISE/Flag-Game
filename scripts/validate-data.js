@@ -4,6 +4,8 @@ const vm = require("node:vm");
 
 const ROOT = path.resolve(__dirname, "..");
 const DATA_PATH = path.join(ROOT, "data.js");
+const GENERATED_REGIONS_DATA_PATH = path.join(ROOT, "regions-generated-data.js");
+const REGIONS_DATA_PATH = path.join(ROOT, "regions-data.js");
 const EXPECTED_CONTINENTS = new Set([
   "Africa",
   "Asia",
@@ -15,7 +17,9 @@ const EXPECTED_CONTINENTS = new Set([
 
 function loadData(){
   const source = fs.readFileSync(DATA_PATH, "utf8");
-  return vm.runInNewContext(`${source}\n;({countryContinent,countryCapitals,alpha2Overrides,countryAliases,capitalAliases,countries,LS_KEYS});`, {}, {filename:"data.js"});
+  const generatedRegionsSource = fs.readFileSync(GENERATED_REGIONS_DATA_PATH, "utf8");
+  const regionsSource = fs.readFileSync(REGIONS_DATA_PATH, "utf8");
+  return vm.runInNewContext(`${source}\n${generatedRegionsSource}\n${regionsSource}\n;({countryContinent,countryCapitals,alpha2Overrides,countryAliases,capitalAliases,countries,LS_KEYS,REGION_GAME_GROUPS,REGION_GAME_GROUP_ORDER,DEFAULT_REGION_GAME_GROUP,GENERATED_REGION_GAME_GROUPS});`, {}, {filename:"data.js"});
 }
 
 function normalise(value){
@@ -24,6 +28,15 @@ function normalise(value){
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .replace(/[^\p{L}\p{N} ]/gu, "")
+    .trim();
+}
+
+function normaliseStrictDiacritics(value, language){
+  return String(value || "")
+    .toLocaleLowerCase(language || undefined)
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N} ]/gu, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -74,6 +87,108 @@ function validateAliases(errors, aliasMap, canonicalValues, label){
   }
 }
 
+function validateRegionalData(errors, groups, order, defaultGroup){
+  if(!requirePlainObject(errors, groups, "REGION_GAME_GROUPS")) return;
+  if(!Array.isArray(order) || !order.length){
+    addError(errors, "REGION_GAME_GROUP_ORDER must be a non-empty array.");
+    return;
+  }
+  if(!groups[defaultGroup]){
+    addError(errors, "DEFAULT_REGION_GAME_GROUP must name an existing regional group.");
+  }
+
+  const expectedCounts = new Map([
+    ["Ireland", 32],
+    ["Ireland as Gaeilge", 32],
+    ["England", 47],
+    ["Scotland", 12],
+    ["Wales", 8],
+    ["United States", 50]
+  ]);
+
+  for(const groupKey of order){
+    const group = groups[groupKey];
+    if(!group){
+      addError(errors, `REGION_GAME_GROUP_ORDER contains unknown group ${groupKey}.`);
+      continue;
+    }
+    if(!Array.isArray(group.items) || !group.items.length){
+      addError(errors, `${groupKey} must contain regional items.`);
+      continue;
+    }
+    const expected = expectedCounts.get(groupKey);
+    if(expected && group.items.length !== expected){
+      addError(errors, `${groupKey} expected ${expected} items, found ${group.items.length}.`);
+    }
+    if(!group.map || !group.map.url || !group.map.source){
+      addError(errors, `${groupKey} must define a map source and URL.`);
+    }else if(/^http:\/\//i.test(group.map.url)){
+      addError(errors, `${groupKey} map URL must use https.`);
+    }else if(/^https:\/\/cdn\.jsdelivr\.net\/gh\/wmgeolab\/geoBoundaries@/i.test(group.map.url)){
+      addError(errors, `${groupKey} map URL points at jsDelivr, which serves GeoBoundaries Git LFS pointers instead of GeoJSON.`);
+    }
+    const answerKey = value=>group.strictDiacritics
+      ? normaliseStrictDiacritics(value, group.answerLanguage)
+      : normalise(value);
+
+    const names = new Set();
+    const answerIndex = new Map();
+    for(const item of group.items){
+      if(!item || typeof item.name !== "string" || !item.name.trim()){
+        addError(errors, `${groupKey} contains an item without a name.`);
+        continue;
+      }
+      if(!item.capital || typeof item.capital !== "string"){
+        addError(errors, `${groupKey}.${item.name} is missing a capital or county town.`);
+      }
+      if(item.flagUrl && /^http:\/\//i.test(item.flagUrl)){
+        addError(errors, `${groupKey}.${item.name} flagUrl must use https.`);
+      }
+      if(item.capitalCoordinates !== undefined){
+        if(
+          !Array.isArray(item.capitalCoordinates)
+          || item.capitalCoordinates.length !== 2
+          || !item.capitalCoordinates.every(Number.isFinite)
+          || Math.abs(item.capitalCoordinates[0]) > 180
+          || Math.abs(item.capitalCoordinates[1]) > 90
+        ){
+          addError(errors, `${groupKey}.${item.name} has invalid capitalCoordinates.`);
+        }
+      }
+      if(names.has(item.name)){
+        addError(errors, `${groupKey} contains duplicate item ${item.name}.`);
+      }
+      names.add(item.name);
+      for(const value of [item.name, ...(item.aliases || [])]){
+        const key = answerKey(value);
+        const existing = answerIndex.get(key);
+        if(existing && existing !== item.name){
+          addError(errors, `${groupKey}.${item.name} alias "${value}" conflicts with ${existing}.`);
+        }
+        answerIndex.set(key, item.name);
+      }
+      for(const value of [item.capital, ...(item.capitalAliases || [])]){
+        if(typeof value !== "string" || !value.trim()){
+          addError(errors, `${groupKey}.${item.name} contains a blank or non-string capital alias.`);
+        }
+      }
+    }
+  }
+}
+
+function validateGeneratedRegionalData(errors, generatedGroups, countrySet){
+  if(!requirePlainObject(errors, generatedGroups, "GENERATED_REGION_GAME_GROUPS")) return;
+  const generatedKeys = Object.keys(generatedGroups);
+  if(generatedKeys.length < 193){
+    addError(errors, `Expected at least 193 generated regional groups, found ${generatedKeys.length}.`);
+  }
+  for(const groupKey of generatedKeys){
+    if(!countrySet.has(groupKey)){
+      addError(errors, `Generated regional group does not match a quiz country: ${groupKey}.`);
+    }
+  }
+}
+
 function main(){
   const errors = [];
   const {
@@ -83,7 +198,11 @@ function main(){
     countryAliases,
     capitalAliases,
     countries,
-    LS_KEYS
+    LS_KEYS,
+    REGION_GAME_GROUPS,
+    REGION_GAME_GROUP_ORDER,
+    DEFAULT_REGION_GAME_GROUP,
+    GENERATED_REGION_GAME_GROUPS
   } = loadData();
 
   requirePlainObject(errors, countryContinent, "countryContinent");
@@ -129,6 +248,8 @@ function main(){
 
   validateAliases(errors, countryAliases, countryNames, "countryAliases");
   validateAliases(errors, capitalAliases, Object.values(countryCapitals || {}), "capitalAliases");
+  validateGeneratedRegionalData(errors, GENERATED_REGION_GAME_GROUPS, countrySet);
+  validateRegionalData(errors, REGION_GAME_GROUPS, REGION_GAME_GROUP_ORDER, DEFAULT_REGION_GAME_GROUP);
 
   if(errors.length){
     console.error(`Data validation failed:\n${errors.join("\n")}`);

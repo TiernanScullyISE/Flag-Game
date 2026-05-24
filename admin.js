@@ -484,8 +484,11 @@ function renderAdminRun(run){
   const reasons = Array.isArray(run.review_reasons) ? run.review_reasons : [];
   facts.append(
     factPill(`Created: ${new Date(run.created_at).toLocaleString()}`),
+    factPill(`Set: ${run.set_label || run.continent || "All"}`),
+    factPill(`Mode: ${formatAdminMode(run)}`),
+    factPill(`Scope: ${run.game_scope || "countries"}`),
     factPill(`Score: ${run.anti_cheat && run.anti_cheat.score !== undefined ? run.anti_cheat.score : "-"}`),
-    factPill(`Reasons: ${reasons.length ? reasons.join(", ") : "none"}`)
+    factPill(`Review flags: ${reasons.length || 0}`)
   );
 
   const route = document.createElement("ol");
@@ -543,8 +546,98 @@ function renderAdminRun(run){
   reject.addEventListener("click", ()=>moderateRun(run.id, "reject", note.value));
   actions.append(approve, reject);
 
-  card.append(heading, facts, route, nameReview, note, actions);
+  card.append(heading, renderReviewReasonPanel(run, reasons), facts, route, nameReview, note, actions);
   return card;
+}
+
+function renderReviewReasonPanel(run, reasons){
+  const panel = document.createElement("section");
+  panel.className = `admin-review-panel ${reasons.length ? "has-reasons" : "is-clear"}`;
+
+  const heading = document.createElement("div");
+  heading.className = "admin-review-heading";
+  const title = document.createElement("strong");
+  title.textContent = reasons.length
+    ? `${reasons.length} reason${reasons.length === 1 ? "" : "s"} pending review`
+    : "No review reason stored";
+  const status = document.createElement("span");
+  status.textContent = String(run.status || "pending").toUpperCase();
+  heading.append(title, status);
+  panel.appendChild(heading);
+
+  if(reasons.length){
+    const list = document.createElement("div");
+    list.className = "admin-review-reasons";
+    reasons.forEach(reason=>list.appendChild(renderReviewReason(reason)));
+    panel.appendChild(list);
+  }else{
+    const body = document.createElement("p");
+    body.textContent = "This run is in the review queue without a stored flag. Check the route and name before approving.";
+    panel.appendChild(body);
+  }
+
+  const context = document.createElement("div");
+  context.className = "admin-review-context";
+  context.append(
+    factPill(`${run.correct_first_try}/${run.total} first try`),
+    factPill(formatAdminTime(run.time_ms)),
+    factPill(run.verified ? "Server verified" : "Not verified")
+  );
+  panel.appendChild(context);
+  return panel;
+}
+
+function renderReviewReason(reason){
+  const item = document.createElement("div");
+  item.className = "admin-review-reason";
+  const title = document.createElement("strong");
+  title.textContent = getReviewReasonTitle(reason);
+  const detail = document.createElement("span");
+  detail.textContent = getReviewReasonDetail(reason);
+  item.append(title, detail);
+  return item;
+}
+
+function getReviewReasonTitle(reason){
+  const labels = {
+    "very-fast-average": "Very fast average",
+    "fast-large-category": "Fast large-category run",
+    "focus-loss": "Focus changed",
+    "low-key-event-count": "Low key event count",
+    "near-instant-answer": "Near-instant answers",
+    "skipped-or-repeated-questions": "Skipped or repeated route",
+    "name-review": "Name needs review",
+    "blocked-name": "Blocked name term",
+    "reserved-name": "Reserved name"
+  };
+  return labels[reason] || humaniseReviewReason(reason);
+}
+
+function getReviewReasonDetail(reason){
+  const details = {
+    "very-fast-average": "The average solve time is below the normal manual-review threshold.",
+    "fast-large-category": "The run is unusually fast for a larger target, so route evidence should be checked.",
+    "focus-loss": "The browser lost focus during the run. This may be harmless, but it needs a look.",
+    "low-key-event-count": "There were fewer key events than expected for the number of solved answers.",
+    "near-instant-answer": "One or more answers were submitted very shortly after appearing.",
+    "skipped-or-repeated-questions": "The stored route has more entries than the target, usually from skips or repeats.",
+    "name-review": "The public player name matched a moderation rule or needs a cleaner display name.",
+    "blocked-name": "The public player name contains a blocked moderation term.",
+    "reserved-name": "The public player name looks reserved or impersonation-prone."
+  };
+  return details[reason] || "Review the route, timing, and player name before approving.";
+}
+
+function humaniseReviewReason(reason){
+  return String(reason || "Unknown reason")
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, letter=>letter.toUpperCase());
+}
+
+function formatAdminMode(run){
+  const mode = run.which === "capitals" ? "Capitals" : run.which === "world" ? "Map" : "Flags";
+  const target = run.target_label || run.target || "All";
+  return `${mode} / ${target}`;
 }
 
 async function moderateRun(id, action, note, publicName){

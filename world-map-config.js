@@ -24,7 +24,7 @@ const WORLD_MAP_CONTINENT_DETAIL_PANELS = {
 const WORLD_MAP_CONTINENT_BOUNDS = {
   "Africa":[-20, -36, 55, 38],
   "Asia":[25, -12, 190, 82],
-  "Europe":[-25, 34, 45, 72],
+  "Europe":[-25, 34, 60, 72],
   "North America":[-170, 5, -50, 84],
   "South America":[-83, -56, -34, 14],
   "Oceania":[95, -50, 205, 25]

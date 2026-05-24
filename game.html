@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Play - Flag & Capital Quiz</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <script src="theme.js?v=theme-1"></script>
-  <link rel="stylesheet" href="style.css?v=capital-map-20" />
+  <script src="theme.js?v=theme-2"></script>
+  <link rel="stylesheet" href="style.css?v=regional-map-9" />
 </head>
-<body data-play-mode="practice" data-quiz-mode="flags">
+<body data-play-mode="practice" data-quiz-mode="flags" data-game-scope="countries">
   <header class="site-header with-nav compact-header">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
     <nav class="top-nav">
@@ -24,7 +25,7 @@
   <main class="container game-container">
     <section class="page-intro game-intro">
       <p class="section-kicker">Quiz mode</p>
-      <h1>Practise with lives or switch to dedicated speedrun mode.</h1>
+      <h1>Practise with lives across countries, county sets, or state sets, or switch to speedrun mode.</h1>
     </section>
 
     <section class="game-layout">
@@ -34,6 +35,11 @@
           <button class="segment play-mode-segment" data-play-mode="speedrun">Speedrun</button>
         </div>
 
+        <div class="segment-switch scope-switch" aria-label="Game set">
+          <button class="segment scope-segment active" data-game-scope="countries">Countries</button>
+          <button class="segment scope-segment" data-game-scope="regions">Regions</button>
+        </div>
+
         <div class="segment-switch quiz-switch" aria-label="Quiz type">
           <button class="segment quiz-segment active" data-mode="flags">Flag Quiz</button>
           <button class="segment quiz-segment" data-mode="capitals">Capital Quiz</button>
@@ -41,8 +47,14 @@
         </div>
 
         <section class="toolbar">
+          <div class="control region-control">
+            <label for="region-set-input">Country</label>
+            <input id="region-set-input" type="search" list="region-set-options" autocomplete="off" />
+            <datalist id="region-set-options"></datalist>
+          </div>
+
           <div class="control">
-            <label for="continent-select">Continent</label>
+            <label id="continent-label" for="continent-select">Continent</label>
             <select id="continent-select"></select>
           </div>
 
@@ -125,11 +137,13 @@
         </div>
 
         <div class="answer-control-row">
+          <button id="last-btn" class="btn subtle">Last</button>
           <div id="text-answer" class="text-answer">
             <input id="answer-input" type="text" placeholder="Type your answer..." autocomplete="off" />
-            <button id="submit-btn" class="btn primary">Submit</button>
           </div>
+          <button id="next-btn" class="btn subtle">Skip / Next</button>
           <button id="giveup-btn" class="btn danger">Give up</button>
+          <button id="submit-btn" class="btn primary">Submit</button>
         </div>
 
         <p id="feedback" class="feedback"></p>
@@ -141,10 +155,6 @@
           <p id="session" class="session"></p>
         </div>
 
-        <div class="nav-row">
-          <button id="last-btn" class="btn subtle">Last</button>
-          <button id="next-btn" class="btn subtle">Skip / Next</button>
-        </div>
       </section>
     </section>
   </main>
@@ -173,17 +183,20 @@
   </div>
 
   <footer class="site-footer compact-footer">
-    <p>Flags load from FlagCDN and the world map uses Natural Earth outlines. Practice scores stay in this browser; speedrun leaderboards can be shared.</p>
+    <p>Country flags load from FlagCDN; regional maps use public boundary datasets where available. Practice scores stay in this browser; speedrun leaderboards can be shared.</p>
   </footer>
 
-  <script src="data.js?v=capital-map-11" defer></script>
+  <script src="data.js?v=regional-map-9" defer></script>
+  <script src="regions-generated-data.js?v=regional-map-9" defer></script>
+  <script src="regions-data.js?v=regional-map-9" defer></script>
   <script src="utils.js" defer></script>
   <script src="leaderboard-config.js" defer></script>
-  <script src="leaderboard.js?v=capital-map-17" defer></script>
+  <script src="leaderboard.js?v=regional-leaderboard-1" defer></script>
   <script src="analytics.js?v=analytics-2" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3" defer></script>
-  <script src="map-view.js?v=capital-map-17" defer></script>
-  <script src="world-map-config.js?v=capital-map-16" defer></script>
-  <script src="game.js?v=capital-map-26" defer></script>
+  <script src="map-view.js?v=capital-map-18" defer></script>
+  <script src="region-map.js?v=regional-map-9" defer></script>
+  <script src="world-map-config.js?v=capital-map-17" defer></script>
+  <script src="game.js?v=regional-leaderboard-1" defer></script>
 </body>
 </html>

@@ -1,0 +1,2100 @@
+{
+  "generatedAt": "2026-05-23T22:04:18.268Z",
+  "completed": true,
+  "included": [
+    {
+      "country": "Afghanistan",
+      "items": 34,
+      "alpha3": "AFG",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 34,
+      "capitalFallbacks": 6,
+      "verifiedFlags": 6,
+      "generatedFlags": 28
+    },
+    {
+      "country": "Albania",
+      "items": 12,
+      "alpha3": "ALB",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 12,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 12,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Algeria",
+      "items": 48,
+      "alpha3": "DZA",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 48,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 10,
+      "generatedFlags": 38
+    },
+    {
+      "country": "Andorra",
+      "items": 7,
+      "alpha3": "AND",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 7,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 7,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Angola",
+      "items": 18,
+      "alpha3": "AGO",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 18,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 5,
+      "generatedFlags": 13
+    },
+    {
+      "country": "Antigua and Barbuda",
+      "items": 8,
+      "alpha3": "ATG",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 8,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 7,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Argentina",
+      "items": 24,
+      "alpha3": "ARG",
+      "flags": 24,
+      "verifiedFlags": 24,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Armenia",
+      "items": 11,
+      "alpha3": "ARM",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 11,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 4,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Australia",
+      "items": 9,
+      "alpha3": "AUS",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 9,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 8,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Austria",
+      "items": 9,
+      "alpha3": "AUT",
+      "flags": 9,
+      "verifiedFlags": 9,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Azerbaijan",
+      "items": 2,
+      "alpha3": "AZE",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 2,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Bahamas",
+      "items": 32,
+      "alpha3": "BHS",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 32,
+      "capitalFallbacks": 12,
+      "verifiedFlags": 3,
+      "generatedFlags": 29
+    },
+    {
+      "country": "Bahrain",
+      "items": 4,
+      "alpha3": "BHR",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 4,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 4,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Bangladesh",
+      "items": 8,
+      "alpha3": "BGD",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 8,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 1,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Barbados",
+      "items": 11,
+      "alpha3": "BRB",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 11,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 3,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Belarus",
+      "items": 7,
+      "alpha3": "BLR",
+      "flags": 7,
+      "verifiedFlags": 7,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Belgium",
+      "items": 3,
+      "alpha3": "BEL",
+      "flags": 3,
+      "verifiedFlags": 3,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Belize",
+      "items": 6,
+      "alpha3": "BLZ",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 3,
+      "generatedFlags": 3
+    },
+    {
+      "country": "Benin",
+      "items": 12,
+      "alpha3": "BEN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 12,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 1,
+      "generatedFlags": 11
+    },
+    {
+      "country": "Bhutan",
+      "items": 20,
+      "alpha3": "BTN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 20,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 0,
+      "generatedFlags": 20
+    },
+    {
+      "country": "Bolivia",
+      "items": 9,
+      "alpha3": "BOL",
+      "flags": 9,
+      "verifiedFlags": 9,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Bosnia and Herzegovina",
+      "items": 3,
+      "alpha3": "BIH",
+      "flags": 3,
+      "verifiedFlags": 3,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Botswana",
+      "items": 10,
+      "alpha3": "BWA",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 10,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 3,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Brazil",
+      "items": 27,
+      "alpha3": "BRA",
+      "flags": 27,
+      "verifiedFlags": 27,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Brunei",
+      "items": 4,
+      "alpha3": "BRN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 4,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 0,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Bulgaria",
+      "items": 28,
+      "alpha3": "BGR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 28,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 25,
+      "generatedFlags": 3
+    },
+    {
+      "country": "Burkina Faso",
+      "items": 13,
+      "alpha3": "BFA",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 13,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 3,
+      "generatedFlags": 10
+    },
+    {
+      "country": "Burundi",
+      "items": 18,
+      "alpha3": "BDI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 18,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 0,
+      "generatedFlags": 18
+    },
+    {
+      "country": "Cabo Verde",
+      "items": 22,
+      "alpha3": "CPV",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 22,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 17,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Cambodia",
+      "items": 25,
+      "alpha3": "KHM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 25,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 1,
+      "generatedFlags": 24
+    },
+    {
+      "country": "Cameroon",
+      "items": 10,
+      "alpha3": "CMR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 7,
+      "generatedFlags": 3
+    },
+    {
+      "country": "Canada",
+      "items": 13,
+      "alpha3": "CAN",
+      "flags": 13,
+      "verifiedFlags": 13,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Central African Republic",
+      "items": 17,
+      "alpha3": "CAF",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 17,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 16
+    },
+    {
+      "country": "Chad",
+      "items": 23,
+      "alpha3": "TCD",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 23,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 2,
+      "generatedFlags": 21
+    },
+    {
+      "country": "Chile",
+      "items": 16,
+      "alpha3": "CHL",
+      "flags": 16,
+      "verifiedFlags": 16,
+      "generatedFlags": 0
+    },
+    {
+      "country": "China",
+      "items": 34,
+      "alpha3": "CHN",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 34,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 30,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Colombia",
+      "items": 33,
+      "alpha3": "COL",
+      "flags": 33,
+      "verifiedFlags": 33,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Comoros",
+      "items": 3,
+      "alpha3": "COM",
+      "flags": 3,
+      "verifiedFlags": 3,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Costa Rica",
+      "items": 7,
+      "alpha3": "CRI",
+      "flags": 7,
+      "verifiedFlags": 7,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Croatia",
+      "items": 21,
+      "alpha3": "HRV",
+      "flags": 21,
+      "verifiedFlags": 21,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Cuba",
+      "items": 16,
+      "alpha3": "CUB",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 16,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 5,
+      "generatedFlags": 11
+    },
+    {
+      "country": "Cyprus",
+      "items": 6,
+      "alpha3": "CYP",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 2,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Czechia",
+      "items": 14,
+      "alpha3": "CZE",
+      "flags": 14,
+      "verifiedFlags": 14,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Democratic Republic of the Congo",
+      "items": 26,
+      "alpha3": "COD",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 26,
+      "capitalFallbacks": 12,
+      "verifiedFlags": 10,
+      "generatedFlags": 16
+    },
+    {
+      "country": "Denmark",
+      "items": 5,
+      "alpha3": "DNK",
+      "flags": 5,
+      "verifiedFlags": 5,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Djibouti",
+      "items": 5,
+      "alpha3": "DJI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 1,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Dominica",
+      "items": 10,
+      "alpha3": "DMA",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 5,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Dominican Republic",
+      "items": 10,
+      "alpha3": "DOM",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 10,
+      "capitalFallbacks": 10,
+      "verifiedFlags": 0,
+      "generatedFlags": 10
+    },
+    {
+      "country": "Ecuador",
+      "items": 24,
+      "alpha3": "ECU",
+      "flags": 24,
+      "verifiedFlags": 24,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Egypt",
+      "items": 27,
+      "alpha3": "EGY",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 27,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 26,
+      "generatedFlags": 1
+    },
+    {
+      "country": "El Salvador",
+      "items": 14,
+      "alpha3": "SLV",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 14,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 12,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Equatorial Guinea",
+      "items": 7,
+      "alpha3": "GNQ",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 7,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 1,
+      "generatedFlags": 6
+    },
+    {
+      "country": "Eritrea",
+      "items": 6,
+      "alpha3": "ERI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 6
+    },
+    {
+      "country": "Estonia",
+      "items": 15,
+      "alpha3": "EST",
+      "flags": 15,
+      "verifiedFlags": 15,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Eswatini",
+      "items": 4,
+      "alpha3": "SWZ",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 4,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 0,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Ethiopia",
+      "items": 13,
+      "alpha3": "ETH",
+      "fallback": true,
+      "fallbackFrom": "boundary-name-mismatch",
+      "flags": 13,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 11,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Fiji",
+      "items": 4,
+      "alpha3": "FJI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 4,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 4,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Finland",
+      "items": 19,
+      "alpha3": "FIN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 19,
+      "capitalFallbacks": 7,
+      "verifiedFlags": 18,
+      "generatedFlags": 1
+    },
+    {
+      "country": "France",
+      "items": 13,
+      "alpha3": "FRA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 13,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 13,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Gabon",
+      "items": 9,
+      "alpha3": "GAB",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 9,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 9,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Georgia",
+      "items": 12,
+      "alpha3": "GEO",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 12,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 8,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Germany",
+      "items": 16,
+      "alpha3": "DEU",
+      "flags": 16,
+      "verifiedFlags": 16,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Ghana",
+      "items": 16,
+      "alpha3": "GHA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 16,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 8,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Greece",
+      "items": 8,
+      "alpha3": "GRC",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 8,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 1,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Grenada",
+      "items": 7,
+      "alpha3": "GRD",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 7,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 3,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Guatemala",
+      "items": 22,
+      "alpha3": "GTM",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 22,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 22,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Guinea",
+      "items": 8,
+      "alpha3": "GIN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 8,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Guinea-Bissau",
+      "items": 9,
+      "alpha3": "GNB",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 9,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 2,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Guyana",
+      "items": 10,
+      "alpha3": "GUY",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 10
+    },
+    {
+      "country": "Haiti",
+      "items": 10,
+      "alpha3": "HTI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 2,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Honduras",
+      "items": 18,
+      "alpha3": "HND",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 18,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 17,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Hungary",
+      "items": 19,
+      "alpha3": "HUN",
+      "flags": 19,
+      "verifiedFlags": 19,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Iceland",
+      "items": 8,
+      "alpha3": "ISL",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 8,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 2,
+      "generatedFlags": 6
+    },
+    {
+      "country": "India",
+      "items": 36,
+      "alpha3": "IND",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 36,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 23,
+      "generatedFlags": 13
+    },
+    {
+      "country": "Indonesia",
+      "items": 34,
+      "alpha3": "IDN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 34,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 34,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Iran",
+      "items": 31,
+      "alpha3": "IRN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 31,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 5,
+      "generatedFlags": 26
+    },
+    {
+      "country": "Iraq",
+      "items": 18,
+      "alpha3": "IRQ",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 18,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 6,
+      "generatedFlags": 12
+    },
+    {
+      "country": "Israel",
+      "items": 6,
+      "alpha3": "ISR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 4,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Italy",
+      "items": 5,
+      "alpha3": "ITA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 5,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 1,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Ivory Coast",
+      "items": 14,
+      "alpha3": "CIV",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 14,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 0,
+      "generatedFlags": 14
+    },
+    {
+      "country": "Jamaica",
+      "items": 14,
+      "alpha3": "JAM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 14,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 5,
+      "generatedFlags": 9
+    },
+    {
+      "country": "Japan",
+      "items": 47,
+      "alpha3": "JPN",
+      "flags": 47,
+      "verifiedFlags": 47,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Jordan",
+      "items": 12,
+      "alpha3": "JOR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 12,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 7,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Kazakhstan",
+      "items": 16,
+      "alpha3": "KAZ",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 16,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 9,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Kenya",
+      "items": 47,
+      "alpha3": "KEN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 47,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 31,
+      "generatedFlags": 16
+    },
+    {
+      "country": "Kiribati",
+      "items": 3,
+      "alpha3": "KIR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 3,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 1,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Kosovo",
+      "items": 7,
+      "alpha3": "XKX",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 7,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Kuwait",
+      "items": 6,
+      "alpha3": "KWT",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 1,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Kyrgyzstan",
+      "items": 7,
+      "alpha3": "KGZ",
+      "flags": 7,
+      "verifiedFlags": 7,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Laos",
+      "items": 18,
+      "alpha3": "LAO",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 18,
+      "capitalFallbacks": 7,
+      "verifiedFlags": 2,
+      "generatedFlags": 16
+    },
+    {
+      "country": "Latvia",
+      "items": 43,
+      "alpha3": "LVA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 43,
+      "capitalFallbacks": 17,
+      "verifiedFlags": 39,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Lebanon",
+      "items": 8,
+      "alpha3": "LBN",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 8,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 3,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Lesotho",
+      "items": 10,
+      "alpha3": "LSO",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 10
+    },
+    {
+      "country": "Liberia",
+      "items": 15,
+      "alpha3": "LBR",
+      "flags": 15,
+      "verifiedFlags": 15,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Libya",
+      "items": 3,
+      "alpha3": "LBY",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 3,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 3,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Liechtenstein",
+      "items": 11,
+      "alpha3": "LIE",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 11,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 11,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Lithuania",
+      "items": 10,
+      "alpha3": "LTU",
+      "flags": 10,
+      "verifiedFlags": 10,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Luxembourg",
+      "items": 12,
+      "alpha3": "LUX",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 12,
+      "capitalFallbacks": 7,
+      "verifiedFlags": 2,
+      "generatedFlags": 10
+    },
+    {
+      "country": "Madagascar",
+      "items": 22,
+      "alpha3": "MDG",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 22,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 3,
+      "generatedFlags": 19
+    },
+    {
+      "country": "Malawi",
+      "items": 3,
+      "alpha3": "MWI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 3,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 3,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Malaysia",
+      "items": 16,
+      "alpha3": "MYS",
+      "flags": 16,
+      "verifiedFlags": 16,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Maldives",
+      "items": 5,
+      "alpha3": "MDV",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 2,
+      "generatedFlags": 3
+    },
+    {
+      "country": "Mali",
+      "items": 9,
+      "alpha3": "MLI",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 9,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 9
+    },
+    {
+      "country": "Malta",
+      "items": 68,
+      "alpha3": "MLT",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 68,
+      "capitalFallbacks": 13,
+      "verifiedFlags": 67,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Marshall Islands",
+      "items": 24,
+      "alpha3": "MHL",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 24,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 11,
+      "generatedFlags": 13
+    },
+    {
+      "country": "Mauritania",
+      "items": 13,
+      "alpha3": "MRT",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 13,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 13
+    },
+    {
+      "country": "Mauritius",
+      "items": 12,
+      "alpha3": "MUS",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 12,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 4,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Mexico",
+      "items": 32,
+      "alpha3": "MEX",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 32,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 30,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Micronesia",
+      "items": 4,
+      "alpha3": "FSM",
+      "flags": 4,
+      "verifiedFlags": 4,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Moldova",
+      "items": 37,
+      "alpha3": "MDA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 37,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 37,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Mongolia",
+      "items": 22,
+      "alpha3": "MNG",
+      "flags": 22,
+      "verifiedFlags": 22,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Montenegro",
+      "items": 23,
+      "alpha3": "MNE",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 23,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 19,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Morocco",
+      "items": 12,
+      "alpha3": "MAR",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 12,
+      "capitalFallbacks": 6,
+      "verifiedFlags": 9,
+      "generatedFlags": 3
+    },
+    {
+      "country": "Mozambique",
+      "items": 10,
+      "alpha3": "MOZ",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 10,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 5,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Myanmar",
+      "items": 14,
+      "alpha3": "MMR",
+      "flags": 14,
+      "verifiedFlags": 14,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Namibia",
+      "items": 14,
+      "alpha3": "NAM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 14,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 2,
+      "generatedFlags": 12
+    },
+    {
+      "country": "Nauru",
+      "items": 14,
+      "alpha3": "NRU",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 14,
+      "capitalFallbacks": 8,
+      "verifiedFlags": 0,
+      "generatedFlags": 14
+    },
+    {
+      "country": "Nepal",
+      "items": 7,
+      "alpha3": "NPL",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 7,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 1,
+      "generatedFlags": 6
+    },
+    {
+      "country": "Netherlands",
+      "items": 12,
+      "alpha3": "NLD",
+      "flags": 12,
+      "verifiedFlags": 12,
+      "generatedFlags": 0
+    },
+    {
+      "country": "New Zealand",
+      "items": 17,
+      "alpha3": "NZL",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 17,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 7,
+      "generatedFlags": 10
+    },
+    {
+      "country": "Nicaragua",
+      "items": 17,
+      "alpha3": "NIC",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 17,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 16,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Niger",
+      "items": 6,
+      "alpha3": "NER",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 0,
+      "generatedFlags": 6
+    },
+    {
+      "country": "Nigeria",
+      "items": 37,
+      "alpha3": "NGA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 37,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 29,
+      "generatedFlags": 8
+    },
+    {
+      "country": "North Korea",
+      "items": 11,
+      "alpha3": "PRK",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 11,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 0,
+      "generatedFlags": 11
+    },
+    {
+      "country": "North Macedonia",
+      "items": 8,
+      "alpha3": "MKD",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 8,
+      "capitalFallbacks": 8,
+      "verifiedFlags": 5,
+      "generatedFlags": 3
+    },
+    {
+      "country": "Norway",
+      "items": 11,
+      "alpha3": "NOR",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 11,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 10,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Oman",
+      "items": 7,
+      "alpha3": "OMN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 7,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 3,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Pakistan",
+      "items": 7,
+      "alpha3": "PAK",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 7,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 6,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Palau",
+      "items": 16,
+      "alpha3": "PLW",
+      "fallback": true,
+      "fallbackFrom": "boundary-name-mismatch",
+      "flags": 16,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 16,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Palestine",
+      "items": 2,
+      "alpha3": "PSE",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 2,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 1,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Panama",
+      "items": 13,
+      "alpha3": "PAN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 13,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 13,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Papua New Guinea",
+      "items": 22,
+      "alpha3": "PNG",
+      "flags": 22,
+      "verifiedFlags": 22,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Paraguay",
+      "items": 18,
+      "alpha3": "PRY",
+      "flags": 18,
+      "verifiedFlags": 18,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Peru",
+      "items": 25,
+      "alpha3": "PER",
+      "flags": 25,
+      "verifiedFlags": 25,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Philippines",
+      "items": 17,
+      "alpha3": "PHL",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 17,
+      "capitalFallbacks": 8,
+      "verifiedFlags": 6,
+      "generatedFlags": 11
+    },
+    {
+      "country": "Poland",
+      "items": 16,
+      "alpha3": "POL",
+      "flags": 16,
+      "verifiedFlags": 16,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Portugal",
+      "items": 20,
+      "alpha3": "PRT",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 20,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 13,
+      "generatedFlags": 7
+    },
+    {
+      "country": "Qatar",
+      "items": 8,
+      "alpha3": "QAT",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 8,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 0,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Republic of the Congo",
+      "items": 12,
+      "alpha3": "COG",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 12,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 11
+    },
+    {
+      "country": "Romania",
+      "items": 8,
+      "alpha3": "ROU",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 8,
+      "capitalFallbacks": 8,
+      "verifiedFlags": 3,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Russia",
+      "items": 83,
+      "alpha3": "RUS",
+      "flags": 83,
+      "verifiedFlags": 83,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Rwanda",
+      "items": 5,
+      "alpha3": "RWA",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Saint Kitts and Nevis",
+      "items": 14,
+      "alpha3": "KNA",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 14,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 0,
+      "generatedFlags": 14
+    },
+    {
+      "country": "Saint Lucia",
+      "items": 10,
+      "alpha3": "LCA",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 10,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 2,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Saint Vincent and the Grenadines",
+      "items": 6,
+      "alpha3": "VCT",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 4,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Samoa",
+      "items": 11,
+      "alpha3": "WSM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 11,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 1,
+      "generatedFlags": 10
+    },
+    {
+      "country": "San Marino",
+      "items": 9,
+      "alpha3": "SMR",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 9,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 9,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Saudi Arabia",
+      "items": 13,
+      "alpha3": "SAU",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 13,
+      "capitalFallbacks": 4,
+      "verifiedFlags": 2,
+      "generatedFlags": 11
+    },
+    {
+      "country": "Senegal",
+      "items": 14,
+      "alpha3": "SEN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 14,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 2,
+      "generatedFlags": 12
+    },
+    {
+      "country": "Serbia",
+      "items": 25,
+      "alpha3": "SRB",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 25,
+      "capitalFallbacks": 25,
+      "verifiedFlags": 3,
+      "generatedFlags": 22
+    },
+    {
+      "country": "Seychelles",
+      "items": 4,
+      "alpha3": "SYC",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 4,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 0,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Sierra Leone",
+      "items": 4,
+      "alpha3": "SLE",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 4,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 3,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Singapore",
+      "items": 5,
+      "alpha3": "SGP",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 1,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Slovakia",
+      "items": 8,
+      "alpha3": "SVK",
+      "flags": 8,
+      "verifiedFlags": 8,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Slovenia",
+      "items": 2,
+      "alpha3": "SVN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 2,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Solomon Islands",
+      "items": 10,
+      "alpha3": "SLB",
+      "flags": 10,
+      "verifiedFlags": 10,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Somalia",
+      "items": 18,
+      "alpha3": "SOM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 18,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 3,
+      "generatedFlags": 15
+    },
+    {
+      "country": "South Africa",
+      "items": 9,
+      "alpha3": "ZAF",
+      "flags": 9,
+      "verifiedFlags": 9,
+      "generatedFlags": 0
+    },
+    {
+      "country": "South Korea",
+      "items": 17,
+      "alpha3": "KOR",
+      "flags": 17,
+      "verifiedFlags": 17,
+      "generatedFlags": 0
+    },
+    {
+      "country": "South Sudan",
+      "items": 10,
+      "alpha3": "SSD",
+      "flags": 10,
+      "verifiedFlags": 10,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Spain",
+      "items": 19,
+      "alpha3": "ESP",
+      "flags": 19,
+      "verifiedFlags": 19,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Sri Lanka",
+      "items": 9,
+      "alpha3": "LKA",
+      "flags": 9,
+      "verifiedFlags": 9,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Sudan",
+      "items": 19,
+      "alpha3": "SDN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 19,
+      "capitalFallbacks": 9,
+      "verifiedFlags": 11,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Suriname",
+      "items": 10,
+      "alpha3": "SUR",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 10,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 2,
+      "generatedFlags": 8
+    },
+    {
+      "country": "Sweden",
+      "items": 21,
+      "alpha3": "SWE",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 21,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 20,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Switzerland",
+      "items": 26,
+      "alpha3": "CHE",
+      "flags": 26,
+      "verifiedFlags": 26,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Syria",
+      "items": 14,
+      "alpha3": "SYR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 14,
+      "capitalFallbacks": 7,
+      "verifiedFlags": 4,
+      "generatedFlags": 10
+    },
+    {
+      "country": "São Tomé and Príncipe",
+      "items": 2,
+      "alpha3": "STP",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 2,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Taiwan",
+      "items": 22,
+      "alpha3": "TWN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 22,
+      "capitalFallbacks": 22,
+      "verifiedFlags": 21,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Tajikistan",
+      "items": 5,
+      "alpha3": "TJK",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 0,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Tanzania",
+      "items": 30,
+      "alpha3": "TZA",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 30,
+      "capitalFallbacks": 5,
+      "verifiedFlags": 12,
+      "generatedFlags": 18
+    },
+    {
+      "country": "Thailand",
+      "items": 77,
+      "alpha3": "THA",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 77,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 73,
+      "generatedFlags": 4
+    },
+    {
+      "country": "The Gambia",
+      "items": 8,
+      "alpha3": "GMB",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 8,
+      "capitalFallbacks": 8,
+      "verifiedFlags": 3,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Timor-Leste",
+      "items": 13,
+      "alpha3": "TLS",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 13,
+      "capitalFallbacks": 2,
+      "verifiedFlags": 13,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Togo",
+      "items": 5,
+      "alpha3": "TGO",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 0,
+      "generatedFlags": 5
+    },
+    {
+      "country": "Tonga",
+      "items": 5,
+      "alpha3": "TON",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Trinidad and Tobago",
+      "items": 14,
+      "alpha3": "TTO",
+      "fallback": true,
+      "fallbackFrom": "fewer-than-two-complete-items",
+      "flags": 14,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 5,
+      "generatedFlags": 9
+    },
+    {
+      "country": "Tunisia",
+      "items": 6,
+      "alpha3": "TUN",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 6,
+      "capitalFallbacks": 6,
+      "verifiedFlags": 4,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Turkmenistan",
+      "items": 5,
+      "alpha3": "TKM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 5,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 1,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Tuvalu",
+      "items": 8,
+      "alpha3": "TUV",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 8,
+      "capitalFallbacks": 3,
+      "verifiedFlags": 2,
+      "generatedFlags": 6
+    },
+    {
+      "country": "Türkiye",
+      "items": 81,
+      "alpha3": "TUR",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 81,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 5,
+      "generatedFlags": 76
+    },
+    {
+      "country": "Uganda",
+      "items": 4,
+      "alpha3": "UGA",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 4,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 2,
+      "generatedFlags": 2
+    },
+    {
+      "country": "Ukraine",
+      "items": 27,
+      "alpha3": "UKR",
+      "flags": 27,
+      "verifiedFlags": 27,
+      "generatedFlags": 0
+    },
+    {
+      "country": "United Arab Emirates",
+      "items": 7,
+      "alpha3": "ARE",
+      "flags": 7,
+      "verifiedFlags": 7,
+      "generatedFlags": 0
+    },
+    {
+      "country": "United Kingdom",
+      "items": 4,
+      "alpha3": "GBR",
+      "flags": 4,
+      "verifiedFlags": 4,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Uruguay",
+      "items": 19,
+      "alpha3": "URY",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 19,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 18,
+      "generatedFlags": 1
+    },
+    {
+      "country": "Uzbekistan",
+      "items": 14,
+      "alpha3": "UZB",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 14,
+      "capitalFallbacks": 0,
+      "verifiedFlags": 3,
+      "generatedFlags": 11
+    },
+    {
+      "country": "Vanuatu",
+      "items": 6,
+      "alpha3": "VUT",
+      "flags": 6,
+      "verifiedFlags": 6,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Venezuela",
+      "items": 24,
+      "alpha3": "VEN",
+      "fallback": true,
+      "fallbackFrom": "boundary-count-mismatch",
+      "flags": 24,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 24,
+      "generatedFlags": 0
+    },
+    {
+      "country": "Vietnam",
+      "items": 63,
+      "alpha3": "VNM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 63,
+      "capitalFallbacks": 25,
+      "verifiedFlags": 9,
+      "generatedFlags": 54
+    },
+    {
+      "country": "Yemen",
+      "items": 22,
+      "alpha3": "YEM",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 22,
+      "capitalFallbacks": 6,
+      "verifiedFlags": 1,
+      "generatedFlags": 21
+    },
+    {
+      "country": "Zambia",
+      "items": 10,
+      "alpha3": "ZMB",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 6,
+      "generatedFlags": 4
+    },
+    {
+      "country": "Zimbabwe",
+      "items": 10,
+      "alpha3": "ZWE",
+      "fallback": true,
+      "fallbackFrom": "wikidata-no-complete-subdivision-rows",
+      "flags": 10,
+      "capitalFallbacks": 1,
+      "verifiedFlags": 3,
+      "generatedFlags": 7
+    }
+  ],
+  "skipped": [
+    {
+      "country": "Monaco",
+      "reason": "fewer-than-two-complete-items",
+      "count": 0,
+      "fallbackError": "only 1 boundary features"
+    },
+    {
+      "country": "Vatican City",
+      "reason": "wikidata-no-complete-subdivision-rows",
+      "fallbackError": "404 Not Found for https://www.geoboundaries.org/api/current/gbOpen/VAT/ADM1/"
+    }
+  ],
+  "pending": [],
+  "options": {
+    "cache": true,
+    "cacheDir": ".region-cache",
+    "country": null,
+    "delayMs": 1500,
+    "isoDelayMs": 600,
+    "commonsFlagFallback": true,
+    "commonsSearchLimit": null,
+    "generatedFlagFallback": true,
+    "maxCountries": null,
+    "maxRequests": null,
+    "reportOnly": false,
+    "writePartial": false,
+    "wikidataAdminFallback": false
+  },
+  "serviceLimits": {
+    "wikidata": {
+      "endpoint": "https://query.wikidata.org/sparql",
+      "limits": [
+        "60 second query timeout",
+        "60 seconds of processing time per 60 seconds per client, where a client is IP plus user agent",
+        "30 error queries per minute per client"
+      ]
+    },
+    "geoboundaries": {
+      "endpoint": "https://www.geoboundaries.org/api/current/gbOpen/[ISO3]/ADM1/",
+      "limits": [
+        "No public numeric per-minute quota is documented for the API",
+        "API metadata JSON is pre-cached by the project",
+        "Boundary downloads may still be throttled by the hosting layer if requests are too aggressive"
+      ]
+    },
+    "geonames": {
+      "endpoint": "https://download.geonames.org/export/dump/",
+      "limits": [
+        "Public dump files are downloaded and cached locally; no per-country API key is needed",
+        "This generator uses admin1CodesASCII.txt plus cities500.zip PPLA rows as a capital fallback"
+      ]
+    },
+    "commons": {
+      "endpoint": "https://commons.wikimedia.org/w/api.php",
+      "limits": [
+        "No fixed anonymous read quota is published for ordinary API reads",
+        "The generator batches exact filename checks and caches results locally",
+        "When a real Commons flag cannot be verified, the app generates a deterministic training flag so the quiz stays playable"
+      ]
+    }
+  },
+  "flagFillStats": {
+    "groups": 193,
+    "items": 3021,
+    "missingBefore": 1657,
+    "commonsExact": 152,
+    "commonsSearch": 345,
+    "generated": 1160,
+    "missingAfter": 0,
+    "exactCandidates": 12791,
+    "exactFilesChecked": 215,
+    "searchRequests": 1505,
+    "coverage": {
+      "groups": 193,
+      "items": 3021,
+      "available": 3021,
+      "verified": 1861,
+      "generated": 1160,
+      "missing": 0
+    }
+  },
+  "finishedAt": "2026-05-23T22:12:53.345Z",
+  "elapsedMs": 515079,
+  "elapsed": "8m 35s",
+  "includedCount": 193,
+  "skippedCount": 2,
+  "pendingCount": 0,
+  "processedCount": 195,
+  "targetCountryCount": 195,
+  "totalCountries": 198,
+  "stoppedReason": null,
+  "fetchStats": {
+    "networkRequests": 141,
+    "fromCache": 7389,
+    "cacheWrites": 0,
+    "requestsByHost": {
+      "www.geoboundaries.org": 141
+    },
+    "rateLimitEvents": [],
+    "responseLimitHeaders": []
+  },
+  "skipReasonCounts": {
+    "fewer-than-two-complete-items": 1,
+    "wikidata-no-complete-subdivision-rows": 1
+  }
+}

@@ -4,11 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Leaderboard - Flag & Capital Quiz</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <script src="theme.js?v=theme-1"></script>
-  <link rel="stylesheet" href="style.css?v=capital-map-19" />
+  <script src="theme.js?v=theme-2"></script>
+  <link rel="stylesheet" href="style.css?v=regional-leaderboard-2" />
 </head>
 <body>
   <header class="site-header with-nav">
@@ -31,6 +32,14 @@
 
     <section class="toolbar leaderboard-toolbar">
       <div class="control">
+        <label for="leaderboard-scope">Scope</label>
+        <select id="leaderboard-scope">
+          <option value="all" selected>All scoreboards</option>
+          <option value="regions">Regions</option>
+          <option value="countries">Countries</option>
+        </select>
+      </div>
+      <div class="control">
         <label for="leaderboard-mode">Mode</label>
         <select id="leaderboard-mode">
           <option value="all">All modes</option>
@@ -40,8 +49,12 @@
         </select>
       </div>
       <div class="control">
-        <label for="leaderboard-continent">Continent</label>
+        <label for="leaderboard-continent">Set</label>
         <select id="leaderboard-continent"></select>
+      </div>
+      <div class="control leaderboard-search-control">
+        <label for="leaderboard-search">Search</label>
+        <input id="leaderboard-search" type="search" autocomplete="off" placeholder="Category or player" />
       </div>
       <div class="control">
         <label for="leaderboard-target">Target</label>
@@ -66,6 +79,9 @@
 
     <section id="leaderboard-page-status" class="leaderboard-page-status" aria-live="polite"></section>
     <section id="leaderboard-page-grid" class="leaderboard-page-grid" aria-live="polite"></section>
+    <div class="leaderboard-load-row">
+      <button id="leaderboard-load-more" class="btn subtle" type="button" hidden>Show more</button>
+    </div>
   </main>
 
   <footer class="site-footer">
@@ -73,8 +89,9 @@
   </footer>
 
   <script src="data.js" defer></script>
+  <script src="regions-leaderboard-data.js?v=regional-leaderboard-2" defer></script>
   <script src="leaderboard-config.js" defer></script>
-  <script src="leaderboard.js?v=world-map-22" defer></script>
-  <script src="leaderboard-page.js" defer></script>
+  <script src="leaderboard.js?v=regional-leaderboard-1" defer></script>
+  <script src="leaderboard-page.js?v=regional-leaderboard-2" defer></script>
 </body>
 </html>

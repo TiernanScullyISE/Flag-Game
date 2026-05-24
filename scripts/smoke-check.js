@@ -7,11 +7,14 @@ const HTML_FILES = ["index.html", "game.html", "leaderboard.html", "admin.html",
 const JS_FILES = [
   "theme.js",
   "data.js",
+  "regions-generated-data.js",
+  "regions-data.js",
   "utils.js",
   "leaderboard-config.js",
   "leaderboard.js",
   "analytics.js",
   "map-view.js",
+  "region-map.js",
   "world-map-config.js",
   "game.js",
   "leaderboard-page.js",
@@ -60,10 +63,22 @@ function checkScriptSyntax(){
 
 function checkScriptOrder(){
   const gameHtml = fs.readFileSync(path.join(ROOT, "game.html"), "utf8");
+  const generatedIndex = gameHtml.indexOf("regions-generated-data.js");
+  const dataIndex = gameHtml.indexOf("regions-data.js");
+  const regionMapIndex = gameHtml.indexOf("region-map.js");
   const configIndex = gameHtml.indexOf("world-map-config.js");
   const gameIndex = gameHtml.indexOf("game.js");
   if(configIndex === -1 || gameIndex === -1 || configIndex > gameIndex){
     fail("game.html must load world-map-config.js before game.js.");
+  }
+  if(generatedIndex === -1 || generatedIndex > dataIndex){
+    fail("game.html must load regions-generated-data.js before regions-data.js.");
+  }
+  if(dataIndex === -1 || dataIndex > gameIndex){
+    fail("game.html must load regions-data.js before game.js.");
+  }
+  if(regionMapIndex === -1 || regionMapIndex > gameIndex){
+    fail("game.html must load region-map.js before game.js.");
   }
 }
 

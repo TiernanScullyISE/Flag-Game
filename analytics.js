@@ -174,8 +174,12 @@
         ...safeArray(runContext.leaderboardNames),
         ...safeArray(record.metrics && record.metrics.runContext && record.metrics.runContext.leaderboardNames)
       ]),
+      gameScope: record.game_scope || record.gameScope || runContext.gameScope || (String(record.mode_key || record.modeKey || "").startsWith("regions_") ? "regions" : "countries"),
+      setKey: record.set_key || record.setKey || runContext.setKey || "",
+      setLabel: record.set_label || record.setLabel || runContext.setLabel || record.continent || record.region || runContext.region || "unknown",
+      itemLabel: record.item_label || record.itemLabel || runContext.itemLabel || "country",
       mode: record.which || record.mode || runContext.mode || "unknown",
-      region: record.continent || record.region || runContext.region || "unknown",
+      region: record.set_label || record.setLabel || record.continent || record.region || runContext.region || "unknown",
       difficulty: record.difficulty || runContext.difficulty || "unknown",
       target: record.target || runContext.target || "",
       targetLabel: record.target_label || record.targetLabel || runContext.targetLabel || "",

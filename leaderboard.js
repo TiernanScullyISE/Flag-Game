@@ -168,8 +168,13 @@
   }
 
   function normalizeRun(row){
+    const gameScope = row.game_scope || (String(row.mode_key || "").startsWith("regions_") ? "regions" : "countries");
     return {
       modeKey: row.mode_key || "",
+      gameScope,
+      setKey: row.set_key || "",
+      setLabel: row.set_label || row.continent || "",
+      itemLabel: row.item_label || (gameScope === "regions" ? "region" : "country"),
       which: row.which || "",
       continent: row.continent || "",
       difficulty: row.difficulty || "",
@@ -212,10 +217,17 @@
 
   function makeRunParams(detail, limit){
     const params = new URLSearchParams();
-    const base = "mode_key,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits";
+    const legacyBase = "mode_key,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits";
+    const base = `mode_key,game_scope,set_key,set_label,item_label,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits`;
     const route = `${base},route,verified`;
+    const legacyRoute = `${legacyBase},route,verified`;
     const full = `${route},typed_chars,canonical_chars,wpm,wpm_variants`;
-    params.set("select", detail === "full" ? full : detail === "route" ? route : base);
+    params.set("select", detail === "full"
+      ? full
+      : detail === "route" ? route
+        : detail === "route-legacy" ? legacyRoute
+          : detail === "legacy" ? legacyBase
+            : base);
     params.set("order", "mode_key.asc,time_ms.asc,created_at.asc");
     params.set("limit", String(limit));
     return params;
@@ -230,7 +242,7 @@
         throw error;
       }
       try{
-        const routeFallback = makeRunParams("route", limit);
+        const routeFallback = makeRunParams("route-legacy", limit);
         if(modeKey) routeFallback.set("mode_key", `eq.${modeKey}`);
         return await request(routeFallback);
       }catch(routeError){
@@ -261,9 +273,13 @@
     const correctFirstTry = countFirstTrySolved(route);
     const payload = {
       player_name: cleanText(run.playerName, "Player", 24),
-      mode_key: cleanText(run.modeKey, "unknown", 80),
+      mode_key: cleanText(run.modeKey, "unknown", 120),
+      game_scope: cleanText(run.gameScope || run.runContext && run.runContext.gameScope, "countries", 16),
+      set_key: cleanText(run.setKey || run.runContext && run.runContext.setKey, "", 80),
+      set_label: cleanText(run.setLabel || run.runContext && run.runContext.setLabel || run.continent, run.continent || "All", 80),
+      item_label: cleanText(run.itemLabel || run.runContext && run.runContext.itemLabel, "country", 40),
       which: cleanText(run.which, "flags", 12),
-      continent: cleanText(run.continent, "All", 32),
+      continent: cleanText(run.continent, "All", 80),
       difficulty: cleanText(run.difficulty, "hard", 12),
       target: cleanText(run.target, "all", 12),
       target_label: cleanText(run.targetLabel, "All", 24),
@@ -314,9 +330,13 @@
       client_run_id: cleanText(run.clientRunId, "", 120),
       player_name: cleanText(run.playerName, "Player", 24),
       player_id: cleanText(run.playerId, "", 80),
-      mode_key: cleanText(run.modeKey, "unknown", 80),
+      mode_key: cleanText(run.modeKey, "unknown", 120),
+      game_scope: cleanText(run.gameScope || run.runContext && run.runContext.gameScope, "countries", 16),
+      set_key: cleanText(run.setKey || run.runContext && run.runContext.setKey, "", 80),
+      set_label: cleanText(run.setLabel || run.runContext && run.runContext.setLabel || run.continent, run.continent || "All", 80),
+      item_label: cleanText(run.itemLabel || run.runContext && run.runContext.itemLabel, "country", 40),
       which: cleanText(run.which, "flags", 12),
-      continent: cleanText(run.continent, "All", 32),
+      continent: cleanText(run.continent, "All", 80),
       difficulty: cleanText(run.difficulty, "hard", 12),
       target: cleanText(run.target, "all", 12),
       target_label: cleanText(run.targetLabel, "All", 24),
@@ -331,7 +351,7 @@
       known_player_names: Array.isArray(run.knownPlayerNames) ? run.knownPlayerNames : [],
       leaderboard_names: Array.isArray(run.leaderboardNames) ? run.leaderboardNames : [],
       mode: cleanText(run.mode || run.which, "flags", 12),
-      region: cleanText(run.region || run.continent, "All", 32),
+      region: cleanText(run.region || run.continent, "All", 80),
       country_set_version: cleanText(run.countrySetVersion, "", 80),
       question_order_id: cleanText(run.questionOrderId, "", 120),
       question_order: Array.isArray(run.questionOrder) ? run.questionOrder : [],

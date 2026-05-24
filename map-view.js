@@ -14,7 +14,7 @@
   const FOCUS_MAP_CONTINENT_BOUNDS = {
     "Africa":[-27, -36, 58, 38],
     "Asia":[25, -12, 190, 82],
-    "Europe":[-25, 34, 45, 72],
+    "Europe":[-25, 34, 60, 72],
     "North America":[-170, 5, -50, 84],
     "South America":[-83, -56, -34, 14],
     "Oceania":[95, -50, 205, 25]
@@ -120,7 +120,7 @@
     "Palau": {center:[134.624, 7.5], lonSpan:.85, latSpan:.65, force:true},
     "Mauritius": {center:[57.50, -20.16], lonSpan:.9, latSpan:.72, force:true},
     "Philippines": {center:[122.3, 13.0], lonSpan:18.2, latSpan:20, force:true},
-    "Russia": {center:[100, 61], lonSpan:190, latSpan:52, force:true},
+    "Russia": {center:[37.6, 55.8], lonSpan:34, latSpan:24, force:true},
     "Samoa": {center:[-171.77, -13.83], lonSpan:2.2, latSpan:1.6, force:true},
     "San Marino": {center:[12.45, 43.94], lonSpan:.24, latSpan:.18, force:true},
     "S\u00e3o Tom\u00e9 and Pr\u00edncipe": {center:[6.96, .86], lonSpan:1.55, latSpan:2.05, force:true},

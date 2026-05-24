@@ -1,51 +1,86 @@
 const PAGE_SPEEDRUN_SPLITS = [10, 25, 50, 100, 150];
 const PAGE_TOP_RUNS = 5;
 const FETCH_LIMIT = 5000;
+const INITIAL_CATEGORY_RENDER_LIMIT = 72;
+const CATEGORY_RENDER_INCREMENT = 72;
 
 const leaderboardPageState = {
   categories: [],
+  filteredCategories: [],
   allRuns: [],
   runsByKey: new Map(),
   runLimitByKey: new Map(),
+  categoryRenderLimit: INITIAL_CATEGORY_RENDER_LIMIT,
+  searchTimer: null,
   loading: false,
   error: ""
 };
 
+const scopeFilter = document.getElementById("leaderboard-scope");
 const modeFilter = document.getElementById("leaderboard-mode");
 const continentFilter = document.getElementById("leaderboard-continent");
 const targetFilter = document.getElementById("leaderboard-target");
+const searchInput = document.getElementById("leaderboard-search");
 const withScoresFilter = document.getElementById("leaderboard-with-scores");
 const refreshBtn = document.getElementById("leaderboard-refresh");
 const highlightsEl = document.getElementById("leaderboard-highlights");
 const statusEl = document.getElementById("leaderboard-page-status");
 const gridEl = document.getElementById("leaderboard-page-grid");
+const loadMoreBtn = document.getElementById("leaderboard-load-more");
 
 function initLeaderboardPage(){
   leaderboardPageState.categories = buildLeaderboardCategories();
   populateContinentFilter();
 
-  modeFilter.addEventListener("change", renderLeaderboardPage);
-  continentFilter.addEventListener("change", renderLeaderboardPage);
-  targetFilter.addEventListener("change", renderLeaderboardPage);
-  withScoresFilter.addEventListener("change", renderLeaderboardPage);
+  scopeFilter.addEventListener("change", ()=>{
+    populateContinentFilter();
+    renderLeaderboardPage({resetLimit:true});
+  });
+  modeFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
+  continentFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
+  targetFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
+  withScoresFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
+  searchInput.addEventListener("input", scheduleLeaderboardSearch);
   refreshBtn.addEventListener("click", loadSharedLeaderboards);
+  loadMoreBtn.addEventListener("click", ()=>{
+    leaderboardPageState.categoryRenderLimit += CATEGORY_RENDER_INCREMENT;
+    renderLeaderboardPage();
+  });
 
   loadSharedLeaderboards();
 }
 
+function scheduleLeaderboardSearch(){
+  if(leaderboardPageState.searchTimer) window.clearTimeout(leaderboardPageState.searchTimer);
+  leaderboardPageState.searchTimer = window.setTimeout(()=>{
+    leaderboardPageState.searchTimer = null;
+    renderLeaderboardPage({resetLimit:true});
+  }, 120);
+}
+
 function populateContinentFilter(){
-  const continents = getLeaderboardContinents();
+  const selected = continentFilter.value || "all";
+  const sets = getLeaderboardSetOptions(scopeFilter.value);
   continentFilter.innerHTML = "";
-  for(const value of ["all", ...continents]){
+  for(const value of ["all", ...sets]){
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = value === "all" ? "All continents" : value;
+    option.textContent = value === "all" ? "All sets" : value;
     continentFilter.appendChild(option);
   }
+  continentFilter.value = sets.includes(selected) ? selected : "all";
 }
 
 function getLeaderboardContinents(){
   return Array.from(new Set(Object.values(countryContinent))).sort();
+}
+
+function getLeaderboardSetOptions(scope="all"){
+  return Array.from(new Set(
+    leaderboardPageState.categories
+      .filter(category=>scope === "all" || category.gameScope === scope)
+      .map(category=>category.continent)
+  )).sort((left,right)=>left.localeCompare(right));
 }
 
 function buildLeaderboardCategories(){
@@ -61,25 +96,189 @@ function buildLeaderboardCategories(){
       targets.push("all");
 
       for(const target of targets){
-        categories.push({
+        categories.push(prepareCategory({
           key: `${which}_${continent}_hard_${target}`,
+          gameScope: "countries",
           which,
           continent,
+          setKey: getLeaderboardSetKey(continent),
+          setLabel: continent,
+          itemLabel: "country",
           target,
-          modeLabel: getLeaderboardModeLabel(which),
+          modeLabel: getLeaderboardModeLabel(which, "countries", "country"),
           targetLabel: target === "all" ? `All available (${max})` : `First ${target}`
-        });
+        }));
       }
     }
   }
 
+  categories.push(...buildRegionLeaderboardCategories());
+  return sortLeaderboardCategories(categories);
+}
+
+function buildRegionLeaderboardCategories(){
+  if(typeof REGION_LEADERBOARD_GROUPS !== "undefined" && Array.isArray(REGION_LEADERBOARD_GROUPS)){
+    return buildRegionLeaderboardCategoriesFromSummary(REGION_LEADERBOARD_GROUPS);
+  }
+  if(typeof REGION_GAME_GROUPS === "undefined" || typeof REGION_GAME_GROUP_ORDER === "undefined"){
+    return [];
+  }
+  const categories = [];
+  for(const groupKey of REGION_GAME_GROUP_ORDER){
+    const group = REGION_GAME_GROUPS[groupKey];
+    const items = group && Array.isArray(group.items) ? group.items : [];
+    if(!group || items.length < 2) continue;
+    const setLabel = group.label || group.key || groupKey;
+    const setKey = getLeaderboardSetKey(setLabel);
+    const itemLabel = group.itemLabel || "region";
+    for(const which of ["flags", "capitals", "world"]){
+      const max = getRegionCategoryPoolSize(group, which);
+      if(max < 2) continue;
+      const targets = PAGE_SPEEDRUN_SPLITS
+        .filter(split=>split <= max)
+        .map(split=>String(split));
+      targets.push("all");
+
+      for(const target of targets){
+        categories.push(prepareCategory({
+          key: `regions_${which}_${setKey}_hard_${target}`,
+          gameScope: "regions",
+          which,
+          continent: setLabel,
+          setKey,
+          setLabel,
+          itemLabel,
+          target,
+          modeLabel: getLeaderboardModeLabel(which, "regions", itemLabel),
+          targetLabel: target === "all" ? `All available (${max})` : `First ${target}`
+        }));
+      }
+    }
+  }
   return categories;
 }
 
-function getLeaderboardModeLabel(which){
+function buildRegionLeaderboardCategoriesFromSummary(groups){
+  const categories = [];
+  for(const group of groups){
+    if(!group || Number(group.total) < 2) continue;
+    const setLabel = group.label || group.key;
+    const setKey = group.setKey || getLeaderboardSetKey(setLabel);
+    const itemLabel = group.itemLabel || "region";
+    for(const which of ["flags", "capitals", "world"]){
+      const max = which === "flags"
+        ? Math.max(0, Number(group.flagCount) || Number(group.total) || 0)
+        : Math.max(0, Number(group.total) || 0);
+      if(max < 2) continue;
+      const targets = PAGE_SPEEDRUN_SPLITS
+        .filter(split=>split <= max)
+        .map(split=>String(split));
+      targets.push("all");
+
+      for(const target of targets){
+        categories.push(prepareCategory({
+          key: `regions_${which}_${setKey}_hard_${target}`,
+          gameScope: "regions",
+          which,
+          continent: setLabel,
+          setKey,
+          setLabel,
+          itemLabel,
+          target,
+          modeLabel: getLeaderboardModeLabel(which, "regions", itemLabel),
+          targetLabel: target === "all" ? `All available (${max})` : `First ${target}`
+        }));
+      }
+    }
+  }
+  return categories;
+}
+
+function getRegionCategoryPoolSize(group, which){
+  const items = group && Array.isArray(group.items) ? group.items : [];
+  if(which !== "flags") return items.length;
+  return items.filter(item=>regionLeaderboardItemHasFlag(group, item)).length || items.length;
+}
+
+function regionLeaderboardItemHasFlag(group, item){
+  if(!group || !item) return false;
+  return !!(
+    item.flagUrl
+    || item.flagFile
+    || item.generatedFlag
+    || group.flagFileTemplate
+    || group.key === "United States"
+    || (Array.isArray(item.colours) && item.colours.length)
+  );
+}
+
+function prepareCategory(category){
+  return {
+    ...category,
+    scopeLabel: category.gameScope === "regions" ? "Regions" : "Countries",
+    searchText: buildCategorySearchText(category)
+  };
+}
+
+function buildCategorySearchText(category){
+  return normaliseSearch([
+    category.scopeLabel,
+    category.gameScope,
+    category.modeLabel,
+    category.which,
+    category.continent,
+    category.setKey,
+    category.itemLabel,
+    category.target,
+    category.targetLabel,
+    category.key
+  ].join(" "));
+}
+
+function sortLeaderboardCategories(categories){
+  return [...categories].sort((left,right)=>{
+    const leftRuns = getCategoryRuns(left).length;
+    const rightRuns = getCategoryRuns(right).length;
+    if(leftRuns || rightRuns) return rightRuns - leftRuns;
+    if(left.gameScope !== right.gameScope) return left.gameScope === "regions" ? -1 : 1;
+    return String(left.continent).localeCompare(String(right.continent))
+      || String(left.which).localeCompare(String(right.which))
+      || compareTargets(left.target, right.target);
+  });
+}
+
+function getLeaderboardModeLabel(which, gameScope="countries", itemLabel="country"){
+  if(gameScope === "regions"){
+    const item = capitaliseLabel(itemLabel || "region");
+    if(which === "capitals") return "Capitals";
+    if(which === "world") return `${item} Map`;
+    return `${item} Flags`;
+  }
   if(which === "capitals") return "Capitals";
   if(which === "world") return "Countries";
   return "Flags";
+}
+
+function capitaliseLabel(value){
+  const text = String(value || "").trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+}
+
+function getLeaderboardSetKey(value){
+  return normaliseLeaderboardText(value).replace(/\s+/g, "-") || "all";
+}
+
+function normaliseLeaderboardText(value){
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\p{L}\p{N} ]/gu, "")
+    .trim();
+}
+
+function normaliseSearch(value){
+  return normaliseLeaderboardText(value).replace(/\s+/g, " ");
 }
 
 function getCategoryPoolSize(continent, which="flags"){
@@ -111,7 +310,10 @@ async function loadSharedLeaderboards(){
   try{
     const runs = await window.sharedLeaderboard.fetchAllRuns(FETCH_LIMIT);
     leaderboardPageState.allRuns = runs;
+    leaderboardPageState.categories = mergeRunCategories(buildLeaderboardCategories(), runs);
     leaderboardPageState.runsByKey = groupRunsByCategory(runs);
+    leaderboardPageState.categories = sortLeaderboardCategories(leaderboardPageState.categories);
+    populateContinentFilter();
   }catch(error){
     leaderboardPageState.allRuns = [];
     leaderboardPageState.runsByKey = new Map();
@@ -121,6 +323,43 @@ async function loadSharedLeaderboards(){
     refreshBtn.disabled = false;
     renderLeaderboardPage();
   }
+}
+
+function mergeRunCategories(baseCategories, runs){
+  const categories = [...baseCategories];
+  const seen = new Set(categories.map(category=>category.key));
+  for(const run of runs || []){
+    if(!run || !run.modeKey || seen.has(run.modeKey)) continue;
+    categories.push(categoryFromRun(run));
+    seen.add(run.modeKey);
+  }
+  return sortLeaderboardCategories(categories);
+}
+
+function categoryFromRun(run){
+  const gameScope = run.gameScope || (String(run.modeKey || "").startsWith("regions_") ? "regions" : "countries");
+  const setLabel = run.setLabel || run.continent || "All";
+  const target = run.targetValue || run.target || "all";
+  return prepareCategory({
+    key: run.modeKey,
+    gameScope,
+    which: run.which || "flags",
+    continent: setLabel,
+    setKey: run.setKey || getLeaderboardSetKey(setLabel),
+    setLabel,
+    itemLabel: run.itemLabel || (gameScope === "regions" ? "region" : "country"),
+    target,
+    modeLabel: getLeaderboardModeLabel(run.which || "flags", gameScope, run.itemLabel),
+    targetLabel: run.targetLabel || (target === "all" ? `All available (${run.total || "?"})` : `First ${target}`)
+  });
+}
+
+function compareTargets(left, right){
+  const normaliseTarget = value=>value === "all" ? Number.MAX_SAFE_INTEGER : Number(value);
+  const leftValue = normaliseTarget(left);
+  const rightValue = normaliseTarget(right);
+  if(Number.isFinite(leftValue) && Number.isFinite(rightValue)) return leftValue - rightValue;
+  return String(left).localeCompare(String(right));
 }
 
 function groupRunsByCategory(runs){
@@ -141,38 +380,91 @@ function groupRunsByCategory(runs){
   return grouped;
 }
 
-function renderLeaderboardPage(){
+function renderLeaderboardPage(options={}){
+  if(options.resetLimit) leaderboardPageState.categoryRenderLimit = INITIAL_CATEGORY_RENDER_LIMIT;
   renderGlobalHighlights();
   gridEl.innerHTML = "";
 
-  const filtered = leaderboardPageState.categories.filter(category=>{
-    if(modeFilter.value !== "all" && category.which !== modeFilter.value) return false;
-    if(continentFilter.value !== "all" && category.continent !== continentFilter.value) return false;
-    if(targetFilter.value !== "all-targets" && category.target !== targetFilter.value) return false;
-    if(withScoresFilter.checked && !getCategoryRuns(category).length) return false;
-    return true;
-  });
+  const filtered = getFilteredCategories();
+  leaderboardPageState.filteredCategories = filtered;
+  const shown = filtered.slice(0, leaderboardPageState.categoryRenderLimit);
 
-  renderStatus(filtered);
+  renderStatus(filtered, shown.length);
 
   if(leaderboardPageState.loading){
     gridEl.appendChild(emptyLeaderboardPage("Loading shared leaderboards..."));
+    syncLoadMoreButton(filtered.length, 0);
     return;
   }
 
   if(leaderboardPageState.error){
     gridEl.appendChild(emptyLeaderboardPage(leaderboardPageState.error));
+    syncLoadMoreButton(filtered.length, 0);
     return;
   }
 
   if(!filtered.length){
     gridEl.appendChild(emptyLeaderboardPage("No categories match these filters."));
+    syncLoadMoreButton(0, 0);
     return;
   }
 
-  for(const category of filtered){
-    gridEl.appendChild(renderCategoryCard(category));
+  const fragment = document.createDocumentFragment();
+  for(const category of shown){
+    fragment.appendChild(renderCategoryCard(category));
   }
+  gridEl.appendChild(fragment);
+  syncLoadMoreButton(filtered.length, shown.length);
+}
+
+function getFilteredCategories(){
+  const query = normaliseSearch(searchInput.value);
+  return leaderboardPageState.categories.filter(category=>{
+    if(scopeFilter.value !== "all" && category.gameScope !== scopeFilter.value) return false;
+    if(modeFilter.value !== "all" && category.which !== modeFilter.value) return false;
+    if(continentFilter.value !== "all" && category.continent !== continentFilter.value) return false;
+    if(targetFilter.value !== "all-targets" && category.target !== targetFilter.value) return false;
+    const runs = getCategoryRuns(category);
+    if(withScoresFilter.checked && !runs.length) return false;
+    if(query && !categoryMatchesSearch(category, query) && !runs.some(run=>runMatchesSearch(run, query))) return false;
+    return true;
+  });
+}
+
+function categoryMatchesSearch(category, query){
+  return !query || String(category.searchText || "").includes(query);
+}
+
+function runMatchesSearch(run, query){
+  if(!query) return true;
+  return getRunSearchText(run).includes(query);
+}
+
+function getRunSearchText(run){
+  if(!run) return "";
+  if(!run.searchText){
+    run.searchText = normaliseSearch([
+      run.playerName,
+      run.modeKey,
+      run.which,
+      run.gameScope,
+      run.setLabel,
+      run.continent,
+      run.targetLabel,
+      run.targetValue,
+      run.itemLabel
+    ].join(" "));
+  }
+  return run.searchText;
+}
+
+function syncLoadMoreButton(total, shown){
+  if(!loadMoreBtn) return;
+  const remaining = Math.max(0, total - shown);
+  loadMoreBtn.hidden = remaining <= 0;
+  loadMoreBtn.textContent = remaining > CATEGORY_RENDER_INCREMENT
+    ? `Show ${CATEGORY_RENDER_INCREMENT} more`
+    : `Show ${remaining} more`;
 }
 
 function renderGlobalHighlights(){
@@ -341,23 +633,30 @@ function getRunTypedChars(run){
 }
 
 function getRunCategoryLabel(run){
-  const mode = getLeaderboardModeLabel(run.which);
-  const continent = run.continent || "All";
+  const mode = getLeaderboardModeLabel(run.which, run.gameScope, run.itemLabel);
+  const continent = run.setLabel || run.continent || "All";
   const target = run.targetLabel || run.target || "All";
   return `${mode} - ${continent} - ${target}`;
 }
 
-function renderStatus(filtered){
+function renderStatus(filtered, shownCount){
   const scoredCategories = leaderboardPageState.categories
     .filter(category=>getCategoryRuns(category).length)
+    .length;
+  const regionCategories = leaderboardPageState.categories
+    .filter(category=>category.gameScope === "regions")
+    .length;
+  const regionScored = leaderboardPageState.categories
+    .filter(category=>category.gameScope === "regions" && getCategoryRuns(category).length)
     .length;
   statusEl.innerHTML = "";
 
   const status = document.createElement("div");
   status.className = "leaderboard-page-summary";
   status.append(
-    summaryPill(`${filtered.length} shown`),
+    summaryPill(`${shownCount} of ${filtered.length} shown`),
     summaryPill(`${scoredCategories} with scores`),
+    summaryPill(`${regionScored}/${regionCategories} region boards scored`),
     summaryPill(`Default top ${PAGE_TOP_RUNS}`)
   );
   statusEl.appendChild(status);
@@ -371,11 +670,11 @@ function summaryPill(text){
 }
 
 function renderCategoryCard(category){
-  const allRuns = getCategoryRuns(category);
+  const allRuns = getDisplayRunsForCategory(category);
   const limitMode = getCategoryRunLimit(category);
   const runs = limitMode === "all" ? allRuns : allRuns.slice(0, PAGE_TOP_RUNS);
   const card = document.createElement("article");
-  card.className = "leaderboard-category-card";
+  card.className = `leaderboard-category-card ${category.gameScope === "regions" ? "is-region-board" : "is-country-board"}`;
 
   const heading = document.createElement("header");
   heading.className = "leaderboard-category-heading";
@@ -383,7 +682,7 @@ function renderCategoryCard(category){
   titleWrap.className = "leaderboard-category-title";
   const kicker = document.createElement("p");
   kicker.className = "panel-label";
-  kicker.textContent = `${category.modeLabel} - ${category.continent}`;
+  kicker.textContent = `${category.scopeLabel} - ${category.modeLabel} - ${category.continent}`;
   const title = document.createElement("h2");
   title.textContent = category.targetLabel;
   titleWrap.append(kicker, title);
@@ -436,6 +735,13 @@ function renderCategoryControls(category, totalRuns, shownRuns, limitMode){
 
 function getCategoryRuns(category){
   return leaderboardPageState.runsByKey.get(category.key) || [];
+}
+
+function getDisplayRunsForCategory(category){
+  const runs = getCategoryRuns(category);
+  const query = normaliseSearch(searchInput.value);
+  if(!query || categoryMatchesSearch(category, query)) return runs;
+  return runs.filter(run=>runMatchesSearch(run, query));
 }
 
 function renderRunRow(run, index){

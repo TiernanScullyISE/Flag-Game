@@ -26,12 +26,15 @@ const worldMapState = {
 };
 
 let countryAnswerIndex = null;
+const regionAnswerIndexByGroup = new Map();
 
 const state = {
   playMode: "practice",
+  gameScope: "countries",
   which: "flags",
   hard: false,
   selectedContinent: "All",
+  selectedRegionGroup: DEFAULT_REGION_GAME_GROUP,
   lifeSetting: "unlimited",
   speedTarget: "all",
   playerName: storage.get(LS_KEYS.playerName, "Player"),
@@ -43,6 +46,8 @@ const state = {
 
   reviseFlags: storage.get(LS_KEYS.reviseFlags, []),
   reviseCapitals: storage.get(LS_KEYS.reviseCapitals, []),
+  reviseRegionFlags: storage.get(LS_KEYS.reviseRegionFlags, {}),
+  reviseRegionCapitals: storage.get(LS_KEYS.reviseRegionCapitals, {}),
   highScores: storage.get(LS_KEYS.highScores, {}),
   sessionPercentages: storage.get(LS_KEYS.sessionPercentages, {}),
   speedRuns: storage.get(LS_KEYS.speedRuns, {}),
@@ -147,8 +152,12 @@ function makeNonce(){
 }
 
 const playModeButtons = Array.from(document.querySelectorAll(".play-mode-segment"));
+const scopeButtons = Array.from(document.querySelectorAll(".scope-segment"));
 const quizButtons = Array.from(document.querySelectorAll(".quiz-segment"));
 const continentSelect = document.getElementById("continent-select");
+const continentLabel = document.getElementById("continent-label");
+const regionSetInput = document.getElementById("region-set-input");
+const regionSetOptions = document.getElementById("region-set-options");
 const hardToggle = document.getElementById("hard-toggle");
 const hardLabel = document.getElementById("hard-label");
 const lifeSelect = document.getElementById("life-select");
@@ -218,13 +227,39 @@ function init(){
     });
   });
 
-  quizButtons.forEach(button=>{
+  scopeButtons.forEach(button=>{
     button.addEventListener("click", ()=>{
-      if(state.which === button.dataset.mode){
+      if(state.gameScope === button.dataset.gameScope){
         retryVisibleQuestionLoad();
         return;
       }
-      state.which = button.dataset.mode;
+      state.gameScope = button.dataset.gameScope;
+      state.selectedContinent = "All";
+      if(isWorldMode()){
+        state.hard = true;
+        state.speedTarget = "all";
+      }
+      syncModeButtons();
+      populateRegionSets();
+      populateContinents();
+      populateSpeedTargets();
+      resetSession();
+    });
+  });
+
+  quizButtons.forEach(button=>{
+    button.addEventListener("click", ()=>{
+      const requestedMode = button.dataset.mode;
+      if(!isRegionModeAvailable(requestedMode)){
+        syncModeButtons();
+        setFeedback(getUnavailableRegionFlagsMessage(), false);
+        return;
+      }
+      if(state.which === requestedMode){
+        retryVisibleQuestionLoad();
+        return;
+      }
+      state.which = requestedMode;
       state.selectedContinent = "All";
       if(isWorldMode()){
         state.hard = true;
@@ -241,6 +276,15 @@ function init(){
     state.selectedContinent = continentSelect.value;
     populateSpeedTargets();
     resetSession();
+  });
+  regionSetInput.addEventListener("change", ()=>{
+    applyRegionSetInput();
+  });
+  regionSetInput.addEventListener("keydown", event=>{
+    if(event.key === "Enter"){
+      event.preventDefault();
+      applyRegionSetInput();
+    }
   });
   hardToggle.addEventListener("change", ()=>{
     if(state.playMode === "speedrun"){
@@ -301,6 +345,7 @@ function init(){
   resultClose.addEventListener("click", closeResultModal);
   if(postLeaderboardBtn) postLeaderboardBtn.addEventListener("click", postPendingSharedRun);
 
+  populateRegionSets();
   syncModeButtons();
   populateContinents();
   populateSpeedTargets();
@@ -642,11 +687,15 @@ function keepAnswerInputFocused(){
 }
 
 function syncModeButtons(){
+  ensureAvailableRegionMode();
   if(state.playMode === "speedrun" || isWorldMode()) state.hard = true;
   document.body.dataset.playMode = state.playMode;
   document.body.dataset.quizMode = state.which;
+  document.body.dataset.gameScope = state.gameScope;
   playModeButtons.forEach(button=>button.classList.toggle("active", button.dataset.playMode === state.playMode));
+  scopeButtons.forEach(button=>button.classList.toggle("active", button.dataset.gameScope === state.gameScope));
   quizButtons.forEach(button=>button.classList.toggle("active", button.dataset.mode === state.which));
+  updateQuizButtonLabels();
   hardToggle.checked = state.hard;
   hardToggle.disabled = state.playMode === "speedrun" || isWorldMode();
   hardLabel.textContent = state.playMode === "speedrun" || isWorldMode() ? "Typing required" : "Hard mode";
@@ -654,9 +703,111 @@ function syncModeButtons(){
   giveupBtn.setAttribute("aria-label", state.playMode === "speedrun" ? "Restart run" : "Give up");
   lifeSelect.value = state.lifeSetting;
   speedTargetSelect.value = state.speedTarget;
+  if(regionSetInput) regionSetInput.value = getRegionGroupConfig().label;
+}
+
+function updateQuizButtonLabels(){
+  const group = getRegionGroupConfig();
+  const regionFlagsAvailable = !isRegionGame() || getRegionFlagItemCount() > 0;
+  const labels = isRegionGame()
+    ? {
+      flags: "Flags",
+      capitals: getShortRegionCapitalButtonLabel(group),
+      world: "Map"
+    }
+    : {
+      flags: "Flag Quiz",
+      capitals: "Capital Quiz",
+      world: "World Map"
+    };
+  quizButtons.forEach(button=>{
+    const label = labels[button.dataset.mode] || button.textContent;
+    button.textContent = label;
+    const disabled = isRegionGame() && button.dataset.mode === "flags" && !regionFlagsAvailable;
+    button.disabled = disabled;
+    button.setAttribute("aria-disabled", disabled ? "true" : "false");
+    button.title = disabled ? getUnavailableRegionFlagsMessage() : "";
+  });
+}
+
+function getShortRegionCapitalButtonLabel(group){
+  const label = normalise(group.capitalPluralLabel || group.capitalLabel || "");
+  if(label.includes("town")) return "Towns";
+  if(label.includes("centre") || label.includes("center")) return "Centres";
+  return "Capitals";
+}
+
+function populateRegionSets(){
+  if(!regionSetOptions || !regionSetInput) return;
+  regionSetOptions.innerHTML = "";
+  for(const key of REGION_GAME_GROUP_ORDER){
+    const group = REGION_GAME_GROUPS[key];
+    const option = document.createElement("option");
+    option.value = group.label;
+    regionSetOptions.appendChild(option);
+  }
+  if(!REGION_GAME_GROUPS[state.selectedRegionGroup]){
+    state.selectedRegionGroup = DEFAULT_REGION_GAME_GROUP;
+  }
+  regionSetInput.value = getRegionGroupConfig().label;
+}
+
+function applyRegionSetInput(){
+  const nextGroup = resolveRegionGroupName(regionSetInput.value);
+  if(!nextGroup){
+    regionSetInput.value = getRegionGroupConfig().label;
+    if(isRegionGame()) setFeedback("Choose a listed regional quiz set.", false);
+    return;
+  }
+  if(state.selectedRegionGroup === nextGroup){
+    regionSetInput.value = getRegionGroupConfig().label;
+    return;
+  }
+  state.selectedRegionGroup = nextGroup;
+  state.selectedContinent = "All";
+  const switchedMode = ensureAvailableRegionMode();
+  populateContinents();
+  populateSpeedTargets();
+  resetSession();
+  if(switchedMode) setFeedback(getUnavailableRegionFlagsMessage(), false);
+}
+
+function resolveRegionGroupName(value){
+  const key = normalise(value);
+  if(!key) return "";
+  for(const groupKey of REGION_GAME_GROUP_ORDER){
+    const group = REGION_GAME_GROUPS[groupKey];
+    const values = [group.key, group.label, ...(group.aliases || [])];
+    if(values.some(candidate=>normalise(candidate) === key)) return group.key;
+  }
+  return "";
 }
 
 function populateContinents(){
+  if(continentLabel){
+    continentLabel.textContent = isRegionGame() ? "Question set" : "Continent";
+  }
+  if(isRegionGame()){
+    const group = getRegionGroupConfig();
+    const options = state.playMode === "speedrun" || isWorldMode()
+      ? [{value:"All", label:`All ${group.itemPluralLabel}`}]
+      : [
+        {value:"All", label:`All ${group.itemPluralLabel}`},
+        {value:"Revise", label:`Revise ${group.itemPluralLabel}`},
+        {value:"Revise Capitals", label:`Revise ${group.capitalPluralLabel}`}
+      ];
+    continentSelect.innerHTML = "";
+    for(const item of options){
+      const option = document.createElement("option");
+      option.value = item.value;
+      option.textContent = item.label;
+      continentSelect.appendChild(option);
+    }
+    if(!options.some(option=>option.value === state.selectedContinent)) state.selectedContinent = "All";
+    continentSelect.value = state.selectedContinent;
+    return;
+  }
+
   const continents = Array.from(new Set(Object.values(countryContinent))).sort();
   const options = state.playMode === "speedrun" || isWorldMode()
     ? ["All", ...continents]
@@ -700,6 +851,12 @@ function populateSpeedTargets(){
 }
 
 function getAvailableBasePool(){
+  if(isRegionGame()){
+    const items = getRegionQuestionItemNames();
+    if(state.selectedContinent === "Revise") return getCurrentReviseList("flags").filter(item=>items.includes(item));
+    if(state.selectedContinent === "Revise Capitals") return getCurrentReviseList("capitals").filter(item=>items.includes(item));
+    return items;
+  }
   if(state.selectedContinent === "All") return [...countries];
   return countries.filter(country=>countryIsInCurrentContinent(country, state.selectedContinent));
 }
@@ -729,7 +886,16 @@ function getInitialLives(){
 
 function buildPool(){
   let pool;
-  if(state.playMode === "practice" && state.selectedContinent === "Revise"){
+  if(isRegionGame()){
+    const items = getRegionQuestionItemNames();
+    if(state.playMode === "practice" && state.selectedContinent === "Revise"){
+      pool = getCurrentReviseList("flags").filter(item=>items.includes(item));
+    }else if(state.playMode === "practice" && state.selectedContinent === "Revise Capitals"){
+      pool = getCurrentReviseList("capitals").filter(item=>items.includes(item));
+    }else{
+      pool = items;
+    }
+  }else if(state.playMode === "practice" && state.selectedContinent === "Revise"){
     pool = [...state.reviseFlags];
   }else if(state.playMode === "practice" && state.selectedContinent === "Revise Capitals"){
     pool = [...state.reviseCapitals];
@@ -776,9 +942,7 @@ async function loadQuestion(){
   }
 
   session.correctCountry = candidates[(Math.random()*candidates.length)|0];
-  session.correctAnswer = state.which === "flags"
-    ? session.correctCountry
-    : countryCapitals[session.correctCountry] || "Unknown";
+  session.correctAnswer = getExpectedAnswerForMode(session.correctCountry);
   session.questionAnswered = false;
   session.currentWrongAttempts = 0;
   session.history.push(session.correctCountry);
@@ -787,7 +951,7 @@ async function loadQuestion(){
 
   await renderQuestionVisual(session.correctCountry);
   countryLabel.textContent = state.which === "capitals"
-    ? `What is the capital of ${session.correctCountry}?`
+    ? getCapitalQuestionText(session.correctCountry)
     : "";
 
   updateReviseButton();
@@ -824,7 +988,9 @@ async function renderFlag(country){
   const holder = document.createElement("div");
   holder.className = "flag-holder";
   questionVisual.appendChild(holder);
-  const img = await createFlagImg(country, 430, `Flag of ${country}`);
+  const img = isRegionGame() && window.RegionMap
+    ? window.RegionMap.createFlagElement(state.selectedRegionGroup, country, 430)
+    : await createFlagImg(country, 430, `Flag of ${country}`);
   holder.replaceChildren(img);
 }
 
@@ -837,6 +1003,25 @@ async function renderQuestionVisual(country){
 }
 
 async function renderCapitalQuestionMap(country){
+  if(isRegionGame() && window.RegionMap && typeof window.RegionMap.renderFocus === "function"){
+    try{
+      await window.RegionMap.renderFocus(questionVisual, state.selectedRegionGroup, country, {
+        solved: state.session.solved,
+        showCaption:false,
+        showCapitalMarker:true,
+        showCapitalLabel:false
+      });
+    }catch(error){
+      const group = getRegionGroupConfig();
+      const message = error && error.message ? error.message : `${group.mapLabel || group.label} map could not load.`;
+      questionVisual.innerHTML = "";
+      questionVisual.appendChild(createWorldMapStatus(message, {
+        retryLabel:"Try again",
+        onRetry:()=>renderCapitalQuestionMap(country)
+      }));
+    }
+    return;
+  }
   if(window.CountryFocusMap && typeof window.CountryFocusMap.render === "function"){
     await window.CountryFocusMap.render(questionVisual, country, {
       continent: countryContinent[country] || undefined,
@@ -894,9 +1079,11 @@ async function loadWorldMapRound(){
   session.questionAnswered = false;
   session.currentWrongAttempts = 0;
   countryLabel.textContent = "";
-  answerInput.placeholder = state.selectedContinent === "All"
-    ? "Type any country..."
-    : `Type any ${state.selectedContinent} country...`;
+  answerInput.placeholder = isRegionGame()
+    ? `Type any ${getRegionGroupConfig().itemLabel}...`
+    : state.selectedContinent === "All"
+      ? "Type any country..."
+      : `Type any ${state.selectedContinent} country...`;
   mcqBtns.forEach(button=>{ button.textContent = ""; button.disabled = true; });
 
   const mapRendered = await renderWorldMap();
@@ -945,7 +1132,7 @@ function recordRouteQuestion(country){
     questionIndex: session.route.length + 1,
     countryId: getCountryId(country),
     country,
-    continent: countryContinent[country] || "Unknown",
+    continent: getCountryContinentForCurrentMode(country),
     answer: canonicalAnswer,
     canonicalAnswer,
     acceptedAnswer: "",
@@ -1174,7 +1361,14 @@ function getCountrySetVersion(){
   const aliasPairs = Object.entries(countryAliases || {})
     .map(([country, aliases])=>`${country}:${(aliases || []).join(",")}`)
     .join("|");
-  return `v${countries.length}-${hashStringValue(`${countries.join("|")}::${aliasPairs}`)}`;
+  const regionPairs = REGION_GAME_GROUP_ORDER
+    .map(groupKey=>{
+      const group = REGION_GAME_GROUPS[groupKey];
+      const items = (group.items || []).map(item=>`${item.name}:${item.capital}:${(item.aliases || []).join(",")}:${(item.capitalAliases || []).join(",")}`);
+      return `${groupKey}[${items.join("|")}]`;
+    })
+    .join("::");
+  return `v${countries.length}-${REGION_GAME_GROUP_ORDER.length}-${hashStringValue(`${countries.join("|")}::${aliasPairs}::${regionPairs}`)}`;
 }
 
 function rememberQuestionOrder(pool){
@@ -1187,6 +1381,9 @@ function rememberQuestionOrder(pool){
 function buildRunContext(session, elapsed, route, questionAnalytics){
   const analytics = session.analytics || makeRunAnalyticsState();
   const actualQuestionOrder = questionAnalytics.map(item=>item.country).filter(Boolean);
+  const gameScope = getGameScopeKey();
+  const setLabel = getCurrentSetLabel();
+  const itemLabel = getCurrentItemLabel();
   return {
     version: ANALYTICS_SCHEMA_VERSION,
     runId: session.security.nonce,
@@ -1195,8 +1392,13 @@ function buildRunContext(session, elapsed, route, questionAnalytics){
     deviceNumber: getDeviceNumber(),
     knownPlayerNames: getDeviceKnownNames(),
     leaderboardNames: getDeviceLeaderboardNames(),
+    gameScope,
     mode: state.which,
-    region: state.selectedContinent,
+    region: setLabel,
+    setKey: getLeaderboardSetKey(gameScope, setLabel),
+    setLabel,
+    itemLabel,
+    itemPluralLabel: getCurrentItemPluralLabel(),
     difficulty: state.hard ? "hard" : "normal",
     target: state.speedTarget,
     targetLabel: getSpeedTargetLabel(),
@@ -1415,8 +1617,8 @@ function buildFallbackDerivedMetrics(summary){
 
 function getAcceptedAnswerMatch(value, canonicalAnswer, result={}){
   const raw = String(value || "").trim();
-  const normalised = normalise(raw);
-  const canonicalNormalised = normalise(canonicalAnswer || "");
+  const normalised = normaliseCurrentAnswer(raw);
+  const canonicalNormalised = normaliseCurrentAnswer(canonicalAnswer || "");
   if(normalised && normalised === canonicalNormalised){
     return {
       acceptedAlias: "",
@@ -1425,7 +1627,7 @@ function getAcceptedAnswerMatch(value, canonicalAnswer, result={}){
     };
   }
   const aliases = getAliasesForCanonicalAnswer(canonicalAnswer);
-  const matchedAlias = aliases.find(alias=>normalise(alias) === normalised) || result.matchedAlias || "";
+  const matchedAlias = aliases.find(alias=>normaliseCurrentAnswer(alias) === normalised) || result.matchedAlias || "";
   if(matchedAlias){
     return {
       acceptedAlias: matchedAlias,
@@ -1450,6 +1652,16 @@ function getAcceptedAnswerMatch(value, canonicalAnswer, result={}){
 function getAliasesForCanonicalAnswer(canonicalAnswer){
   const aliases = [];
   const canonical = String(canonicalAnswer || "");
+  if(isRegionGame()){
+    const item = getRegionItemByName(canonical);
+    if(item) aliases.push(...(item.aliases || []));
+    for(const candidate of getRegionItems()){
+      if(regionAnswersEqual(candidate.capital, canonical)){
+        aliases.push(...(candidate.capitalAliases || []));
+      }
+    }
+    return Array.from(new Set(aliases));
+  }
   if(countryAliases[canonical]) aliases.push(...countryAliases[canonical]);
   if(WORLD_COUNTRY_EXTRA_ALIASES[canonical]) aliases.push(...WORLD_COUNTRY_EXTRA_ALIASES[canonical]);
   const code = (alpha2Overrides[canonical] || "").toLowerCase();
@@ -1478,6 +1690,9 @@ function makeRawAttemptRecord(value, correct, result, perfNow, elapsedMs, canoni
 }
 
 function getCountryId(country){
+  if(isRegionGame()){
+    return `${normalise(state.selectedRegionGroup).replace(/\s+/g, "-")}-${normalise(country).replace(/\s+/g, "-")}`;
+  }
   return (alpha2Overrides[country] || normalise(country).replace(/\s+/g, "-")).toLowerCase();
 }
 
@@ -1588,6 +1803,7 @@ function toggleAnswerUi(){
   const typedOnly = state.hard || isWorldMode();
   mcq.style.display = typedOnly ? "none" : "grid";
   textWrap.style.display = typedOnly ? "flex" : "none";
+  submitBtn.style.display = typedOnly ? "" : "none";
 }
 
 function setupMcq(){
@@ -1601,7 +1817,7 @@ function setupMcq(){
     pool = session.pool;
   }else{
     options = [session.correctAnswer];
-    pool = session.pool.map(country=>countryCapitals[country]).filter(Boolean);
+    pool = session.pool.map(country=>getExpectedAnswerForMode(country)).filter(Boolean);
   }
 
   while(options.length < 4 && options.length < pool.length){
@@ -1725,13 +1941,13 @@ function checkWorldMapText(options={}){
 }
 
 function evaluateWorldCountryAnswer(value, allowFuzzy=true){
-  const normalised = normalise(value);
+  const normalised = normaliseCurrentAnswer(value);
   const session = state.session;
-  const exactCountry = getCountryAnswerIndex().get(normalised) || null;
+  const exactCountry = getCurrentListMapAnswerIndex().get(normalised) || null;
   const country = exactCountry || (allowFuzzy ? getUniqueFuzzyWorldCountry(value) : null);
   const match = country ? getAcceptedAnswerMatch(value, country, {
-    exact: normalised === normalise(country),
-    aliasOk: !!exactCountry && normalised !== normalise(country),
+    exact: normalised === normaliseCurrentAnswer(country),
+    aliasOk: !!exactCountry && normalised !== normaliseCurrentAnswer(country),
     fuzzyOk: !!country && !exactCountry
   }) : {};
   const inPool = !!country && session.pool.includes(country);
@@ -1748,6 +1964,7 @@ function evaluateWorldCountryAnswer(value, allowFuzzy=true){
 }
 
 function getUniqueFuzzyWorldCountry(value){
+  if(isCurrentRegionStrictDiacriticMode()) return null;
   const candidates = state.session.pool
     .filter(country=>!state.session.solved.has(country))
     .filter(country=>fuzzyMatch(value, country));
@@ -1773,8 +1990,25 @@ function getCountryAnswerIndex(){
   return countryAnswerIndex;
 }
 
-function addCountryAnswerIndexValue(index, value, country){
-  const key = normalise(value);
+function getCurrentListMapAnswerIndex(){
+  return isRegionGame() ? getRegionAnswerIndex(state.selectedRegionGroup) : getCountryAnswerIndex();
+}
+
+function getRegionAnswerIndex(groupKey){
+  if(regionAnswerIndexByGroup.has(groupKey)) return regionAnswerIndexByGroup.get(groupKey);
+  const index = new Map();
+  for(const item of getRegionItems(groupKey)){
+    addCountryAnswerIndexValue(index, item.name, item.name, groupKey);
+    for(const alias of item.aliases || []){
+      addCountryAnswerIndexValue(index, alias, item.name, groupKey);
+    }
+  }
+  regionAnswerIndexByGroup.set(groupKey, index);
+  return index;
+}
+
+function addCountryAnswerIndexValue(index, value, country, groupKey=""){
+  const key = groupKey ? normaliseRegionAnswer(value, groupKey) : normalise(value);
   if(key && !index.has(key)) index.set(key, country);
 }
 
@@ -1792,7 +2026,11 @@ function handleWorldCorrect(country, message="Correct!", rawInput="", result={},
   keepAnswerInputFocused();
   updateHighScore();
   updateWorldAnswerStatus();
-  scheduleWorldMapCountrySolved(country);
+  if(isRegionGame() && window.RegionMap && typeof window.RegionMap.scheduleSolved === "function"){
+    window.RegionMap.scheduleSolved(state.selectedRegionGroup, country);
+  }else{
+    scheduleWorldMapCountrySolved(country);
+  }
 
   window.setTimeout(()=>{
     if(isTargetComplete()){
@@ -1825,7 +2063,7 @@ function handleWorldIncorrect(rawInput="", result={}){
   if(state.playMode === "practice"){
     session.totalFirstAttempts += 1;
   }
-  setFeedback("No matching country in this round.", false);
+  setFeedback(`No matching ${getCurrentItemLabel()} in this round.`, false);
   showAnswerFlash(false);
 
   if(state.playMode === "practice"){
@@ -1925,13 +2163,13 @@ function recordWorldRouteSolved(country, rawInput="", result={}, options={}){
 
 function evaluateTextAnswer(value, allowFuzzy=true){
   const correct = getCorrectAnswer();
-  const exact = normalise(value) === normalise(correct);
+  const exact = normaliseCurrentAnswer(value) === normaliseCurrentAnswer(correct);
   const match = getAcceptedAnswerMatch(value, correct, {exact});
   const aliasOk = !!match.acceptedAlias;
   return {
     exact,
     aliasOk,
-    fuzzyOk: allowFuzzy && fuzzyMatch(value, correct),
+    fuzzyOk: !isCurrentRegionStrictDiacriticMode() && allowFuzzy && fuzzyMatch(value, correct),
     matchedAlias: match.acceptedAlias || "",
     aliasType: match.aliasType || (exact ? "full-canonical" : ""),
     shortcutUsed: !!match.shortcutUsed
@@ -1943,6 +2181,7 @@ function getCorrectAnswer(){
 }
 
 function getCountryContinentForCurrentMode(country){
+  if(isRegionGame()) return getRegionGroupConfig().label;
   if(isWorldMode()) return getWorldMapCountryContinent(country);
   return countryContinent[country] || "Unknown";
 }
@@ -1961,6 +2200,7 @@ function getWorldMapCountryContinents(country){
 
 function countryIsInCurrentContinent(country, continent){
   if(continent === "All") return true;
+  if(isRegionGame()) return state.selectedRegionGroup === continent;
   if(isWorldMode()){
     return getWorldMapCountryContinents(country).includes(continent);
   }
@@ -1968,12 +2208,22 @@ function countryIsInCurrentContinent(country, continent){
 }
 
 function getExpectedAnswerForMode(country){
-  if(state.which === "capitals") return countryCapitals[country] || "Unknown";
+  if(state.which === "capitals"){
+    return isRegionGame()
+      ? getRegionCapital(country) || "Unknown"
+      : countryCapitals[country] || "Unknown";
+  }
   return country;
 }
 
 function isAlias(value){
   const session = state.session;
+  if(isRegionGame()){
+    if(state.which === "flags"){
+      return getRegionAliases(session.correctCountry).some(alias=>regionAnswersEqual(alias, value));
+    }
+    return getRegionCapitalAliases(session.correctCountry).some(alias=>regionAnswersEqual(alias, value));
+  }
   const normalised = normalise(value);
   if(state.which === "flags"){
     return !!(countryAliases[session.correctCountry] || []).some(alias=>normalise(alias)===normalised);
@@ -2086,14 +2336,14 @@ async function lastQuestion(){
   session.history.pop();
   const previous = session.history.pop();
   session.correctCountry = previous;
-  session.correctAnswer = state.which === "flags" ? previous : countryCapitals[previous] || "Unknown";
+  session.correctAnswer = getExpectedAnswerForMode(previous);
   session.questionAnswered = session.answered.has(previous);
   session.currentWrongAttempts = 0;
   session.history.push(previous);
   recordRouteQuestion(previous);
 
   await renderQuestionVisual(previous);
-  countryLabel.textContent = state.which === "capitals" ? `What is the capital of ${previous}?` : "";
+  countryLabel.textContent = state.which === "capitals" ? getCapitalQuestionText(previous) : "";
   clearFeedback();
   updateReviseButton();
   updateAllStatus();
@@ -2136,8 +2386,9 @@ function giveUp(){
 function toggleRevise(){
   const session = state.session;
   if(isWorldMode() || state.playMode !== "practice" || !session.correctCountry) return;
-  const list = state.which === "flags" ? state.reviseFlags : state.reviseCapitals;
-  const key = state.which === "flags" ? LS_KEYS.reviseFlags : LS_KEYS.reviseCapitals;
+  const reviseKind = state.which === "flags" ? "flags" : "capitals";
+  const list = getCurrentReviseList(reviseKind);
+  const key = getCurrentReviseStorageKey(reviseKind);
   const index = list.indexOf(session.correctCountry);
   if(index >= 0){
     list.splice(index, 1);
@@ -2146,7 +2397,13 @@ function toggleRevise(){
     list.push(session.correctCountry);
     setReviseFeedback(true);
   }
-  storage.set(key, list);
+  if(isRegionGame()){
+    const store = reviseKind === "flags" ? state.reviseRegionFlags : state.reviseRegionCapitals;
+    store[state.selectedRegionGroup] = list;
+    storage.set(key, store);
+  }else{
+    storage.set(key, list);
+  }
   updateReviseButton();
   setTimeout(()=>{ reviseFeedback.textContent = ""; }, 3000);
 }
@@ -2157,7 +2414,7 @@ function updateReviseButton(){
     reviseToggle.textContent = "Add to Revise";
     return;
   }
-  const list = state.which === "flags" ? state.reviseFlags : state.reviseCapitals;
+  const list = getCurrentReviseList(state.which === "flags" ? "flags" : "capitals");
   reviseToggle.textContent = session.correctCountry && list.includes(session.correctCountry)
     ? "Remove from Revise"
     : "Add to Revise";
@@ -2284,7 +2541,11 @@ function recordSpeedRun(){
     playerName: sanitizePlayerName(state.playerName),
     modeKey: key,
     which: state.which,
-    continent: state.selectedContinent,
+    gameScope: getGameScopeKey(),
+    setKey: getLeaderboardSetKey(getGameScopeKey(), getCurrentSetLabel()),
+    setLabel: getCurrentSetLabel(),
+    itemLabel: getCurrentItemLabel(),
+    continent: getCurrentSetLabel(),
     difficulty: state.hard ? "hard" : "normal",
     targetValue: state.speedTarget,
     targetLabel: getSpeedTargetLabel(),
@@ -2360,7 +2621,8 @@ function buildSplitRun(sourceRun, split){
   if(!timeMs) return null;
   const route = getRouteForSolvedTarget(sourceRun.route, split);
   if(!route.length) return null;
-  const key = `${sourceRun.which}_${sourceRun.continent}_${sourceRun.difficulty}_${split}`;
+  const sourceScope = sourceRun.gameScope || "countries";
+  const key = buildLeaderboardModeKey(sourceScope, sourceRun.which, sourceRun.continent, sourceRun.difficulty, split);
   const previousBest = getBestLocalRunTime(key);
   const typedChars = getRouteTypedChars(route);
   const canonicalChars = getRouteCanonicalChars(route);
@@ -2387,6 +2649,10 @@ function buildSplitRun(sourceRun, split){
     playerName: sourceRun.playerName,
     modeKey: key,
     which: sourceRun.which,
+    gameScope: sourceScope,
+    setKey: getLeaderboardSetKey(sourceScope, sourceRun.continent),
+    setLabel: sourceRun.continent,
+    itemLabel: sourceRun.itemLabel || sourceRun.runContext && sourceRun.runContext.itemLabel || (sourceScope === "regions" ? "region" : "country"),
     continent: sourceRun.continent,
     difficulty: sourceRun.difficulty,
     targetValue: String(split),
@@ -2464,18 +2730,40 @@ function getRouteForSolvedTarget(route, target){
 }
 
 function getPracticeKey(){
-  return `${state.which}_${state.selectedContinent}_${state.hard ? "hard" : "normal"}_${state.lifeSetting}`;
+  return `${getGameScopeKey()}_${state.which}_${getCurrentSetKey()}_${state.hard ? "hard" : "normal"}_${state.lifeSetting}`;
 }
 
 function getSpeedRunKey(){
-  return `${state.which}_${state.selectedContinent}_${state.hard ? "hard" : "normal"}_${state.speedTarget}`;
+  return buildLeaderboardModeKey(
+    getGameScopeKey(),
+    state.which,
+    getCurrentSetLabel(),
+    state.hard ? "hard" : "normal",
+    state.speedTarget
+  );
+}
+
+function buildLeaderboardModeKey(gameScope, which, setLabel, difficulty, target){
+  if(gameScope === "regions"){
+    return `regions_${which}_${getLeaderboardSetKey(gameScope, setLabel)}_${difficulty}_${target}`;
+  }
+  return `${which}_${setLabel}_${difficulty}_${target}`;
+}
+
+function getLeaderboardSetKey(gameScope, setLabel){
+  if(gameScope !== "regions") return getCurrentSetKeyFromLabel(setLabel);
+  return getCurrentSetKeyFromLabel(setLabel);
+}
+
+function getCurrentSetKeyFromLabel(label){
+  return normalise(label).replace(/\s+/g, "-") || "all";
 }
 
 function getSpeedRunFilters(){
   return {
     modeKey: getSpeedRunKey(),
     which: state.which,
-    continent: state.selectedContinent,
+    continent: getCurrentSetLabel(),
     difficulty: state.hard ? "hard" : "normal",
     target: state.speedTarget,
     targetLabel: getSpeedTargetLabel()
@@ -2669,6 +2957,10 @@ function buildCompletedRunAnalytics(run){
     knownPlayerNames: getDeviceKnownNames(),
     leaderboardNames: getDeviceLeaderboardNames(),
     modeKey: run.modeKey,
+    gameScope: run.gameScope || run.runContext && run.runContext.gameScope || "countries",
+    setKey: run.setKey || run.runContext && run.runContext.setKey || getLeaderboardSetKey(run.gameScope || "countries", run.continent),
+    setLabel: run.setLabel || run.runContext && run.runContext.setLabel || run.continent,
+    itemLabel: run.itemLabel || run.runContext && run.runContext.itemLabel || (run.gameScope === "regions" ? "region" : "country"),
     which: run.which,
     mode: run.which,
     continent: run.continent,
@@ -2775,8 +3067,34 @@ function getSpeedRunSplitTargets(){
   return targets;
 }
 
+async function renderRegionListMap(){
+  cancelQuestionFocusMapRender();
+  const token = ++worldMapState.renderToken;
+  const group = getRegionGroupConfig();
+  questionVisual.innerHTML = "";
+  questionVisual.appendChild(createWorldMapStatus(`Loading ${group.itemPluralLabel} outlines...`));
+
+  try{
+    await window.RegionMap.renderList(questionVisual, state.selectedRegionGroup, {
+      pool: state.session.pool,
+      solved: state.session.solved
+    });
+    return token === worldMapState.renderToken && isWorldMode() && isRegionGame();
+  }catch(error){
+    if(token !== worldMapState.renderToken || !isWorldMode() || !isRegionGame()) return false;
+    const message = error && error.message ? error.message : `${group.mapLabel || group.label} map could not load.`;
+    questionVisual.innerHTML = "";
+    questionVisual.appendChild(createWorldMapStatus(message, {
+      retryLabel:"Try again",
+      onRetry:()=>loadWorldMapRound()
+    }));
+    return false;
+  }
+}
+
 async function renderWorldMap(){
   if(!isWorldMode()) return false;
+  if(isRegionGame()) return renderRegionListMap();
   cancelQuestionFocusMapRender();
   const token = ++worldMapState.renderToken;
   if(worldMapState.features){
@@ -3786,6 +4104,15 @@ function pulseWorldMapCountryPath(path){
 }
 
 function updateWorldMapProgress(){
+  if(isRegionGame()){
+    if(window.RegionMap && typeof window.RegionMap.updateProgress === "function"){
+      window.RegionMap.updateProgress(state.selectedRegionGroup, {
+        pool: state.session.pool,
+        solved: state.session.solved
+      });
+    }
+    return;
+  }
   if(!worldMapState.progress) return;
   const summary = getWorldMapRemainingSummary();
   const total = document.createElement("div");
@@ -4042,7 +4369,7 @@ function renderLeaderboard(){
   leaderboardList.innerHTML = "";
   const modeLabel = getModeLabel();
   const difficulty = state.hard ? "Hard" : "Normal";
-  leaderboardTitle.textContent = `${modeLabel} - ${state.selectedContinent} - ${difficulty} - ${getSpeedTargetLabel()}`;
+  leaderboardTitle.textContent = `${modeLabel} - ${getCurrentSetLabel()} - ${difficulty} - ${getSpeedTargetLabel()}`;
   const shared = isSharedLeaderboardConfigured();
   if(leaderboardScopeLabel){
     leaderboardScopeLabel.textContent = shared ? "Shared Leaderboard" : "Local Leaderboard";
@@ -4196,37 +4523,33 @@ function showResultModal(reason){
     lives: !isSpeed && session.livesRemaining !== null ? String(session.livesRemaining) : null
   });
   resultSummary.textContent = isWorldMode()
-    ? `Countries found: ${session.solved.size}/${session.pool.length}. Wrong guesses: ${session.worldWrongSubmissions}.`
+    ? `${capitalise(getCurrentItemPluralLabel())} found: ${session.solved.size}/${session.pool.length}. Wrong guesses: ${session.worldWrongSubmissions}.`
     : `First-try accuracy: ${session.correctFirstTry}/${session.totalFirstAttempts || 0}.`;
 
   resultDetails.innerHTML = "";
   const details = [
-    `Mode: ${getModeLabel()} / ${state.hard ? "Typed" : "Normal"}`,
-    `Continent: ${state.selectedContinent}`,
-    isSpeed ? `Target: ${getSpeedTargetLabel()}` : `Lives: ${state.lifeSetting === "unlimited" ? "Unlimited" : state.lifeSetting}`,
-    isSpeed ? `Speedrun WPM: ${finalWpm || "0.0"}` : null,
-    isSpeed && finalMetrics ? `Canonical WPM: ${formatWpm(finalMetrics.effectiveCanonicalWpm)}` : null,
-    isSpeed && finalMetrics ? `Active input WPM: ${formatWpm(finalMetrics.activeInputWpm)}` : null,
-    isSpeed && finalMetrics ? `No-shortcut adjusted WPM: ${formatWpm(finalMetrics.noShortcutAdjustedWpm)} estimated` : null,
-    isSpeed && finalMetrics ? `Countries per minute: ${formatMetric(finalMetrics.countriesPerMinute, 2)}` : null,
-    isSpeed && finalMetrics ? `Shortcut use: ${formatPercent(finalMetrics.shortcutUsageRate)}` : null,
-    `Skipped unresolved: ${session.skipped.size}`,
-    `Wrong at least once: ${session.incorrect.size}`
+    ["Mode", `${getModeLabel()} / ${state.hard ? "Typed" : "Normal"}`],
+    [isRegionGame() ? "Country" : "Continent", getCurrentSetLabel()],
+    isSpeed ? ["Target", getSpeedTargetLabel()] : ["Lives", state.lifeSetting === "unlimited" ? "Unlimited" : state.lifeSetting],
+    isSpeed ? ["Speedrun WPM", finalWpm || "0.0"] : null,
+    isSpeed && finalMetrics ? ["Canonical WPM", formatWpm(finalMetrics.effectiveCanonicalWpm)] : null,
+    isSpeed && finalMetrics ? ["Active input WPM", formatWpm(finalMetrics.activeInputWpm)] : null,
+    isSpeed && finalMetrics ? ["Adjusted WPM", `${formatWpm(finalMetrics.noShortcutAdjustedWpm)} estimated`] : null,
+    isSpeed && finalMetrics ? ["Countries/min", formatMetric(finalMetrics.countriesPerMinute, 2)] : null,
+    isSpeed && finalMetrics ? ["Shortcut use", formatPercent(finalMetrics.shortcutUsageRate)] : null,
+    ["Skipped unresolved", session.skipped.size],
+    ["Wrong at least once", session.incorrect.size]
   ].filter(Boolean);
 
-  for(const detail of details){
-    const item = document.createElement("p");
-    item.textContent = detail;
-    resultDetails.appendChild(item);
+  for(const [label, value] of details){
+    appendResultDetail(label, value);
   }
 
   if(session.incorrect.size){
-    const wrong = document.createElement("p");
-    wrong.textContent = `Review: ${Array.from(session.incorrect).sort().join(", ")}`;
-    resultDetails.appendChild(wrong);
+    appendResultDetail("Review", Array.from(session.incorrect).sort().join(", "), "is-review");
   }
 
-  if(isSpeed){
+  if(isSpeed && !isRegionGame()){
     renderDeviceProgressSummary();
   }
 
@@ -4295,6 +4618,19 @@ function renderResultHero(items){
     card.append(valueEl, labelEl);
     resultHero.appendChild(card);
   }
+}
+
+function appendResultDetail(label, value, className=""){
+  const item = document.createElement("p");
+  if(className) item.className = className;
+  const labelEl = document.createElement("span");
+  labelEl.className = "result-detail-label";
+  labelEl.textContent = label;
+  const valueEl = document.createElement("strong");
+  valueEl.className = "result-detail-value";
+  valueEl.textContent = String(value);
+  item.append(labelEl, valueEl);
+  resultDetails.appendChild(item);
 }
 
 function getCompletedRunCountryScope(record){
@@ -4478,14 +4814,169 @@ function isRevisionMode(){
   return state.selectedContinent === "Revise" || state.selectedContinent === "Revise Capitals";
 }
 
+function isRegionGame(){
+  return state.gameScope === "regions";
+}
+
 function isWorldMode(){
   return state.which === "world";
 }
 
 function getModeLabel(which=state.which){
+  if(isRegionGame()){
+    const group = getRegionGroupConfig();
+    if(which === "capitals") return capitalise(group.capitalPluralLabel);
+    if(which === "world") return group.listMapLabel || "List Map";
+    return `${capitalise(group.itemLabel)} Flags`;
+  }
   if(which === "capitals") return "Capitals";
   if(which === "world") return "Countries";
   return "Flags";
+}
+
+function getGameScopeKey(){
+  return isRegionGame() ? "regions" : "countries";
+}
+
+function getRegionGroupConfig(){
+  return REGION_GAME_GROUPS[state.selectedRegionGroup] || REGION_GAME_GROUPS[DEFAULT_REGION_GAME_GROUP];
+}
+
+function normaliseCurrentAnswer(value){
+  return isRegionGame() ? normaliseRegionAnswer(value, state.selectedRegionGroup) : normalise(value);
+}
+
+function normaliseRegionAnswer(value, groupKey=state.selectedRegionGroup){
+  const group = REGION_GAME_GROUPS[groupKey] || {};
+  if(!group.strictDiacritics) return normalise(value);
+  return String(value || "")
+    .toLocaleLowerCase(group.answerLanguage || undefined)
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N} ]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function regionAnswersEqual(left, right, groupKey=state.selectedRegionGroup){
+  return normaliseRegionAnswer(left, groupKey) === normaliseRegionAnswer(right, groupKey);
+}
+
+function isCurrentRegionStrictDiacriticMode(){
+  return isRegionGame() && !!getRegionGroupConfig().strictDiacritics;
+}
+
+function getRegionItems(groupKey=state.selectedRegionGroup){
+  const group = REGION_GAME_GROUPS[groupKey] || REGION_GAME_GROUPS[DEFAULT_REGION_GAME_GROUP];
+  return Array.isArray(group.items) ? group.items : [];
+}
+
+function getRegionItemNames(groupKey=state.selectedRegionGroup){
+  return getRegionItems(groupKey).map(item=>item.name);
+}
+
+function getRegionQuestionItemNames(groupKey=state.selectedRegionGroup, mode=state.which){
+  const group = REGION_GAME_GROUPS[groupKey] || REGION_GAME_GROUPS[DEFAULT_REGION_GAME_GROUP];
+  const items = getRegionItems(groupKey);
+  if(mode !== "flags") return items.map(item=>item.name);
+  return items.filter(item=>regionItemHasFlag(group, item)).map(item=>item.name);
+}
+
+function getRegionFlagItemCount(groupKey=state.selectedRegionGroup){
+  const group = REGION_GAME_GROUPS[groupKey] || REGION_GAME_GROUPS[DEFAULT_REGION_GAME_GROUP];
+  return getRegionItems(groupKey).filter(item=>regionItemHasFlag(group, item)).length;
+}
+
+function isRegionModeAvailable(mode=state.which, groupKey=state.selectedRegionGroup){
+  return !isRegionGame() || mode !== "flags" || getRegionFlagItemCount(groupKey) > 0;
+}
+
+function ensureAvailableRegionMode(){
+  if(isRegionModeAvailable()) return false;
+  state.which = "capitals";
+  return true;
+}
+
+function getUnavailableRegionFlagsMessage(groupKey=state.selectedRegionGroup){
+  const group = REGION_GAME_GROUPS[groupKey] || REGION_GAME_GROUPS[DEFAULT_REGION_GAME_GROUP];
+  return `${group.label} has no verified regional flag assets yet. Use ${getShortRegionCapitalButtonLabel(group).toLowerCase()} or map mode.`;
+}
+
+function regionItemHasFlag(group, item){
+  if(!group || !item) return false;
+  return !!(
+    item.flagUrl
+    || item.flagFile
+    || group.flagFileTemplate
+    || group.key === "United States"
+    || (Array.isArray(item.colours) && item.colours.length)
+  );
+}
+
+function getRegionItemByName(name, groupKey=state.selectedRegionGroup){
+  const key = normalise(name);
+  return getRegionItems(groupKey).find(item=>normalise(item.name) === key) || null;
+}
+
+function getRegionCapital(itemName){
+  const item = getRegionItemByName(itemName);
+  return item ? item.capital : "";
+}
+
+function getRegionAliases(itemName){
+  const item = getRegionItemByName(itemName);
+  return item && Array.isArray(item.aliases) ? item.aliases : [];
+}
+
+function getRegionCapitalAliases(itemName){
+  const item = getRegionItemByName(itemName);
+  return item && Array.isArray(item.capitalAliases) ? item.capitalAliases : [];
+}
+
+function getCurrentReviseList(kind){
+  if(isRegionGame()){
+    const store = kind === "flags" ? state.reviseRegionFlags : state.reviseRegionCapitals;
+    const list = store && Array.isArray(store[state.selectedRegionGroup]) ? store[state.selectedRegionGroup] : [];
+    return list;
+  }
+  return kind === "flags" ? state.reviseFlags : state.reviseCapitals;
+}
+
+function getCurrentReviseStorageKey(kind){
+  if(isRegionGame()) return kind === "flags" ? LS_KEYS.reviseRegionFlags : LS_KEYS.reviseRegionCapitals;
+  return kind === "flags" ? LS_KEYS.reviseFlags : LS_KEYS.reviseCapitals;
+}
+
+function getCurrentSetLabel(){
+  if(!isRegionGame()) return state.selectedContinent;
+  const group = getRegionGroupConfig();
+  if(state.selectedContinent === "Revise") return `${group.label} - Revise ${group.itemPluralLabel}`;
+  if(state.selectedContinent === "Revise Capitals") return `${group.label} - Revise ${group.capitalPluralLabel}`;
+  return group.label;
+}
+
+function getCurrentSetKey(){
+  return normalise(getCurrentSetLabel()).replace(/\s+/g, "-") || "all";
+}
+
+function getCurrentItemLabel(){
+  return isRegionGame() ? getRegionGroupConfig().itemLabel : "country";
+}
+
+function getCurrentItemPluralLabel(){
+  return isRegionGame() ? getRegionGroupConfig().itemPluralLabel : "countries";
+}
+
+function getCapitalQuestionText(itemName){
+  if(isRegionGame()){
+    const group = getRegionGroupConfig();
+    return `What is the ${group.capitalLabel} of ${itemName}?`;
+  }
+  return `What is the capital of ${itemName}?`;
+}
+
+function capitalise(value){
+  const text = String(value || "");
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : "";
 }
 
 document.addEventListener("DOMContentLoaded", init);

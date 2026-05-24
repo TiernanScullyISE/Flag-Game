@@ -4,12 +4,13 @@
 
 A geography quiz with two front ends:
 
-- **GitHub Pages static site**: browser-based flag, capital and world-map country quizzes, revision lists, hard mode, streaks and speedrun leaderboards.
+- **GitHub Pages static site**: browser-based country and regional flag, capital and map quizzes, revision lists, hard mode, streaks and speedrun leaderboards.
 - **Tkinter desktop app**: the same quiz modes and persistence model using local text files.
 
 ## Features
 
 - Flag quiz, capital quiz and a typed country-map mode.
+- Regional quiz mode for Ireland's 32 counties, Ireland as Gaeilge, England, Scotland, Wales, the 50 US states, and generated region sets for 193 more countries, with administrative centres, typed list maps, and verified real flags where source data exists.
 - Normal multiple-choice mode and hard typed-answer mode.
 - World-map mode highlights solved countries with flag fills and includes zoomed inset panels for compact regions.
 - Continent filters plus separate flag and capital revision lists.
@@ -39,6 +40,11 @@ A geography quiz with two front ends:
 - `index.html`, `game.html`, `leaderboard.html`, `admin.html`, `revise.html`, `view.html`: GitHub Pages entry points.
 - `style.css`: shared responsive web styling.
 - `data.js`: canonical browser data for countries, capitals, continents, aliases and flag codes.
+- `regions-generated-data.js`: generated country-region quiz sets accepted only when source metadata and map boundaries match cleanly.
+- `regions-data.js`: county/state quiz data for regional mode, including the fada-sensitive Ireland as Gaeilge set.
+- `region-map.js`: regional boundary rendering for county/state maps.
+- `region-source-report.json`: generation report listing included and skipped regional sets with reasons.
+- `scripts/build-region-groups.js`: reproducible generator for additional regional quiz data.
 - `utils.js`, `game.js`, `leaderboard.js`, `leaderboard-page.js`, `revise.js`, `view.js`: active browser logic.
 - `leaderboard-config.js`: public Supabase configuration for shared speedrun records.
 - Supabase schema, Edge Functions and anti-cheat implementation live in a private server repository, not this public repo.
@@ -55,6 +61,36 @@ python -m http.server 8000
 ```
 
 The web version can also be served directly by GitHub Pages from the repo root.
+
+## Regional Data Generation
+
+The generated regional quiz bundle currently includes 193 country-level region sets. Monaco and Vatican City are intentionally excluded at this quiz level because the available first-level boundary source has fewer than two usable regions. England, Scotland and Wales are maintained as manual regional sets because they are not separate countries in the main country data.
+
+Run this from the repository root to refresh the generated bundle:
+
+```powershell
+npm.cmd run regions:build
+```
+
+To gather data without changing the app bundle, run:
+
+```powershell
+npm.cmd run regions:scan
+```
+
+The scan uses `.region-cache/` for successful Wikidata, GeoNames and GeoBoundaries responses, writes progress and ETA to the terminal, and updates `region-source-report.json` with included, skipped and pending countries. If it stops because of a request budget or rate limit, wait for the service to recover and rerun the same command; cached responses will be reused.
+
+Useful generator commands:
+
+```powershell
+npm.cmd run regions:limits
+node scripts\build-region-groups.js --report-only --max-requests 120
+node scripts\build-region-groups.js --country "Spain" --report-only
+node scripts\build-region-groups.js --country "Spain" --report-only --wikidata-admin-fallback
+npm.cmd run regions:check-maps
+```
+
+The generator includes a country when it can build a first-level regional set with names, administrative centres and matching map boundaries. It uses Wikidata subdivision/ISO-code rows for verified regional flags, GeoNames ADM1/PPLA dumps as an administrative-centre fallback, and GeoBoundaries ADM1 outlines from `gbOpen` with `gbHumanitarian` as a boundary fallback. If verified flags are missing, the country still appears for town and map modes; flag mode uses only regions with real flag assets and never fabricates region flags. Skipped countries and reasons are written to `region-source-report.json`. Wikidata's public query service documents a 60-second query timeout, 60 seconds of processing time per 60 seconds per client, 30 error queries per minute, and 5 parallel queries per IP. The default build avoids the slower per-country Wikidata label fallback; use `--wikidata-admin-fallback` only for focused investigation. The script runs sequentially, sends an identifiable user agent, records any `429` responses, and waits for the service's `Retry-After` header before retrying. GeoBoundaries documents its API shape and pre-cached metadata, but does not publish a numeric per-minute quota.
 
 ## Local Checks
 

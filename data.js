@@ -207,6 +207,8 @@ const capitalAliases = {
 const LS_KEYS = {
   reviseFlags:"revise_flags",
   reviseCapitals:"revise_capitals",
+  reviseRegionFlags:"revise_region_flags",
+  reviseRegionCapitals:"revise_region_capitals",
   highScores:"high_scores",
   sessionPercentages:"session_percentages",
   speedRuns:"speed_run_records",
