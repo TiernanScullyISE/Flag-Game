@@ -2,6 +2,9 @@ const adminPassword = document.getElementById("admin-password");
 const adminRememberPassword = document.getElementById("admin-remember-password");
 const adminLoad = document.getElementById("admin-load");
 const adminAnalytics = document.getElementById("admin-analytics");
+const adminExportScope = document.getElementById("admin-export-scope");
+const adminExportFilter = document.getElementById("admin-export-filter");
+const adminExport = document.getElementById("admin-export");
 const adminStatus = document.getElementById("admin-status");
 const adminList = document.getElementById("admin-list");
 
@@ -17,10 +20,13 @@ function initAdmin(){
 
   adminLoad.addEventListener("click", loadAdminQueue);
   adminAnalytics.addEventListener("click", loadAnalytics);
+  adminExport.addEventListener("click", exportCsv);
+  adminExportScope.addEventListener("change", updateExportControls);
   adminRememberPassword.addEventListener("change", syncAdminTrustStorage);
   adminPassword.addEventListener("keydown", event=>{
     if(event.key === "Enter") loadAdminQueue();
   });
+  updateExportControls();
 }
 
 function syncAdminTrustStorage(){
@@ -159,6 +165,49 @@ async function loadAnalytics(){
   }finally{
     adminAnalytics.disabled = false;
   }
+}
+
+function updateExportControls(){
+  const filtered = adminExportScope.value === "filter";
+  adminExportFilter.disabled = !filtered;
+  adminExportFilter.closest(".control").classList.toggle("is-disabled", !filtered);
+  if(!filtered) adminExportFilter.value = "";
+}
+
+async function exportCsv(){
+  const exportScope = adminExportScope.value === "filter" ? "filter" : "all";
+  const exportFilter = adminExportFilter.value.trim();
+  if(exportScope === "filter" && !exportFilter){
+    setAdminStatus("Enter at least one device number, player id, or player name before exporting.");
+    adminExportFilter.focus();
+    return;
+  }
+
+  adminExport.disabled = true;
+  setAdminStatus("Preparing CSV export...");
+
+  try{
+    const payload = await adminRequest("export", {exportScope, exportFilter});
+    downloadCsv(payload.filename || "flag-game-admin-export.csv", payload.csv || "");
+    const limitText = payload.truncated ? " Export hit the row limit; narrow the filter for the full set." : "";
+    setAdminStatus(`Exported ${payload.count || 0} rows to CSV.${limitText}`);
+  }catch(error){
+    setAdminStatus(error.message || "Could not export CSV.");
+  }finally{
+    adminExport.disabled = false;
+  }
+}
+
+function downloadCsv(filename, csv){
+  const blob = new Blob([csv], {type: "text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function renderAdminRuns(runs){

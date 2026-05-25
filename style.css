@@ -1737,6 +1737,14 @@ html[data-theme="dark"] .answer-control-row #next-btn{
   align-self:end;
 }
 
+.admin-export-filter-control{
+  min-width:min(100%, 320px);
+}
+
+.admin-export-filter-control.is-disabled{
+  opacity:.58;
+}
+
 .admin-run-card input[type="text"]{
   width:100%;
   border:1px solid rgba(23,32,41,.16);
