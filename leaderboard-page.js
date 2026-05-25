@@ -773,16 +773,11 @@ function renderExpandedRun(run){
   const facts = document.createElement("div");
   facts.className = "leaderboard-expanded-facts";
   facts.append(
-    factPill(`Posted: ${run.date ? new Date(run.date).toLocaleString() : "Unknown"}`),
-    factPill(`Validation: ${run.verified ? "server verified" : "client checked"}`)
+    factPill(`Posted: ${run.date ? new Date(run.date).toLocaleString() : "Unknown"}`)
   );
-  if(run.antiCheat && run.antiCheat.score !== undefined){
-    facts.append(factPill(`Score: ${run.antiCheat.score} / 100`));
-  }
   panel.appendChild(facts);
 
   panel.appendChild(renderSplits(run));
-  panel.appendChild(renderRoute(run));
   return panel;
 }
 

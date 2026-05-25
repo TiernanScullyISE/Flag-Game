@@ -85,13 +85,7 @@
   function getErrorMessage(text, fallback){
     try{
       const details = JSON.parse(text);
-      const message = details.message || details.error || fallback;
-      const reasons = Array.isArray(details.reasons)
-        ? details.reasons
-        : Array.isArray(details.reviewReasons)
-          ? details.reviewReasons
-          : [];
-      return reasons.length ? `${message}: ${reasons.join(", ")}` : message;
+      return details.message || details.error || fallback;
     }catch{
       return text || fallback;
     }
@@ -191,10 +185,10 @@
       wpmVariants: row.wpm_variants || row.wpmVariants || {},
       target: row.target_label || row.target || "",
       splits: row.splits || {},
-      route: Array.isArray(row.route) ? row.route : [],
-      telemetry: row.telemetry || {},
-      antiCheat: row.anti_cheat || {},
-      verified: !!row.verified,
+      route: [],
+      telemetry: {},
+      antiCheat: {},
+      verified: false,
       submissionMethod: row.submission_method || "direct",
       status: row.status || "approved",
       reviewReasons: Array.isArray(row.review_reasons) ? row.review_reasons : [],
@@ -219,15 +213,11 @@
     const params = new URLSearchParams();
     const legacyBase = "mode_key,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits";
     const base = `mode_key,game_scope,set_key,set_label,item_label,which,continent,difficulty,target,player_name,time_ms,created_at,correct_first_try,total,target_label,splits`;
-    const route = `${base},route,verified`;
-    const legacyRoute = `${legacyBase},route,verified`;
-    const full = `${route},typed_chars,canonical_chars,wpm,wpm_variants`;
+    const full = `${base},typed_chars,canonical_chars,wpm,wpm_variants`;
     params.set("select", detail === "full"
       ? full
-      : detail === "route" ? route
-        : detail === "route-legacy" ? legacyRoute
-          : detail === "legacy" ? legacyBase
-            : base);
+      : detail === "legacy" ? legacyBase
+        : base);
     params.set("order", "mode_key.asc,time_ms.asc,created_at.asc");
     params.set("limit", String(limit));
     return params;
@@ -241,26 +231,21 @@
       if(!isDetailedColumnError(message)){
         throw error;
       }
-      try{
-        const routeFallback = makeRunParams("route-legacy", limit);
-        if(modeKey) routeFallback.set("mode_key", `eq.${modeKey}`);
-        return await request(routeFallback);
-      }catch(routeError){
-        const routeMessage = routeError && routeError.message ? routeError.message.toLowerCase() : "";
-        if(!isDetailedColumnError(routeMessage)){
-          throw routeError;
-        }
-        const fallback = makeRunParams("legacy", limit);
-        if(modeKey) fallback.set("mode_key", `eq.${modeKey}`);
-        return request(fallback);
-      }
+      const fallback = makeRunParams("legacy", limit);
+      if(modeKey) fallback.set("mode_key", `eq.${modeKey}`);
+      return request(fallback);
     }
   }
 
   function isDetailedColumnError(message){
     return [
-      "route",
-      "verified",
+      "game_scope",
+      "set_key",
+      "set_label",
+      "item_label",
+      "typed_chars",
+      "canonical_chars",
+      "wpm",
       "permission denied",
       "schema cache",
       "could not find",

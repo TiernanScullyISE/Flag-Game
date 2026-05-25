@@ -5,48 +5,111 @@ const adminAnalytics = document.getElementById("admin-analytics");
 const adminStatus = document.getElementById("admin-status");
 const adminList = document.getElementById("admin-list");
 
-const ADMIN_PASSWORD_STORAGE_KEY = "leaderboard_admin_password";
-const ADMIN_PASSWORD_REMEMBER_KEY = "leaderboard_admin_password_remember";
+const ADMIN_TRUST_DEVICE_KEY = "leaderboard_admin_trust_device";
+const ADMIN_DEVICE_ID_KEY = "leaderboard_admin_device_id";
 
 function initAdmin(){
-  const rememberPassword = sessionStorage.getItem(ADMIN_PASSWORD_REMEMBER_KEY) === "true";
-  adminRememberPassword.checked = rememberPassword;
-  adminPassword.value = rememberPassword ? sessionStorage.getItem(ADMIN_PASSWORD_STORAGE_KEY) || "" : "";
+  adminRememberPassword.checked = true;
+  adminPassword.value = "";
+  sessionStorage.removeItem("leaderboard_admin_password");
+  sessionStorage.removeItem("leaderboard_admin_password_remember");
+  ensureAdminDeviceId();
 
   adminLoad.addEventListener("click", loadAdminQueue);
   adminAnalytics.addEventListener("click", loadAnalytics);
-  adminRememberPassword.addEventListener("change", syncAdminPasswordStorage);
-  adminPassword.addEventListener("input", syncAdminPasswordStorage);
+  adminRememberPassword.addEventListener("change", syncAdminTrustStorage);
   adminPassword.addEventListener("keydown", event=>{
     if(event.key === "Enter") loadAdminQueue();
   });
 }
 
-function syncAdminPasswordStorage(){
-  if(adminRememberPassword.checked){
-    sessionStorage.setItem(ADMIN_PASSWORD_REMEMBER_KEY, "true");
-    sessionStorage.setItem(ADMIN_PASSWORD_STORAGE_KEY, adminPassword.value);
-    return;
+function syncAdminTrustStorage(){
+  if(!adminRememberPassword.checked) clearTrustedAdminDevice();
+}
+
+function ensureAdminDeviceId(){
+  let deviceId = localStorage.getItem(ADMIN_DEVICE_ID_KEY) || "";
+  if(/^[A-Za-z0-9_-]{16,80}$/.test(deviceId)) return deviceId;
+  deviceId = makeAdminDeviceId();
+  localStorage.setItem(ADMIN_DEVICE_ID_KEY, deviceId);
+  return deviceId;
+}
+
+function makeAdminDeviceId(){
+  const bytes = new Uint8Array(18);
+  if(window.crypto && window.crypto.getRandomValues){
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte=>byte.toString(16).padStart(2, "0")).join("");
   }
-  sessionStorage.removeItem(ADMIN_PASSWORD_REMEMBER_KEY);
-  sessionStorage.removeItem(ADMIN_PASSWORD_STORAGE_KEY);
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 18)}`;
+}
+
+function getTrustedAdminDevice(){
+  try{
+    const record = JSON.parse(localStorage.getItem(ADMIN_TRUST_DEVICE_KEY) || "null");
+    if(!record || typeof record !== "object") return null;
+    if(record.deviceId !== ensureAdminDeviceId()) return null;
+    if(typeof record.token !== "string" || !record.token) return null;
+    if(record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now()){
+      clearTrustedAdminDevice();
+      return null;
+    }
+    return record;
+  }catch{
+    clearTrustedAdminDevice();
+    return null;
+  }
+}
+
+function saveTrustedAdminDevice(device){
+  if(!device || typeof device.token !== "string") return;
+  if(!adminRememberPassword.checked) return;
+  localStorage.setItem(ADMIN_TRUST_DEVICE_KEY, JSON.stringify({
+    deviceId: device.deviceId || ensureAdminDeviceId(),
+    token: device.token,
+    expiresAt: device.expiresAt || ""
+  }));
+}
+
+function clearTrustedAdminDevice(){
+  localStorage.removeItem(ADMIN_TRUST_DEVICE_KEY);
 }
 
 async function adminRequest(action, extra={}){
   const config = window.LEADERBOARD_CONFIG || {};
   if(!config.adminFunctionUrl) throw new Error("Admin function is not configured.");
+  syncAdminTrustStorage();
+
   const password = adminPassword.value;
-  syncAdminPasswordStorage();
+  const trustedDevice = getTrustedAdminDevice();
+  const requestBody = {
+    action,
+    deviceId: ensureAdminDeviceId(),
+    ...extra
+  };
+  if(password){
+    requestBody.password = password;
+  }else if(trustedDevice){
+    requestBody.adminToken = trustedDevice.token;
+  }
 
   const response = await fetch(config.adminFunctionUrl, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({password, action, ...extra})
+    body: JSON.stringify(requestBody)
   });
 
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
-  if(!response.ok) throw new Error(getAdminErrorMessage(payload, text, response.status));
+  if(!response.ok){
+    if(response.status === 401 && trustedDevice && !password){
+      clearTrustedAdminDevice();
+      throw new Error("Trusted admin device expired. Enter the admin password once to trust this device again.");
+    }
+    throw new Error(getAdminErrorMessage(payload, text, response.status));
+  }
+  if(payload.trustedAdminDevice) saveTrustedAdminDevice(payload.trustedAdminDevice);
+  if(password) adminPassword.value = "";
   return payload;
 }
 
@@ -487,7 +550,6 @@ function renderAdminRun(run){
     factPill(`Set: ${run.set_label || run.continent || "All"}`),
     factPill(`Mode: ${formatAdminMode(run)}`),
     factPill(`Scope: ${run.game_scope || "countries"}`),
-    factPill(`Score: ${run.anti_cheat && run.anti_cheat.score !== undefined ? run.anti_cheat.score : "-"}`),
     factPill(`Review flags: ${reasons.length || 0}`)
   );
 
@@ -599,33 +661,15 @@ function renderReviewReason(reason){
 }
 
 function getReviewReasonTitle(reason){
-  const labels = {
-    "very-fast-average": "Very fast average",
-    "fast-large-category": "Fast large-category run",
-    "focus-loss": "Focus changed",
-    "low-key-event-count": "Low key event count",
-    "near-instant-answer": "Near-instant answers",
-    "skipped-or-repeated-questions": "Skipped or repeated route",
-    "name-review": "Name needs review",
-    "blocked-name": "Blocked name term",
-    "reserved-name": "Reserved name"
-  };
-  return labels[reason] || humaniseReviewReason(reason);
+  if(String(reason || "").includes("name")) return "Name review";
+  return "Server review check";
 }
 
 function getReviewReasonDetail(reason){
-  const details = {
-    "very-fast-average": "The average solve time is below the normal manual-review threshold.",
-    "fast-large-category": "The run is unusually fast for a larger target, so route evidence should be checked.",
-    "focus-loss": "The browser lost focus during the run. This may be harmless, but it needs a look.",
-    "low-key-event-count": "There were fewer key events than expected for the number of solved answers.",
-    "near-instant-answer": "One or more answers were submitted very shortly after appearing.",
-    "skipped-or-repeated-questions": "The stored route has more entries than the target, usually from skips or repeats.",
-    "name-review": "The public player name matched a moderation rule or needs a cleaner display name.",
-    "blocked-name": "The public player name contains a blocked moderation term.",
-    "reserved-name": "The public player name looks reserved or impersonation-prone."
-  };
-  return details[reason] || "Review the route, timing, and player name before approving.";
+  if(String(reason || "").includes("name")){
+    return "The public display name needs an admin decision before publication.";
+  }
+  return "Server-side validation requested manual review before publication.";
 }
 
 function humaniseReviewReason(reason){
