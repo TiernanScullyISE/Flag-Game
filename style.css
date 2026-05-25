@@ -1856,6 +1856,70 @@ html[data-theme="dark"] .answer-control-row #next-btn{
   gap:6px;
 }
 
+html[data-theme="dark"] .admin-toolbar{
+  border-color:rgba(255,249,238,.18);
+  background:rgba(8,15,21,.62);
+  box-shadow:0 18px 42px rgba(0,0,0,.22);
+}
+
+html[data-theme="dark"] .admin-toolbar .control label,
+html[data-theme="dark"] .admin-toolbar .checkbox{
+  color:#c6d2d7;
+}
+
+html[data-theme="dark"] .admin-toolbar input[type="password"],
+html[data-theme="dark"] .admin-run-card input[type="text"]{
+  border-color:rgba(255,249,238,.2);
+  background:#0f1a22;
+  color:#fff9ee;
+  box-shadow:inset 0 1px 0 rgba(255,249,238,.04);
+}
+
+html[data-theme="dark"] .admin-toolbar input[type="password"]::placeholder,
+html[data-theme="dark"] .admin-run-card input[type="text"]::placeholder{
+  color:#8fa0aa;
+}
+
+html[data-theme="dark"] .admin-run-card .panel-label,
+html[data-theme="dark"] .admin-name-review p{
+  color:#f0bd62;
+}
+
+html[data-theme="dark"] .admin-run-card .btn.subtle{
+  border-color:rgba(255,249,238,.18);
+  background:rgba(255,249,238,.08);
+  color:#fff9ee;
+}
+
+html[data-theme="dark"] .admin-run-card .leaderboard-fact{
+  border-color:rgba(255,249,238,.14);
+  background:rgba(255,249,238,.08);
+  color:#c6d2d7;
+}
+
+html[data-theme="dark"] .admin-run-card .leaderboard-route-list{
+  color:#c6d2d7;
+}
+
+html[data-theme="dark"] .admin-run-card .analytics-table,
+html[data-theme="dark"] .admin-run-card .analytics-metric,
+html[data-theme="dark"] .admin-run-card .analytics-quadrant,
+html[data-theme="dark"] .admin-run-card .device-progress-summary{
+  border-color:rgba(255,249,238,.14);
+  background:rgba(255,249,238,.07);
+  color:#c6d2d7;
+}
+
+html[data-theme="dark"] .admin-run-card .analytics-table th,
+html[data-theme="dark"] .admin-run-card .analytics-table td{
+  border-bottom-color:rgba(255,249,238,.1);
+}
+
+html[data-theme="dark"] .admin-run-card .analytics-table th{
+  background:rgba(31,139,109,.18);
+  color:#fff9ee;
+}
+
 .analytics-overview-card{
   border-color:rgba(31,139,109,.34);
 }
