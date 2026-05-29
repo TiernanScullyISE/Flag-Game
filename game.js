@@ -9,6 +9,9 @@ const MAX_ANALYTICS_QUEUE_BYTES = 3500000;
 const ANALYTICS_SCHEMA_VERSION = 2;
 const NEAR_INSTANT_RECOGNITION_MS = 100;
 const IMPOSSIBLE_ACTIVE_WPM = 260;
+const FLAG_RENDER_SIZE = 430;
+const SPEEDRUN_FLAG_PRELOAD_AHEAD = 12;
+const SPEEDRUN_FLAG_PRELOAD_CONCURRENCY = 6;
 
 const worldMapState = {
   features: null,
@@ -81,9 +84,13 @@ function makeSession(){
     currentWrongAttempts: 0,
     livesRemaining: null,
     gameOver: false,
+    pendingAdvance: false,
     history: [],
     route: [],
     currentRouteIndex: -1,
+    flagPreloadQueue: [],
+    flagPreloadActiveKeys: new Set(),
+    flagPreloadDoneKeys: new Set(),
     security: makeSecurityTelemetry(),
     analytics: makeRunAnalyticsState(),
     worldAnswerStartedMs: null,
@@ -915,15 +922,107 @@ function buildPool(){
   return pool;
 }
 
+function shouldPreloadSpeedRunFlags(){
+  return state.playMode === "speedrun" && state.which === "flags";
+}
+
+function getSpeedRunFlagPreloadUrl(country){
+  if(!country) return "";
+  if(isRegionGame()){
+    if(!window.RegionMap || typeof window.RegionMap.getRegionFlagUrl !== "function") return "";
+    return window.RegionMap.getRegionFlagUrl(state.selectedRegionGroup, country);
+  }
+  return typeof getCountryFlagUrl === "function" ? getCountryFlagUrl(country, FLAG_RENDER_SIZE) : "";
+}
+
+function makeSpeedRunFlagPreloadEntry(country){
+  const url = getSpeedRunFlagPreloadUrl(country);
+  if(!url) return null;
+  const scope = isRegionGame() ? `regions:${state.selectedRegionGroup}` : "countries";
+  return {
+    key: `${scope}:${country}:${url}`,
+    country,
+    url
+  };
+}
+
+function queueSpeedRunFlagPreloads(countries, priority=false){
+  if(!shouldPreloadSpeedRunFlags() || typeof preloadImageUrl !== "function") return;
+  const session = state.session;
+  if(!session || session.gameOver) return;
+  const list = Array.isArray(countries) ? countries : [countries];
+  const entries = [];
+
+  for(const country of list){
+    const entry = makeSpeedRunFlagPreloadEntry(country);
+    if(!entry || session.flagPreloadDoneKeys.has(entry.key) || session.flagPreloadActiveKeys.has(entry.key)) continue;
+    const existingIndex = session.flagPreloadQueue.findIndex(item=>item.key === entry.key);
+    if(existingIndex >= 0){
+      if(priority) entries.push(session.flagPreloadQueue.splice(existingIndex, 1)[0]);
+      continue;
+    }
+    entries.push(entry);
+  }
+
+  if(!entries.length) return;
+  if(priority){
+    session.flagPreloadQueue.unshift(...entries);
+  }else{
+    session.flagPreloadQueue.push(...entries);
+  }
+  drainSpeedRunFlagPreloads(session);
+}
+
+function drainSpeedRunFlagPreloads(session=state.session){
+  if(!session || !shouldPreloadSpeedRunFlags() || typeof preloadImageUrl !== "function") return;
+  while(session.flagPreloadActiveKeys.size < SPEEDRUN_FLAG_PRELOAD_CONCURRENCY && session.flagPreloadQueue.length){
+    const entry = session.flagPreloadQueue.shift();
+    if(!entry || session.flagPreloadDoneKeys.has(entry.key) || session.flagPreloadActiveKeys.has(entry.key)) continue;
+    session.flagPreloadActiveKeys.add(entry.key);
+    preloadImageUrl(entry.url)
+      .catch(()=>false)
+      .then(()=>{})
+      .finally(()=>{
+        if(session !== state.session) return;
+        session.flagPreloadActiveKeys.delete(entry.key);
+        session.flagPreloadDoneKeys.add(entry.key);
+        drainSpeedRunFlagPreloads(session);
+      });
+  }
+}
+
+function getSpeedRunFlagPreloadPriority(currentCountry=""){
+  if(!shouldPreloadSpeedRunFlags()) return [];
+  const session = state.session;
+  if(!session || !session.pool.length) return currentCountry ? [currentCountry] : [];
+  const upcoming = session.pool
+    .filter(country=>country !== currentCountry && !session.solved.has(country) && !session.skipped.has(country))
+    .slice(0, SPEEDRUN_FLAG_PRELOAD_AHEAD);
+  if(upcoming.length < SPEEDRUN_FLAG_PRELOAD_AHEAD && session.skipped.size){
+    upcoming.push(...Array.from(session.skipped)
+      .filter(country=>country !== currentCountry && !session.solved.has(country))
+      .slice(0, SPEEDRUN_FLAG_PRELOAD_AHEAD - upcoming.length));
+  }
+  return [currentCountry, ...upcoming].filter(Boolean);
+}
+
+function chooseQuestionCandidate(candidates){
+  if(state.playMode === "speedrun" && state.which === "flags"){
+    return candidates[0];
+  }
+  return candidates[(Math.random()*candidates.length)|0];
+}
+
 async function loadQuestion(){
   const session = state.session;
-  if(session.gameOver) return;
+  if(session.gameOver || session.pendingAdvance) return;
   clearFeedback();
   toggleAnswerUi();
 
   if(session.pool.length === 0){
     session.pool = buildPool();
     rememberQuestionOrder(session.pool);
+    queueSpeedRunFlagPreloads(session.pool);
   }
 
   if(isWorldMode()){
@@ -941,13 +1040,14 @@ async function loadQuestion(){
     return;
   }
 
-  session.correctCountry = candidates[(Math.random()*candidates.length)|0];
+  session.correctCountry = chooseQuestionCandidate(candidates);
   session.correctAnswer = getExpectedAnswerForMode(session.correctCountry);
   session.questionAnswered = false;
   session.currentWrongAttempts = 0;
   session.history.push(session.correctCountry);
   recordRouteQuestion(session.correctCountry);
   answerInput.placeholder = "Type your answer...";
+  queueSpeedRunFlagPreloads(getSpeedRunFlagPreloadPriority(session.correctCountry), true);
 
   await renderQuestionVisual(session.correctCountry);
   countryLabel.textContent = state.which === "capitals"
@@ -989,9 +1089,16 @@ async function renderFlag(country){
   holder.className = "flag-holder";
   questionVisual.appendChild(holder);
   const img = isRegionGame() && window.RegionMap
-    ? window.RegionMap.createFlagElement(state.selectedRegionGroup, country, 430)
-    : await createFlagImg(country, 430, `Flag of ${country}`);
+    ? window.RegionMap.createFlagElement(state.selectedRegionGroup, country, FLAG_RENDER_SIZE)
+    : await createFlagImg(country, FLAG_RENDER_SIZE, `Flag of ${country}`);
+  markSpeedRunFlagImagePriority(img);
   holder.replaceChildren(img);
+}
+
+function markSpeedRunFlagImagePriority(element){
+  if(!shouldPreloadSpeedRunFlags() || !element || element.tagName !== "IMG") return;
+  element.loading = "eager";
+  if("fetchPriority" in element) element.fetchPriority = "high";
 }
 
 async function renderQuestionVisual(country){
@@ -2032,11 +2139,9 @@ function handleWorldCorrect(country, message="Correct!", rawInput="", result={},
     scheduleWorldMapCountrySolved(country);
   }
 
-  window.setTimeout(()=>{
-    if(isTargetComplete()){
-      finishSession("complete");
-    }
-  }, ANSWER_FLASH_MS);
+  if(isTargetComplete()){
+    finishSession("complete");
+  }
 }
 
 function registerWorldCorrect(country){
@@ -2255,15 +2360,22 @@ function handleCorrect(firstAttempt, message="Correct!"){
   }
 
   markSolved();
+  queueSpeedRunFlagPreloads(getSpeedRunFlagPreloadPriority(), true);
   updateHighScore();
   updateAllStatus();
+  disableInputs();
+
+  if(state.playMode === "speedrun" && isTargetComplete()){
+    finishSession("complete");
+    return;
+  }
+
+  session.pendingAdvance = true;
 
   window.setTimeout(()=>{
-    if(state.playMode === "speedrun" && isTargetComplete()){
-      finishSession("complete");
-    }else{
-      loadQuestion();
-    }
+    if(session !== state.session || session.gameOver) return;
+    session.pendingAdvance = false;
+    loadQuestion();
   }, ANSWER_FLASH_MS);
 }
 
@@ -2315,7 +2427,7 @@ function updateHighScore(){
 function nextQuestion(){
   const session = state.session;
   if(isWorldMode()) return;
-  if(session.gameOver || !session.correctCountry) return;
+  if(session.gameOver || session.pendingAdvance || !session.correctCountry) return;
   if(!session.solved.has(session.correctCountry)){
     const entry = getCurrentRouteEntry();
     if(entry){
@@ -2331,7 +2443,7 @@ function nextQuestion(){
 async function lastQuestion(){
   const session = state.session;
   if(isWorldMode()) return;
-  if(session.history.length < 2 || session.gameOver) return;
+  if(session.history.length < 2 || session.gameOver || session.pendingAdvance) return;
 
   session.history.pop();
   const previous = session.history.pop();
@@ -4669,14 +4781,61 @@ function scopeMasteryToCompletedRun(mastery, latestRecord){
   return items.filter(item=>item && countryMatchesCompletedRunRegion(item.country, region, mode));
 }
 
+function getAnalyticsRecordId(record){
+  return String(record && (record.clientRunId || record.client_run_id || record.runId || record.run_id) || "");
+}
+
+function getCompletedRunSetIdentity(record){
+  if(!record) return "";
+  return record.setKey || normalise(String(record.setLabel || record.region || ""));
+}
+
+function getCompletedRunTargetIdentity(record){
+  if(!record) return "";
+  return String(record.target || record.targetLabel || "");
+}
+
+function completedAnalyticsRecordsShareContext(record, latestRecord, engine){
+  const current = engine.normaliseRecord(record);
+  return current.gameScope === latestRecord.gameScope
+    && current.mode === latestRecord.mode
+    && getCompletedRunSetIdentity(current) === getCompletedRunSetIdentity(latestRecord)
+    && current.difficulty === latestRecord.difficulty
+    && getCompletedRunTargetIdentity(current) === getCompletedRunTargetIdentity(latestRecord);
+}
+
+function getLatestCompletedAnalyticsRecord(history){
+  const run = state.lastCompletedRun;
+  if(!run || !run.telemetry || !run.telemetry.nonce) return null;
+  const runId = String(run.telemetry.nonce);
+  return history.find(item=>getAnalyticsRecordId(item) === runId) || buildCompletedRunAnalytics(run);
+}
+
+function getMatchingDeviceAnalyticsHistory(history, latestAnalytics, latestRecord, engine){
+  const latestId = getAnalyticsRecordId(latestAnalytics);
+  const matching = history.filter(item=>{
+    try{
+      return completedAnalyticsRecordsShareContext(item, latestRecord, engine);
+    }catch{
+      return false;
+    }
+  });
+  if(latestAnalytics && (!latestId || !matching.some(item=>getAnalyticsRecordId(item) === latestId))){
+    matching.push(latestAnalytics);
+  }
+  return matching;
+}
+
 function renderDeviceProgressSummary(){
   const history = getDeviceAnalyticsHistory();
-  if(!history.length || !window.SpeedrunAnalytics) return;
-  const latest = history[history.length - 1];
+  if(!window.SpeedrunAnalytics) return;
   const engine = window.SpeedrunAnalytics;
+  const latest = getLatestCompletedAnalyticsRecord(history);
+  if(!latest) return;
   const deviceNumber = getDeviceNumber();
-  const mastery = engine.aggregateCountryMastery(history);
   const latestRecord = engine.normaliseRecord(latest);
+  const matchingHistory = getMatchingDeviceAnalyticsHistory(history, latest, latestRecord, engine);
+  const mastery = engine.aggregateCountryMastery(matchingHistory);
   const latestMetrics = engine.deriveRunMetrics(latestRecord);
   const runScopedMastery = scopeMasteryToCompletedRun(mastery, latestRecord);
   const analysis = engine.generateRunAnalysis(latestRecord, latestMetrics, runScopedMastery);
@@ -4695,7 +4854,7 @@ function renderDeviceProgressSummary(){
 
   const facts = [
     `Device: ${deviceNumber}`,
-    `Runs on this device: ${history.length}`,
+    `Runs for this setup: ${matchingHistory.length}`,
     names.length ? `Names on this device: ${names.join(", ")}` : null,
     `Median solve: ${formatTimeCompact(latestMetrics.medianFinalSolveMs)}`,
     `Data quality: ${latestMetrics.dataQualityScore}/100`

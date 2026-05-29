@@ -220,6 +220,254 @@ test("Irish regional Gaeilge set requires correct fadas", async ({page})=>{
   });
 });
 
+test("correct speedrun answer locks skip until the next flag loads", async ({page})=>{
+  await page.goto("/game.html");
+
+  const duringAdvance = await page.evaluate(()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.session = makeSession();
+    state.session.pool = ["France", "Germany"];
+    state.session.correctCountry = "France";
+    state.session.correctAnswer = "France";
+    recordRouteQuestion("France");
+
+    handleCorrect(true);
+    const snapshot = {
+      answerDisabled: answerInput.disabled,
+      nextDisabled: nextBtn.disabled,
+      pendingAdvance: state.session.pendingAdvance,
+      routeLength: state.session.route.length,
+      solved: state.session.solved.size
+    };
+    nextQuestion();
+    return {
+      ...snapshot,
+      routeLengthAfterNext: state.session.route.length,
+      currentAfterNext: state.session.correctCountry
+    };
+  });
+
+  expect(duringAdvance).toMatchObject({
+    answerDisabled: true,
+    nextDisabled: true,
+    pendingAdvance: true,
+    routeLength: 1,
+    solved: 1,
+    routeLengthAfterNext: 1,
+    currentAfterNext: "France"
+  });
+
+  await page.waitForTimeout(150);
+  const afterAdvance = await page.evaluate(()=>({
+    pendingAdvance: state.session.pendingAdvance,
+    routeLength: state.session.route.length,
+    currentCountry: state.session.correctCountry
+  }));
+
+  expect(afterAdvance).toMatchObject({
+    pendingAdvance: false,
+    routeLength: 2,
+    currentCountry: "Germany"
+  });
+});
+
+test("speedrun flag mode preloads current and upcoming flags", async ({page})=>{
+  const tinyPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
+  await page.route(/flagcdn\.com/, route=>route.fulfill({
+    status: 200,
+    contentType: "image/png",
+    body: tinyPng
+  }));
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(async ()=>{
+    const requests = [];
+    preloadImageUrl = url=>{
+      requests.push(url);
+      return Promise.resolve(true);
+    };
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.session = makeSession();
+    state.session.pool = ["France", "Germany", "Italy"];
+
+    await loadQuestion();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const img = document.querySelector("#question-visual img");
+    return {
+      current: state.session.correctCountry,
+      requests,
+      loading: img ? img.loading : "",
+      fetchPriority: img ? img.fetchPriority || "" : ""
+    };
+  });
+
+  expect(result.current).toBe("France");
+  expect(result.requests[0]).toContain("/fr.png");
+  expect(result.requests).toEqual(expect.arrayContaining([
+    expect.stringContaining("/de.png"),
+    expect.stringContaining("/it.png")
+  ]));
+  expect(result.loading).toBe("eager");
+});
+
+test("country speedrun progress ignores older regional revision targets", async ({page})=>{
+  await page.goto("/game.html");
+
+  const progressText = await page.evaluate(()=>{
+    const makeQuestion = (country, continent, index, wrongSubmits=0)=>({
+      runId: "test-run",
+      questionIndex: index,
+      countryId: country,
+      country,
+      continent,
+      canonicalAnswer: country,
+      acceptedAnswer: country,
+      rawFinalInput: country,
+      allRawAttempts: wrongSubmits ? ["wrong", country] : [country],
+      acceptedAlias: "",
+      aliasType: "full-canonical",
+      answerCompletionType: wrongSubmits ? "corrected-after-mistakes" : "full-canonical",
+      shortcutUsed: false,
+      autocompleteUsed: false,
+      hintUsed: false,
+      skipUsed: false,
+      attempts: [
+        ...Array.from({length: wrongSubmits}, (_, attemptIndex)=>({
+          rawInput: `wrong-${attemptIndex}`,
+          submittedAt: 1000 + attemptIndex,
+          correct: false,
+          errorType: "confusion"
+        })),
+        {
+          rawInput: country,
+          submittedAt: 2000 + index,
+          correct: true,
+          errorType: "none"
+        }
+      ],
+      attemptsCount: wrongSubmits + 1,
+      wrongSubmits,
+      typedChars: country.length,
+      canonicalChars: country.length,
+      recognitionMs: wrongSubmits ? 5200 : 900,
+      firstAttemptMs: wrongSubmits ? 5300 : 1100,
+      finalSolveMs: wrongSubmits ? 8000 : 1800 + index,
+      activeTypingMs: 700,
+      correctionMs: wrongSubmits ? 2700 : 0,
+      firstTry: wrongSubmits === 0,
+      dataQualityFlags: []
+    });
+    const makeRoute = questions=>questions.map(question=>({
+      index: question.questionIndex,
+      country: question.country,
+      continent: question.continent,
+      answer: question.country,
+      shownMs: 0,
+      firstInputMs: question.recognitionMs,
+      firstSubmitMs: question.firstAttemptMs,
+      solvedMs: question.finalSolveMs,
+      attempts: question.attemptsCount,
+      wrongAttempts: question.wrongSubmits,
+      typedChars: question.typedChars,
+      skipped: false
+    }));
+
+    const staleRegionalQuestions = ["Cork", "Leitrim", "Wicklow", "Sligo"]
+      .map((country, index)=>makeQuestion(country, "Ireland", index + 1, 2));
+    state.deviceAnalyticsHistory = [{
+      analyticsVersion: 2,
+      clientRunId: "stale-regional-run",
+      playerName: "Runner",
+      playerId: "device",
+      gameScope: "regions",
+      setKey: "ireland",
+      setLabel: "Ireland",
+      itemLabel: "county",
+      which: "flags",
+      mode: "flags",
+      continent: "Ireland",
+      region: "Ireland",
+      difficulty: "hard",
+      target: "all",
+      targetLabel: "All available",
+      totalDurationMs: 32000,
+      total: staleRegionalQuestions.length,
+      correct: 0,
+      firstTryCorrectCount: 0,
+      route: makeRoute(staleRegionalQuestions),
+      questionAnalytics: staleRegionalQuestions,
+      runContext: {
+        gameScope: "regions",
+        setKey: "ireland",
+        setLabel: "Ireland",
+        mode: "flags",
+        difficulty: "hard",
+        target: "all",
+        targetLabel: "All available"
+      },
+      telemetry: {nonce: "stale-regional-run"}
+    }];
+
+    const countryQuestions = ["France", "Germany"].map((country, index)=>makeQuestion(country, "Europe", index + 1, 0));
+    state.lastCompletedRun = {
+      playerName: "Runner",
+      modeKey: "flags_all_hard_all",
+      which: "flags",
+      gameScope: "countries",
+      setKey: "all",
+      setLabel: "All",
+      itemLabel: "country",
+      continent: "All",
+      difficulty: "hard",
+      targetValue: "all",
+      targetLabel: "All available",
+      timeMs: 5000,
+      typedChars: 13,
+      wpm: 31.2,
+      correct: countryQuestions.length,
+      total: countryQuestions.length,
+      target: "All available",
+      splits: {all: 5000},
+      route: makeRoute(countryQuestions),
+      questionAnalytics: countryQuestions,
+      runContext: {
+        gameScope: "countries",
+        setKey: "all",
+        setLabel: "All",
+        mode: "flags",
+        difficulty: "hard",
+        target: "all",
+        targetLabel: "All available",
+        questionOrder: ["France", "Germany"]
+      },
+      telemetry: {nonce: "current-country-run"},
+      antiCheat: {},
+      isPersonalBest: true
+    };
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    resultDetails.innerHTML = "";
+
+    renderDeviceProgressSummary();
+    return resultDetails.textContent;
+  });
+
+  expect(progressText).toContain("Runs for this setup: 1");
+  expect(progressText).not.toContain("Cork");
+  expect(progressText).not.toContain("Leitrim");
+  expect(progressText).not.toContain("Wicklow");
+  expect(progressText).not.toContain("Sligo");
+});
+
 test("revision page shows saved regional items", async ({page})=>{
   await page.addInitScript(()=>{
     localStorage.setItem("revise_region_flags", JSON.stringify({Ireland:["Tipperary"]}));

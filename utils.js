@@ -53,15 +53,44 @@ alpha-2 map in data.js lets the browser render direct FlagCDN URLs immediately.
 */
 
 const FLAG_CDN_WIDTHS = [40, 80, 160, 320, 640, 1280];
+const imagePreloadCache = new Map();
 
 function flagCdnUrl(alpha2,size=320){
   const cdnWidth = FLAG_CDN_WIDTHS.find(width=>width>=size) || FLAG_CDN_WIDTHS[FLAG_CDN_WIDTHS.length-1];
   return `https://flagcdn.com/w${cdnWidth}/${alpha2}.png`;
 }
 
-async function createFlagImg(country, size=320, fallbackLabel=""){
+function getCountryFlagUrl(country, size=320){
   const code = (alpha2Overrides[country] || "").toLowerCase();
-  if(!code) return createFlagFallback(country, size, fallbackLabel);
+  return code ? flagCdnUrl(code, size) : "";
+}
+
+function preloadImageUrl(url){
+  if(!url || typeof Image === "undefined") return Promise.resolve(false);
+  if(imagePreloadCache.has(url)) return imagePreloadCache.get(url).promise;
+
+  const img = new Image();
+  const record = {
+    img,
+    promise: new Promise(resolve=>{
+      img.onload = ()=>resolve(true);
+      img.onerror = ()=>resolve(false);
+    })
+  };
+  img.decoding = "async";
+  img.referrerPolicy = "no-referrer";
+  img.src = url;
+  imagePreloadCache.set(url, record);
+  return record.promise;
+}
+
+function preloadCountryFlag(country, size=320){
+  return preloadImageUrl(getCountryFlagUrl(country, size));
+}
+
+async function createFlagImg(country, size=320, fallbackLabel=""){
+  const url = getCountryFlagUrl(country, size);
+  if(!url) return createFlagFallback(country, size, fallbackLabel);
 
   const img = document.createElement("img");
   img.alt = `Flag of ${country}`;
@@ -69,7 +98,7 @@ async function createFlagImg(country, size=320, fallbackLabel=""){
   img.decoding = "async";
   img.width = size;
   img.height = Math.round(size * 0.625);
-  img.src = flagCdnUrl(code, size);
+  img.src = url;
   img.referrerPolicy = "no-referrer";
   img.addEventListener("error", ()=>{
     const fallback = createFlagFallback(country, size, fallbackLabel);
@@ -87,4 +116,3 @@ function createFlagFallback(country, size=320, fallbackLabel=""){
   div.textContent = fallbackLabel || `Flag of ${country}`;
   return div;
 }
-
