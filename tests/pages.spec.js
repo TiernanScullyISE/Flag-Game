@@ -70,7 +70,7 @@ test("admin review cards explain pending reasons", async ({page})=>{
       total: 32,
       verified: true,
       anti_cheat: {score: 86},
-      review_reasons: ["very-fast-average", "focus-loss"],
+      review_reasons: ["name-review", "timing-review"],
       route: [
         {index:1, country:"Antrim", continent:"Ireland", solvedMs:900, attempts:1}
       ],
@@ -80,8 +80,8 @@ test("admin review cards explain pending reasons", async ({page})=>{
   });
 
   await expect(page.locator(".admin-review-panel")).toContainText("2 reasons pending review");
-  await expect(page.locator(".admin-review-panel")).toContainText("Very fast average");
-  await expect(page.locator(".admin-review-panel")).toContainText("Focus changed");
+  await expect(page.locator(".admin-review-panel")).toContainText("Name review");
+  await expect(page.locator(".admin-review-panel")).toContainText("Server review check");
 });
 
 test("play page supports regional county and state sets", async ({page})=>{
@@ -91,14 +91,14 @@ test("play page supports regional county and state sets", async ({page})=>{
   await expect(page.locator("#region-set-input")).toHaveValue("Ireland");
   await expect(page.getByRole("button", {name:"Flags"})).toBeVisible();
   await expect(page.getByRole("button", {name:"Towns"})).toBeVisible();
-  await expect(page.getByRole("button", {name:"Map"})).toBeVisible();
+  await expect(page.getByRole("button", {name:"Map", exact:true})).toBeVisible();
 
   await page.locator("#region-set-input").fill("usa");
   await page.locator("#region-set-input").press("Enter");
   await expect(page.locator("#region-set-input")).toHaveValue("United States");
   await expect(page.getByRole("button", {name:"Flags"})).toBeVisible();
   await expect(page.getByRole("button", {name:"Capitals"})).toBeVisible();
-  await expect(page.getByRole("button", {name:"Map"})).toBeVisible();
+  await expect(page.getByRole("button", {name:"Map", exact:true})).toBeVisible();
 
   const generated = await page.evaluate(()=>({
     groupCount: REGION_GAME_GROUP_ORDER.length,
@@ -181,7 +181,7 @@ test("play page supports regional county and state sets", async ({page})=>{
   await page.locator("#region-set-input").fill("Brazil");
   await page.locator("#region-set-input").press("Enter");
   await expect(page.locator("#region-set-input")).toHaveValue("Brazil");
-  await expect(page.getByRole("button", {name:"Map"})).toBeVisible();
+  await expect(page.getByRole("button", {name:"Map", exact:true})).toBeVisible();
 
   await page.locator("#region-set-input").fill("Bhutan");
   await page.locator("#region-set-input").press("Enter");
@@ -271,6 +271,145 @@ test("correct speedrun answer locks skip until the next flag loads", async ({pag
     pendingAdvance: false,
     routeLength: 2,
     currentCountry: "Germany"
+  });
+});
+
+test("first speedrun completion opens results with publish prompt", async ({page})=>{
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.selectedContinent = "All";
+    state.speedTarget = "all";
+    state.speedRuns = {};
+    state.pendingSharedRun = null;
+    state.lastCompletedRun = null;
+    state.session = makeSession();
+    state.session.pool = ["France"];
+    state.session.correctCountry = "France";
+    state.session.correctAnswer = "France";
+    recordRouteQuestion("France");
+
+    const firstAttempt = registerAttempt();
+    state.session.speedRun.startPerf = performance.now() - 1500;
+    state.session.speedRun.startMs = Date.now() - 1500;
+    recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
+    handleCorrect(firstAttempt);
+    finishSession("complete");
+
+    return {
+      modalVisible: resultModal.classList.contains("is-visible"),
+      title: resultTitle.textContent,
+      publishHidden: leaderboardPublish.hidden,
+      publishRowHidden: leaderboardPublishRow.hidden,
+      publishTitle: leaderboardPublishTitle.textContent,
+      pendingCount: getPendingSharedRuns().length,
+      isPersonalBest: state.lastCompletedRun && state.lastCompletedRun.isPersonalBest
+    };
+  });
+
+  expect(result).toMatchObject({
+    modalVisible: true,
+    title: "Speedrun complete",
+    publishHidden: false,
+    publishRowHidden: false,
+    pendingCount: 1,
+    isPersonalBest: true
+  });
+  expect(result.publishTitle).toContain("New personal best");
+});
+
+test("non-PB speedrun completion still opens results without publish prompt", async ({page})=>{
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.selectedContinent = "All";
+    state.speedTarget = "all";
+    const speedRunKey = getSpeedRunKey();
+    state.speedRuns = {
+      [speedRunKey]: {
+        bestSplits: {all: 1000},
+        runs: [{timeMs: 1000, date: new Date().toISOString(), correct: 1, total: 1}]
+      }
+    };
+    state.pendingSharedRun = null;
+    state.lastCompletedRun = null;
+    state.session = makeSession();
+    state.session.pool = ["France"];
+    state.session.correctCountry = "France";
+    state.session.correctAnswer = "France";
+    recordRouteQuestion("France");
+
+    const firstAttempt = registerAttempt();
+    state.session.speedRun.startPerf = performance.now() - 2000;
+    state.session.speedRun.startMs = Date.now() - 2000;
+    recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
+    handleCorrect(firstAttempt);
+
+    return {
+      modalVisible: resultModal.classList.contains("is-visible"),
+      title: resultTitle.textContent,
+      publishHidden: leaderboardPublish.hidden,
+      pendingCount: getPendingSharedRuns().length,
+      isPersonalBest: state.lastCompletedRun && state.lastCompletedRun.isPersonalBest
+    };
+  });
+
+  expect(result).toMatchObject({
+    modalVisible: true,
+    title: "Speedrun complete",
+    publishHidden: true,
+    pendingCount: 0,
+    isPersonalBest: false
+  });
+});
+
+test("speedrun completion still opens results if local recording fails", async ({page})=>{
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.selectedContinent = "All";
+    state.speedTarget = "all";
+    state.pendingSharedRun = null;
+    state.lastCompletedRun = null;
+    state.session = makeSession();
+    state.session.pool = ["France"];
+    state.session.solved.add("France");
+    startSpeedRun();
+    state.session.speedRun.startPerf = performance.now() - 1500;
+    state.session.speedRun.startMs = Date.now() - 1500;
+    recordSpeedRun = ()=>{
+      throw new Error("forced recording failure");
+    };
+
+    finishSession("complete");
+
+    return {
+      modalVisible: resultModal.classList.contains("is-visible"),
+      title: resultTitle.textContent,
+      publishHidden: leaderboardPublish.hidden,
+      pendingCount: getPendingSharedRuns().length,
+      lastCompletedRun: state.lastCompletedRun
+    };
+  });
+
+  expect(result).toMatchObject({
+    modalVisible: true,
+    title: "Speedrun complete",
+    publishHidden: true,
+    pendingCount: 0,
+    lastCompletedRun: null
   });
 });
 

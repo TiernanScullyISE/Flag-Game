@@ -4552,11 +4552,30 @@ function emptyMini(text){
 
 function finishSession(reason){
   const session = state.session;
+  if(session.gameOver){
+    if(resultModal && !resultModal.classList.contains("is-visible")){
+      showResultModal(reason);
+    }
+    return;
+  }
+
+  session.gameOver = true;
   if(state.playMode === "speedrun" && reason === "complete"){
-    const run = recordSpeedRun();
-    state.lastCompletedRun = run;
-    state.pendingSharedRun = buildPendingSharedRuns(run);
-    queueCompletedRunAnalytics(run);
+    try{
+      const run = recordSpeedRun();
+      state.lastCompletedRun = run;
+      state.pendingSharedRun = buildPendingSharedRuns(run);
+      try{
+        queueCompletedRunAnalytics(run);
+      }catch(error){
+        console.error("Could not queue completed speedrun analytics.", error);
+      }
+    }catch(error){
+      console.error("Could not record completed speedrun.", error);
+      stopSpeedRun();
+      state.pendingSharedRun = null;
+      state.lastCompletedRun = null;
+    }
   }else{
     stopSpeedRun();
     state.pendingSharedRun = null;
@@ -4567,7 +4586,6 @@ function finishSession(reason){
     recordPracticePercentage();
   }
 
-  session.gameOver = true;
   disableInputs();
   updateAllStatus();
   showResultModal(reason);

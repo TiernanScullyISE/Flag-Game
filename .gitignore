@@ -2,6 +2,7 @@
 *.txt
 *.log
 node_modules/
+.venv/
 test-results/
 playwright-report/
 .region-cache/
