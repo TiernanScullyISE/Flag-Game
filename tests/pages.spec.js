@@ -322,6 +322,119 @@ test("first speedrun completion opens results with publish prompt", async ({page
   expect(result.publishTitle).toContain("New personal best");
 });
 
+test("speedrun results and publish prompt survive progress summary errors", async ({page})=>{
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(()=>{
+    const originalGenerateRunAnalysis = window.SpeedrunAnalytics.generateRunAnalysis;
+    window.SpeedrunAnalytics.generateRunAnalysis = ()=>{
+      throw new Error("forced progress summary failure");
+    };
+
+    try{
+      state.playMode = "speedrun";
+      state.gameScope = "countries";
+      state.which = "flags";
+      state.hard = true;
+      state.selectedContinent = "All";
+      state.speedTarget = "all";
+      state.speedRuns = {};
+      state.deviceAnalyticsHistory = [];
+      state.pendingSharedRun = null;
+      state.lastCompletedRun = null;
+      state.session = makeSession();
+      state.session.pool = ["France"];
+      state.session.correctCountry = "France";
+      state.session.correctAnswer = "France";
+      recordRouteQuestion("France");
+
+      const firstAttempt = registerAttempt();
+      state.session.speedRun.startPerf = performance.now() - 1500;
+      state.session.speedRun.startMs = Date.now() - 1500;
+      recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
+      handleCorrect(firstAttempt);
+
+      return {
+        modalVisible: resultModal.classList.contains("is-visible"),
+        title: resultTitle.textContent,
+        publishHidden: leaderboardPublish.hidden,
+        publishRowHidden: leaderboardPublishRow.hidden,
+        publishTitle: leaderboardPublishTitle.textContent,
+        pendingCount: getPendingSharedRuns().length,
+        isPersonalBest: state.lastCompletedRun && state.lastCompletedRun.isPersonalBest
+      };
+    }finally{
+      window.SpeedrunAnalytics.generateRunAnalysis = originalGenerateRunAnalysis;
+    }
+  });
+
+  expect(result).toMatchObject({
+    modalVisible: true,
+    title: "Speedrun complete",
+    publishHidden: false,
+    publishRowHidden: false,
+    pendingCount: 1,
+    isPersonalBest: true
+  });
+  expect(result.publishTitle).toContain("New personal best");
+});
+
+test("speedrun PB upload prompt survives localStorage write failures", async ({page})=>{
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(()=>{
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = ()=>{
+      throw new Error("forced storage failure");
+    };
+
+    try{
+      state.playMode = "speedrun";
+      state.gameScope = "countries";
+      state.which = "flags";
+      state.hard = true;
+      state.selectedContinent = "All";
+      state.speedTarget = "all";
+      state.speedRuns = {};
+      state.pendingSharedRun = null;
+      state.lastCompletedRun = null;
+      state.session = makeSession();
+      state.session.pool = ["France"];
+      state.session.correctCountry = "France";
+      state.session.correctAnswer = "France";
+      recordRouteQuestion("France");
+
+      const firstAttempt = registerAttempt();
+      state.session.speedRun.startPerf = performance.now() - 1500;
+      state.session.speedRun.startMs = Date.now() - 1500;
+      recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
+      handleCorrect(firstAttempt);
+
+      return {
+        modalVisible: resultModal.classList.contains("is-visible"),
+        title: resultTitle.textContent,
+        publishHidden: leaderboardPublish.hidden,
+        publishRowHidden: leaderboardPublishRow.hidden,
+        publishTitle: leaderboardPublishTitle.textContent,
+        pendingCount: getPendingSharedRuns().length,
+        isPersonalBest: state.lastCompletedRun && state.lastCompletedRun.isPersonalBest
+      };
+    }finally{
+      Storage.prototype.setItem = originalSetItem;
+    }
+  });
+
+  expect(result).toMatchObject({
+    modalVisible: true,
+    title: "Speedrun complete",
+    publishHidden: false,
+    publishRowHidden: false,
+    pendingCount: 1,
+    isPersonalBest: true
+  });
+  expect(result.publishTitle).toContain("New personal best");
+});
+
 test("non-PB speedrun completion still opens results without publish prompt", async ({page})=>{
   await page.goto("/game.html");
 

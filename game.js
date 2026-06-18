@@ -1679,19 +1679,24 @@ function updateQuestionDerivedTiming(entry){
 function buildRunDerivedMetrics(summary){
   const engine = window.SpeedrunAnalytics;
   if(engine && engine.deriveRunMetrics){
-    return engine.deriveRunMetrics({
-      totalDurationMs: summary.timeMs,
-      totalQuestions: summary.total,
-      solvedCount: summary.total,
-      finalCorrectCount: summary.total,
-      firstTryCorrectCount: summary.correct,
-      questionAnalytics: summary.questionAnalytics,
-      telemetry: state.session && state.session.security ? {
-        pasteEvents: state.session.security.pasteEvents,
-        focusLostMs: state.session.security.focusLostMs,
-        hiddenMs: state.session.security.hiddenMs
-      } : {}
-    });
+    try{
+      const metrics = engine.deriveRunMetrics({
+        totalDurationMs: summary.timeMs,
+        totalQuestions: summary.total,
+        solvedCount: summary.total,
+        finalCorrectCount: summary.total,
+        firstTryCorrectCount: summary.correct,
+        questionAnalytics: summary.questionAnalytics,
+        telemetry: state.session && state.session.security ? {
+          pasteEvents: state.session.security.pasteEvents,
+          focusLostMs: state.session.security.focusLostMs,
+          hiddenMs: state.session.security.hiddenMs
+        } : {}
+      });
+      if(metrics) return metrics;
+    }catch(error){
+      console.error("Could not derive speedrun metrics.", error);
+    }
   }
   return buildFallbackDerivedMetrics(summary);
 }
@@ -4679,17 +4684,32 @@ function showResultModal(reason){
     appendResultDetail("Review", Array.from(session.incorrect).sort().join(", "), "is-review");
   }
 
-  if(isSpeed && !isRegionGame()){
-    renderDeviceProgressSummary();
-  }
-
-  renderLeaderboardPublishPrompt(reason);
+  renderLeaderboardPublishPromptSafely(reason);
   resultModal.classList.add("is-visible");
   resultModal.setAttribute("aria-hidden", "false");
   if(leaderboardPublish && !leaderboardPublish.hidden && resultPlayerNameInput && !resultPlayerNameInput.hidden){
     resultPlayerNameInput.focus();
   }else{
     resultRetry.focus();
+  }
+  renderDeviceProgressSummarySafely(isSpeed);
+}
+
+function renderLeaderboardPublishPromptSafely(reason){
+  try{
+    renderLeaderboardPublishPrompt(reason);
+  }catch(error){
+    console.error("Could not render leaderboard publish prompt.", error);
+    if(leaderboardPublish) leaderboardPublish.hidden = true;
+  }
+}
+
+function renderDeviceProgressSummarySafely(isSpeed){
+  if(!isSpeed || isRegionGame()) return;
+  try{
+    renderDeviceProgressSummary();
+  }catch(error){
+    console.error("Could not render device progress summary.", error);
   }
 }
 

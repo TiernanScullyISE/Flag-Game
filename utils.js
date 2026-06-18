@@ -6,7 +6,15 @@ const storage = {
       return raw ? JSON.parse(raw) : fallback;
     }catch{ return fallback; }
   },
-  set(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+  set(key, value){
+    try{
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    }catch(error){
+      console.warn(`Could not save ${key} to localStorage.`, error);
+      return false;
+    }
+  }
 };
 
 /* Normalise strings and fuzzy matching */
