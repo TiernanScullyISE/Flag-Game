@@ -6,6 +6,7 @@ const pages = [
   ["leaderboard", "/leaderboard.html", "Fastest WPM"],
   ["revision", "/revise.html", "Revision"],
   ["all countries", "/view.html", "Browse every country"],
+  ["feedback", "/feedback.html", "Share feedback"],
   ["admin", "/admin.html", "Admin password"]
 ];
 
@@ -82,6 +83,72 @@ test("admin review cards explain pending reasons", async ({page})=>{
   await expect(page.locator(".admin-review-panel")).toContainText("2 reasons pending review");
   await expect(page.locator(".admin-review-panel")).toContainText("Name review");
   await expect(page.locator(".admin-review-panel")).toContainText("Server review check");
+});
+
+test("feedback form submits to configured endpoint", async ({page})=>{
+  let requestBody = null;
+  await page.route("**/functions/v1/submit-feedback", async route=>{
+    requestBody = JSON.parse(route.request().postData() || "{}");
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ok:true})
+    });
+  });
+
+  await page.goto("/feedback.html");
+  await page.locator("#feedback-name").fill("Tester");
+  await page.locator("#feedback-page").fill("Speedrun");
+  await page.locator("#feedback-message").fill("Please add a way to practise only island countries.");
+  await page.getByRole("button", {name:"Submit feedback"}).click();
+
+  await expect(page.locator("#feedback-status")).toContainText("Feedback submitted");
+  expect(requestBody).toMatchObject({
+    category: "suggestion",
+    name: "Tester",
+    pageUrl: "Speedrun",
+    message: "Please add a way to practise only island countries."
+  });
+});
+
+test("admin feedback cards can select all and copy selected items", async ({page})=>{
+  await page.goto("/admin.html");
+  await page.evaluate(()=>{
+    window.__copiedFeedback = "";
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async text=>{ window.__copiedFeedback = text; }
+      }
+    });
+    renderFeedbackSubmissions([
+      {
+        id: 7,
+        created_at: "2026-07-10T10:00:00Z",
+        category: "suggestion",
+        name: "Player",
+        page_url: "Revision",
+        message: "Add a filter for weak countries."
+      },
+      {
+        id: 8,
+        created_at: "2026-07-10T11:00:00Z",
+        category: "data",
+        name: "",
+        page_url: "All",
+        message: "Check the capital spelling for one item."
+      }
+    ]);
+  });
+
+  await page.locator("#admin-feedback-select-all").check();
+  await page.getByRole("button", {name:"Copy selected"}).click();
+
+  await expect(page.locator("#admin-status")).toContainText("Copied 2 feedback items");
+  const copied = await page.evaluate(()=>window.__copiedFeedback);
+  expect(copied).toContain("Feedback #7");
+  expect(copied).toContain("Add a filter for weak countries.");
+  expect(copied).toContain("Feedback #8");
 });
 
 test("play page supports regional county and state sets", async ({page})=>{

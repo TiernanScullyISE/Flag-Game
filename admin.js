@@ -2,6 +2,7 @@ const adminPassword = document.getElementById("admin-password");
 const adminRememberPassword = document.getElementById("admin-remember-password");
 const adminLoad = document.getElementById("admin-load");
 const adminAnalytics = document.getElementById("admin-analytics");
+const adminFeedback = document.getElementById("admin-feedback");
 const adminExportScope = document.getElementById("admin-export-scope");
 const adminExportFilter = document.getElementById("admin-export-filter");
 const adminExport = document.getElementById("admin-export");
@@ -10,6 +11,7 @@ const adminList = document.getElementById("admin-list");
 
 const ADMIN_TRUST_DEVICE_KEY = "leaderboard_admin_trust_device";
 const ADMIN_DEVICE_ID_KEY = "leaderboard_admin_device_id";
+let currentFeedbackSubmissions = [];
 
 function initAdmin(){
   adminRememberPassword.checked = true;
@@ -20,6 +22,7 @@ function initAdmin(){
 
   adminLoad.addEventListener("click", loadAdminQueue);
   adminAnalytics.addEventListener("click", loadAnalytics);
+  adminFeedback.addEventListener("click", loadFeedback);
   adminExport.addEventListener("click", exportCsv);
   adminExportScope.addEventListener("change", updateExportControls);
   adminRememberPassword.addEventListener("change", syncAdminTrustStorage);
@@ -164,6 +167,24 @@ async function loadAnalytics(){
     setAdminStatus(error.message || "Could not load analytics.");
   }finally{
     adminAnalytics.disabled = false;
+  }
+}
+
+async function loadFeedback(){
+  adminFeedback.disabled = true;
+  setAdminStatus("Loading feedback...");
+  adminList.innerHTML = "";
+
+  try{
+    const payload = await adminRequest("feedback");
+    currentFeedbackSubmissions = Array.isArray(payload.feedback) ? payload.feedback : [];
+    renderFeedbackSubmissions(currentFeedbackSubmissions);
+    setAdminStatus(`${currentFeedbackSubmissions.length} feedback item${currentFeedbackSubmissions.length === 1 ? "" : "s"} loaded.`);
+  }catch(error){
+    currentFeedbackSubmissions = [];
+    setAdminStatus(error.message || "Could not load feedback.");
+  }finally{
+    adminFeedback.disabled = false;
   }
 }
 
@@ -578,6 +599,197 @@ function renderAnalyticsTable(title, columns, rows, emptyText){
   return section;
 }
 
+function renderFeedbackSubmissions(items){
+  currentFeedbackSubmissions = Array.isArray(items) ? items : [];
+  adminList.innerHTML = "";
+  if(!currentFeedbackSubmissions.length){
+    const empty = document.createElement("p");
+    empty.className = "empty-mini leaderboard-page-empty";
+    empty.textContent = "No feedback submissions stored yet.";
+    adminList.appendChild(empty);
+    return;
+  }
+
+  adminList.appendChild(renderFeedbackControls(currentFeedbackSubmissions.length));
+  for(const item of currentFeedbackSubmissions){
+    adminList.appendChild(renderFeedbackSubmission(item));
+  }
+  updateFeedbackSelection();
+}
+
+function renderFeedbackControls(total){
+  const controls = document.createElement("section");
+  controls.className = "admin-feedback-controls";
+
+  const selectAllLabel = document.createElement("label");
+  selectAllLabel.className = "checkbox";
+  const selectAll = document.createElement("input");
+  selectAll.type = "checkbox";
+  selectAll.id = "admin-feedback-select-all";
+  selectAll.addEventListener("change", toggleAllFeedback);
+  const selectAllText = document.createElement("span");
+  selectAllText.textContent = `Select all ${total}`;
+  selectAllLabel.append(selectAll, selectAllText);
+
+  const selectionStatus = document.createElement("p");
+  selectionStatus.id = "admin-feedback-selection-status";
+  selectionStatus.className = "empty-mini admin-feedback-selection-status";
+
+  const copySelected = document.createElement("button");
+  copySelected.id = "admin-feedback-copy-selected";
+  copySelected.className = "btn primary";
+  copySelected.type = "button";
+  copySelected.textContent = "Copy selected";
+  copySelected.addEventListener("click", copySelectedFeedback);
+
+  controls.append(selectAllLabel, selectionStatus, copySelected);
+  return controls;
+}
+
+function renderFeedbackSubmission(item){
+  const feedback = normaliseFeedbackItem(item);
+  const card = document.createElement("article");
+  card.className = "leaderboard-category-card admin-run-card admin-feedback-card";
+  card.dataset.feedbackId = feedback.id;
+
+  const heading = document.createElement("header");
+  heading.className = "leaderboard-category-heading";
+  const kicker = document.createElement("p");
+  kicker.className = "panel-label";
+  kicker.textContent = `${feedback.category} feedback`;
+  const title = document.createElement("h2");
+  title.textContent = feedback.name ? `${feedback.name} - ${formatDateTime(feedback.createdAt)}` : formatDateTime(feedback.createdAt);
+  heading.append(kicker, title);
+
+  const selectLabel = document.createElement("label");
+  selectLabel.className = "checkbox admin-feedback-select";
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "admin-feedback-checkbox";
+  checkbox.value = feedback.id;
+  checkbox.addEventListener("change", updateFeedbackSelection);
+  const selectText = document.createElement("span");
+  selectText.textContent = "Select";
+  selectLabel.append(checkbox, selectText);
+
+  const facts = document.createElement("div");
+  facts.className = "leaderboard-expanded-facts";
+  facts.append(
+    factPill(`Created: ${formatDateTime(feedback.createdAt)}`),
+    factPill(`Type: ${feedback.category}`),
+    factPill(`Name: ${feedback.name || "anonymous"}`),
+    factPill(`Page: ${feedback.pageUrl || "not specified"}`)
+  );
+
+  const message = document.createElement("p");
+  message.className = "admin-feedback-message";
+  message.textContent = feedback.message;
+
+  const actions = document.createElement("div");
+  actions.className = "result-actions";
+  const copy = document.createElement("button");
+  copy.className = "btn subtle";
+  copy.type = "button";
+  copy.textContent = "Copy";
+  copy.addEventListener("click", ()=>copyFeedbackItems([feedback]));
+  actions.appendChild(copy);
+
+  card.append(heading, selectLabel, facts, message, actions);
+  return card;
+}
+
+function toggleAllFeedback(event){
+  const checked = event.currentTarget.checked;
+  for(const checkbox of adminList.querySelectorAll(".admin-feedback-checkbox")){
+    checkbox.checked = checked;
+  }
+  updateFeedbackSelection();
+}
+
+function updateFeedbackSelection(){
+  const checkboxes = Array.from(adminList.querySelectorAll(".admin-feedback-checkbox"));
+  const selected = checkboxes.filter(checkbox=>checkbox.checked);
+  const selectAll = document.getElementById("admin-feedback-select-all");
+  const status = document.getElementById("admin-feedback-selection-status");
+  const copySelected = document.getElementById("admin-feedback-copy-selected");
+
+  if(selectAll){
+    selectAll.checked = checkboxes.length > 0 && selected.length === checkboxes.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < checkboxes.length;
+  }
+  if(status){
+    status.textContent = `${selected.length} of ${checkboxes.length} selected`;
+  }
+  if(copySelected){
+    copySelected.disabled = selected.length === 0;
+  }
+}
+
+async function copySelectedFeedback(){
+  const selectedIds = Array.from(adminList.querySelectorAll(".admin-feedback-checkbox:checked"))
+    .map(checkbox=>checkbox.value);
+  const selected = currentFeedbackSubmissions
+    .map(normaliseFeedbackItem)
+    .filter(item=>selectedIds.includes(item.id));
+  if(!selected.length){
+    setAdminStatus("Select at least one feedback item to copy.");
+    return;
+  }
+  await copyFeedbackItems(selected);
+}
+
+async function copyFeedbackItems(items){
+  try{
+    await writeClipboardText(items.map(formatFeedbackForAgent).join("\n\n---\n\n"));
+    setAdminStatus(`Copied ${items.length} feedback item${items.length === 1 ? "" : "s"} to clipboard.`);
+  }catch(error){
+    setAdminStatus(error.message || "Could not copy feedback.");
+  }
+}
+
+async function writeClipboardText(text){
+  if(navigator.clipboard && window.isSecureContext){
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.className = "clipboard-fallback";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if(!copied) throw new Error("Clipboard copy failed.");
+}
+
+function formatFeedbackForAgent(item){
+  const feedback = normaliseFeedbackItem(item);
+  return [
+    `Feedback #${feedback.id}`,
+    `Submitted: ${formatDateTime(feedback.createdAt)}`,
+    `Type: ${feedback.category}`,
+    `Name: ${feedback.name || "anonymous"}`,
+    `Page or area: ${feedback.pageUrl || "not specified"}`,
+    "",
+    "Suggestion:",
+    feedback.message
+  ].join("\n");
+}
+
+function normaliseFeedbackItem(item){
+  const row = item && typeof item === "object" ? item : {};
+  return {
+    id: String(row.id || ""),
+    createdAt: row.created_at || row.createdAt || "",
+    category: String(row.category || "suggestion"),
+    name: String(row.name || "").trim(),
+    pageUrl: String(row.page_url || row.pageUrl || "").trim(),
+    message: String(row.message || "").trim()
+  };
+}
+
 function renderAdminRun(run){
   const card = document.createElement("article");
   card.className = "leaderboard-category-card admin-run-card";
@@ -780,6 +992,11 @@ function setAdminStatus(text){
   status.className = "empty-mini";
   status.textContent = text;
   adminStatus.appendChild(status);
+}
+
+function formatDateTime(value){
+  const date = value ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime()) ? date.toLocaleString() : "unknown";
 }
 
 function formatAdminTime(ms){

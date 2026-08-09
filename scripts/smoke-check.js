@@ -3,7 +3,7 @@ const path = require("node:path");
 const {execFileSync} = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const HTML_FILES = ["index.html", "game.html", "leaderboard.html", "admin.html", "revise.html", "view.html"];
+const HTML_FILES = ["index.html", "game.html", "leaderboard.html", "admin.html", "feedback.html", "revise.html", "view.html"];
 const JS_FILES = [
   "theme.js",
   "data.js",
@@ -13,6 +13,7 @@ const JS_FILES = [
   "leaderboard-config.js",
   "leaderboard.js",
   "analytics.js",
+  "feedback.js",
   "map-view.js",
   "region-map.js",
   "world-map-config.js",

@@ -4,5 +4,6 @@ window.LEADERBOARD_CONFIG = {
   tableName: "speedrun_leaderboard",
   submitFunctionUrl: "https://ofkarhoplvvltjvtclbd.supabase.co/functions/v1/submit-speedrun",
   analyticsFunctionUrl: "https://ofkarhoplvvltjvtclbd.supabase.co/functions/v1/submit-analytics",
+  feedbackFunctionUrl: "https://ofkarhoplvvltjvtclbd.supabase.co/functions/v1/submit-feedback",
   adminFunctionUrl: "https://ofkarhoplvvltjvtclbd.supabase.co/functions/v1/admin-leaderboard"
 };

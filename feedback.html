@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Feedback - Flag & Capital Quiz</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="theme.js?v=theme-2"></script>
+  <link rel="stylesheet" href="style.css?v=feedback-1" />
+</head>
+<body>
+  <header class="site-header with-nav">
+    <a class="brand" href="index.html">Flag & Capital Quiz</a>
+    <nav class="top-nav">
+      <a class="nav-link" href="game.html">Play</a>
+      <a class="nav-link" href="leaderboard.html">Leaderboard</a>
+      <a class="nav-link" href="revise.html">Revision</a>
+      <a class="nav-link" href="view.html">All</a>
+      <a class="nav-link active" href="feedback.html">Feedback</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="page-intro">
+      <p class="section-kicker">Feedback</p>
+      <h1>Share feedback for the quiz.</h1>
+    </section>
+
+    <form id="feedback-form" class="feedback-form">
+      <div class="feedback-form-grid">
+        <div class="control">
+          <label for="feedback-category">Type</label>
+          <select id="feedback-category" name="category">
+            <option value="suggestion">Suggestion</option>
+            <option value="bug">Bug</option>
+            <option value="data">Data fix</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="feedback-name">Name</label>
+          <input id="feedback-name" name="name" type="text" maxlength="80" autocomplete="name" placeholder="Optional" />
+        </div>
+        <div class="control feedback-page-control">
+          <label for="feedback-page">Page or area</label>
+          <input id="feedback-page" name="page" type="text" maxlength="300" autocomplete="off" placeholder="Optional" />
+        </div>
+      </div>
+
+      <div class="control feedback-message-control">
+        <label for="feedback-message">Feedback</label>
+        <textarea id="feedback-message" name="message" minlength="8" maxlength="4000" required placeholder="What should be changed, fixed, or added?"></textarea>
+      </div>
+
+      <div class="feedback-form-actions">
+        <button id="feedback-submit" class="btn primary" type="submit">Submit feedback</button>
+        <p id="feedback-status" class="feedback-page-status" aria-live="polite"></p>
+      </div>
+    </form>
+  </main>
+
+  <footer class="site-footer">
+    <p>Feedback is sent to the admin review queue.</p>
+  </footer>
+
+  <script src="leaderboard-config.js" defer></script>
+  <script src="feedback.js?v=feedback-1" defer></script>
+</body>
+</html>
