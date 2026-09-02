@@ -12,6 +12,8 @@ const IMPOSSIBLE_ACTIVE_WPM = 260;
 const FLAG_RENDER_SIZE = 430;
 const SPEEDRUN_FLAG_PRELOAD_AHEAD = 12;
 const SPEEDRUN_FLAG_PRELOAD_CONCURRENCY = 6;
+const MOBILE_GAME_MEDIA_QUERY = "(max-width:640px)";
+const MOBILE_KEYBOARD_MIN_SHRINK_PX = 100;
 
 const worldMapState = {
   features: null,
@@ -215,6 +217,8 @@ const resultRetry = document.getElementById("result-retry");
 const resultClose = document.getElementById("result-close");
 
 function init(){
+  setupMobileGameViewport();
+
   playModeButtons.forEach(button=>{
     button.addEventListener("click", ()=>{
       if(state.playMode === button.dataset.playMode){
@@ -362,6 +366,49 @@ function init(){
   window.setInterval(()=>{
     if(state.playMode === "speedrun") refreshSharedLeaderboard();
   }, LEADERBOARD_REFRESH_MS);
+}
+
+function setupMobileGameViewport(){
+  const viewport = window.visualViewport;
+  let expandedViewportHeight = viewport ? viewport.height : window.innerHeight;
+
+  const updateMobileLayout = ()=>{
+    const height = viewport ? viewport.height : window.innerHeight;
+    const width = viewport ? viewport.width : window.innerWidth;
+    const pageTop = viewport ? viewport.pageTop : window.scrollY;
+    const pageLeft = viewport ? viewport.pageLeft : window.scrollX;
+    if(!Number.isFinite(height) || height <= 0) return;
+
+    document.documentElement.style.setProperty("--game-viewport-height", `${Math.round(height)}px`);
+    document.documentElement.style.setProperty("--game-viewport-width", `${Math.round(width)}px`);
+    document.documentElement.style.setProperty("--game-viewport-page-top", `${Math.round(pageTop)}px`);
+    document.documentElement.style.setProperty("--game-viewport-page-left", `${Math.round(pageLeft)}px`);
+
+    const isMobile = window.matchMedia(MOBILE_GAME_MEDIA_QUERY).matches;
+    const inputFocused = document.activeElement === answerInput;
+    const layoutActive = document.body.classList.contains("mobile-answer-active");
+    if(!isMobile){
+      document.body.classList.remove("mobile-answer-active");
+      expandedViewportHeight = height;
+      return;
+    }
+
+    const minimumShrink = Math.max(MOBILE_KEYBOARD_MIN_SHRINK_PX, expandedViewportHeight * .16);
+    const keyboardOpen = (inputFocused || layoutActive) && expandedViewportHeight - height >= minimumShrink;
+    document.body.classList.toggle("mobile-answer-active", keyboardOpen);
+    if(!keyboardOpen && !inputFocused) expandedViewportHeight = height;
+  };
+
+  answerInput.addEventListener("focus", updateMobileLayout);
+  answerInput.addEventListener("blur", ()=>window.setTimeout(updateMobileLayout, 100));
+
+  updateMobileLayout();
+  window.addEventListener("resize", updateMobileLayout, {passive:true});
+  window.addEventListener("orientationchange", updateMobileLayout, {passive:true});
+  if(viewport){
+    viewport.addEventListener("resize", updateMobileLayout, {passive:true});
+    viewport.addEventListener("scroll", updateMobileLayout, {passive:true});
+  }
 }
 
 function retryVisibleQuestionLoad(){
@@ -2356,6 +2403,7 @@ function registerAttempt(){
 
 function handleCorrect(firstAttempt, message="Correct!"){
   const session = state.session;
+  const preserveAnswerInput = shouldPreserveMobileSpeedrunInput();
   setFeedback(message, true);
   showAnswerFlash(true);
 
@@ -2368,7 +2416,8 @@ function handleCorrect(firstAttempt, message="Correct!"){
   queueSpeedRunFlagPreloads(getSpeedRunFlagPreloadPriority(), true);
   updateHighScore();
   updateAllStatus();
-  disableInputs();
+  disableInputs({preserveAnswerInput});
+  if(preserveAnswerInput) keepAnswerInputFocused();
 
   if(state.playMode === "speedrun" && isTargetComplete()){
     finishSession("complete");
@@ -2382,6 +2431,14 @@ function handleCorrect(firstAttempt, message="Correct!"){
     session.pendingAdvance = false;
     loadQuestion();
   }, ANSWER_FLASH_MS);
+}
+
+function shouldPreserveMobileSpeedrunInput(){
+  return state.playMode === "speedrun"
+    && state.hard
+    && !isWorldMode()
+    && document.activeElement === answerInput
+    && window.matchMedia(MOBILE_GAME_MEDIA_QUERY).matches;
 }
 
 function handleIncorrect(firstAttempt){
@@ -4617,9 +4674,9 @@ function recordPracticePercentage(){
   }
 }
 
-function disableInputs(){
+function disableInputs(options={}){
   mcqBtns.forEach(button=>button.disabled = true);
-  answerInput.disabled = true;
+  if(!options.preserveAnswerInput) answerInput.disabled = true;
   submitBtn.disabled = true;
   nextBtn.disabled = true;
   lastBtn.disabled = true;

@@ -40,6 +40,47 @@ test("play page switches quiz modes", async ({page})=>{
   await expect(page.locator("#timer-value")).toHaveText("0:00.0");
 });
 
+test("mobile typing keeps the question visual and compact answer controls in view", async ({page})=>{
+  await page.setViewportSize({width:390, height:844});
+  await page.goto("/game.html");
+  await page.locator("#hard-toggle").check();
+
+  await page.evaluate(()=>{
+    Object.defineProperty(window.visualViewport, "height", {
+      configurable: true,
+      value: 420
+    });
+    window.visualViewport.dispatchEvent(new Event("resize"));
+  });
+  await expect(page.locator("body")).toHaveClass(/mobile-answer-active/);
+
+  const layout = await page.evaluate(()=>{
+    const quiz = document.querySelector(".quiz-card").getBoundingClientRect();
+    const visual = document.querySelector("#question-visual").getBoundingClientRect();
+    const input = document.querySelector("#answer-input").getBoundingClientRect();
+    const controls = document.querySelector(".answer-control-row").getBoundingClientRect();
+    return {
+      quizTop: quiz.top,
+      quizBottom: quiz.bottom,
+      visualTop: visual.top,
+      visualBottom: visual.bottom,
+      visualHeight: visual.height,
+      inputTop: input.top,
+      inputBottom: input.bottom,
+      inputHeight: input.height,
+      controlsHeight: controls.height
+    };
+  });
+
+  expect(layout.visualTop).toBeGreaterThanOrEqual(0);
+  expect(layout.visualHeight).toBeGreaterThanOrEqual(190);
+  expect(layout.visualBottom).toBeLessThan(layout.inputTop);
+  expect(layout.inputHeight).toBeLessThanOrEqual(52);
+  expect(layout.controlsHeight).toBeLessThanOrEqual(110);
+  expect(layout.inputBottom).toBeLessThanOrEqual(layout.quizTop + 420);
+  expect(layout.quizBottom).toBeLessThanOrEqual(layout.quizTop + 420);
+});
+
 test("leaderboard page lists regional boards and searches categories", async ({page})=>{
   await page.goto("/leaderboard.html");
   await expect(page.locator("#leaderboard-scope")).toHaveValue("all");
@@ -339,6 +380,45 @@ test("correct speedrun answer locks skip until the next flag loads", async ({pag
     routeLength: 2,
     currentCountry: "Germany"
   });
+});
+
+test("mobile speedrun keeps the answer input focused between flags", async ({page})=>{
+  await page.setViewportSize({width:390, height:844});
+  await page.goto("/game.html");
+
+  const duringAdvance = await page.evaluate(()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.session = makeSession();
+    state.session.pool = ["France", "Germany"];
+    state.session.correctCountry = "France";
+    state.session.correctAnswer = "France";
+    recordRouteQuestion("France");
+    toggleAnswerUi();
+    answerInput.disabled = false;
+    answerInput.focus();
+
+    handleCorrect(true);
+    return {
+      answerDisabled: answerInput.disabled,
+      answerFocused: document.activeElement === answerInput,
+      nextDisabled: nextBtn.disabled,
+      pendingAdvance: state.session.pendingAdvance
+    };
+  });
+
+  expect(duringAdvance).toEqual({
+    answerDisabled: false,
+    answerFocused: true,
+    nextDisabled: true,
+    pendingAdvance: true
+  });
+
+  await page.waitForTimeout(150);
+  await expect(page.locator("#answer-input")).toBeFocused();
+  await expect(page.locator("#answer-input")).toBeEnabled();
 });
 
 test("first speedrun completion opens results with publish prompt", async ({page})=>{
