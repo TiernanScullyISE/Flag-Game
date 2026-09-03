@@ -126,6 +126,92 @@ test("admin review cards explain pending reasons", async ({page})=>{
   await expect(page.locator(".admin-review-panel")).toContainText("Server review check");
 });
 
+test("admin run filters include approved, pending and rejected records", async ({page})=>{
+  await page.goto("/admin.html");
+  await page.evaluate(()=>{
+    const base = {
+      mode_key: "flags_All_hard_10",
+      game_scope: "countries",
+      set_label: "All",
+      continent: "All",
+      which: "flags",
+      target_label: "First 10",
+      time_ms: 20000,
+      correct_first_try: 10,
+      total: 10,
+      verified: true,
+      review_reasons: [],
+      route: [],
+      created_at: new Date().toISOString()
+    };
+    currentAdminRuns = [
+      {...base, id:1, status:"pending", player_name:"Pending Runner"},
+      {...base, id:2, status:"approved", player_name:"Approved Runner"},
+      {...base, id:3, status:"rejected", player_name:"Rejected Runner", time_ms:21000}
+    ];
+    currentAdminView = "runs";
+    document.getElementById("admin-tools").hidden = false;
+    document.getElementById("admin-run-age-filter").value = "all";
+    document.getElementById("admin-run-status-filter").value = "all";
+    renderFilteredAdminRuns();
+  });
+
+  await expect(page.locator(".admin-run-card")).toHaveCount(3);
+  await page.locator("#admin-run-duplicates-only").check();
+  await expect(page.locator(".admin-run-card")).toHaveCount(2);
+  await page.locator("#admin-run-duplicates-only").uncheck();
+  await page.locator("#admin-run-status-filter").selectOption("rejected");
+  await expect(page.locator(".admin-run-card")).toHaveCount(1);
+  await expect(page.locator(".admin-run-card")).toContainText("Rejected Runner");
+});
+
+test("admin moderation updates locally without reloading the run list", async ({page})=>{
+  await page.unroute(/supabase\.co/);
+  let listRequests = 0;
+  await page.route("**/functions/v1/admin-leaderboard", async route=>{
+    const request = JSON.parse(route.request().postData() || "{}");
+    const base = {
+      id:44,
+      status:"pending",
+      player_name:"Runner",
+      mode_key:"flags_All_hard_10",
+      game_scope:"countries",
+      set_label:"All",
+      continent:"All",
+      which:"flags",
+      target_label:"First 10",
+      time_ms:20000,
+      correct_first_try:10,
+      total:10,
+      verified:true,
+      review_reasons:["manual-approval-required"],
+      route:[],
+      created_at:new Date().toISOString()
+    };
+    if(request.action === "list"){
+      listRequests += 1;
+      await route.fulfill({status:200, contentType:"application/json", body:JSON.stringify({runs:[base]})});
+      return;
+    }
+    await route.fulfill({
+      status:200,
+      contentType:"application/json",
+      body:JSON.stringify({run:{...base, status:"rejected", reviewed_at:new Date().toISOString()}})
+    });
+  });
+
+  await page.goto("/admin.html");
+  await page.locator("#admin-password").fill("test-password");
+  await page.locator("#admin-load").click();
+  await page.locator("#admin-run-age-filter").selectOption("all");
+  await page.locator("#admin-run-status-filter").selectOption("all");
+  await page.getByRole("button", {name:"Reject", exact:true}).click();
+
+  await expect(page.locator("#admin-status")).toContainText("No queue reload was needed");
+  await expect(page.locator(".admin-run-card")).toHaveClass(/is-rejected/);
+  expect(listRequests).toBe(1);
+});
+
 test("feedback form submits to configured endpoint", async ({page})=>{
   let requestBody = null;
   await page.route("**/functions/v1/submit-feedback", async route=>{

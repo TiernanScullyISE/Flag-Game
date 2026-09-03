@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="theme.js?v=theme-2"></script>
-  <link rel="stylesheet" href="style.css?v=feedback-1" />
+  <link rel="stylesheet" href="style.css?v=security-admin-1" />
 </head>
 <body>
   <header class="site-header with-nav">
@@ -29,7 +29,7 @@
       <h1>Review leaderboard submissions and private learning analytics.</h1>
     </section>
 
-    <section class="toolbar admin-toolbar">
+    <section class="toolbar admin-toolbar admin-login-toolbar">
       <div class="control">
         <label for="admin-password">Admin password</label>
         <input id="admin-password" type="password" autocomplete="current-password" />
@@ -40,7 +40,42 @@
           <span>Trust this device</span>
         </label>
       </div>
-      <button id="admin-load" class="btn primary" type="button">Load queue</button>
+      <button id="admin-load" class="btn primary" type="button">Unlock and load runs</button>
+    </section>
+
+    <section id="admin-tools" class="toolbar admin-toolbar admin-tools" hidden>
+      <div class="control compact-control">
+        <label for="admin-run-status-filter">Run status</label>
+        <select id="admin-run-status-filter">
+          <option value="pending">Pending</option>
+          <option value="all">All</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="control compact-control">
+        <label for="admin-run-age-filter">Created</label>
+        <select id="admin-run-age-filter">
+          <option value="24">Last 24 hours</option>
+          <option value="168">Last 7 days</option>
+          <option value="720">Last 30 days</option>
+          <option value="all">Any time</option>
+        </select>
+      </div>
+      <div class="control admin-run-search-control">
+        <label for="admin-run-search">Find run, name, device or mode</label>
+        <input id="admin-run-search" type="search" autocomplete="off" placeholder="Search loaded runs" />
+      </div>
+      <label class="checkbox admin-duplicate-filter-control">
+        <input id="admin-run-duplicates-only" type="checkbox" />
+        <span>Duplicate evidence only</span>
+      </label>
+      <button id="admin-refresh" class="btn subtle" type="button">Refresh runs</button>
+      <label class="checkbox admin-select-visible-control">
+        <input id="admin-select-visible" type="checkbox" />
+        <span>Select visible</span>
+      </label>
+      <button id="admin-bulk-reject" class="btn danger" type="button" disabled>Reject selected</button>
       <button id="admin-analytics" class="btn subtle" type="button">Load analytics</button>
       <button id="admin-feedback" class="btn subtle" type="button">Load feedback</button>
       <div class="control compact-control">
@@ -67,6 +102,6 @@
 
   <script src="leaderboard-config.js" defer></script>
   <script src="analytics.js?v=regional-leaderboard-1" defer></script>
-  <script src="admin.js?v=feedback-1" defer></script>
+  <script src="admin.js?v=security-admin-1" defer></script>
 </body>
 </html>

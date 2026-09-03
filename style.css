@@ -1773,7 +1773,8 @@ html[data-theme="dark"] .answer-control-row #next-btn{
   gap:14px;
 }
 
-.admin-toolbar input[type="password"]{
+.admin-toolbar input[type="password"],
+.admin-toolbar input[type="search"]{
   width:100%;
   border:1px solid rgba(255,249,238,.24);
   border-radius:var(--radius-sm);
@@ -1781,6 +1782,24 @@ html[data-theme="dark"] .answer-control-row #next-btn{
   color:var(--panel-strong);
   outline:none;
   padding:12px 14px;
+}
+
+.admin-tools[hidden]{
+  display:none;
+}
+
+.admin-run-search-control{
+  min-width:min(100%, 300px);
+}
+
+.admin-select-visible-control{
+  align-self:end;
+  min-height:44px;
+}
+
+.admin-duplicate-filter-control{
+  align-self:end;
+  min-height:44px;
 }
 
 .admin-remember-control{
@@ -1834,6 +1853,24 @@ html[data-theme="dark"] .answer-control-row #next-btn{
 
 .admin-run-card{
   min-height:auto;
+}
+
+.admin-run-card.is-approved{
+  border-color:rgba(31,139,109,.45);
+}
+
+.admin-run-card.is-rejected{
+  border-color:rgba(217,95,63,.36);
+  opacity:.86;
+}
+
+.admin-run-card.is-duplicate{
+  box-shadow:0 0 0 2px rgba(217,95,63,.3), var(--shadow);
+}
+
+.admin-run-selection{
+  width:max-content;
+  color:var(--ink-soft);
 }
 
 .admin-feedback-controls{
@@ -1968,6 +2005,7 @@ html[data-theme="dark"] .admin-toolbar .checkbox{
 }
 
 html[data-theme="dark"] .admin-toolbar input[type="password"],
+html[data-theme="dark"] .admin-toolbar input[type="search"],
 html[data-theme="dark"] .admin-run-card input[type="text"]{
   border-color:rgba(255,249,238,.2);
   background:#0f1a22;
@@ -1976,6 +2014,7 @@ html[data-theme="dark"] .admin-run-card input[type="text"]{
 }
 
 html[data-theme="dark"] .admin-toolbar input[type="password"]::placeholder,
+html[data-theme="dark"] .admin-toolbar input[type="search"]::placeholder,
 html[data-theme="dark"] .admin-run-card input[type="text"]::placeholder{
   color:#8fa0aa;
 }

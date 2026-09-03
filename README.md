@@ -133,7 +133,7 @@ Posted runs include private route order, splits and anti-cheat telemetry for ser
 
 Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include per-run context, per-question render/input/submit timings, raw attempts, accepted aliases, autocomplete/shortcut usage, typed-vs-canonical character counts, WPM variants, correction time, region breakdowns, mastery labels, device ID, submitted leaderboard names and quality flags. These records are private educational data and are available only through the admin function. The post-game summary can show the current browser's own local device progress without exposing anyone else's records.
 
-`admin.html` uses a private Supabase admin function and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Public leaderboard queries only show `approved` rows; suspicious submissions are saved as `pending` for review. The same admin page can load private analytics records for educational review.
+`admin.html` uses a private Supabase admin function and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. All new submissions are saved as `pending`; only an explicit admin approval makes a run public. After unlocking the page, admins can filter all, pending, approved or rejected runs, narrow by age or search terms, identify matching run evidence, and bulk-reject selected records. Moderation updates the loaded view locally instead of downloading the full queue after every decision. The same page can load private analytics records for educational review.
 
 ## Anti-Cheat Approach
 
@@ -142,10 +142,11 @@ The leaderboard is designed for a public-source static app, so the browser is tr
 - Direct public table inserts are revoked by the default SQL setup.
 - Submissions go through an Edge Function that recomputes category, route, answer, timing and score consistency before writing to the database.
 - Client telemetry is stored as evidence, but the browser does not decide whether a run is valid for the shared leaderboard.
-- Database constraints, a replay-resistant telemetry nonce and an insert trigger provide a second line of defence if the server write path regresses.
-- Borderline but structurally valid runs are queued for admin moderation instead of being published immediately.
+- Database constraints, a server-generated evidence fingerprint, duplicate detection and an insert trigger provide a second line of defence if the server write path regresses.
+- Every structurally valid run is queued for admin moderation instead of being published automatically.
 - Player-name moderation uses private server-side review terms; flagged names are saved for admin approval rather than published directly.
-- Admin moderation is protected by a server-side password check and database-backed failed-login lockout.
+- Submission limits are enforced independently against network and player identifiers so changing a browser-controlled identifier does not reset the network limit.
+- Admin moderation is protected by a server-side password check and database-backed, network-keyed failed-login lockout.
 - Approved public reads are separated from pending/rejected moderation data.
 
 Because a public browser app cannot fully hide quiz data or stop real-browser automation, determined attackers can still cheat. Keep the server validation code private, use admin moderation for suspicious records, and avoid prize-backed competition without stronger authentication.

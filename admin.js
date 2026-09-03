@@ -1,6 +1,14 @@
 const adminPassword = document.getElementById("admin-password");
 const adminRememberPassword = document.getElementById("admin-remember-password");
 const adminLoad = document.getElementById("admin-load");
+const adminTools = document.getElementById("admin-tools");
+const adminRefresh = document.getElementById("admin-refresh");
+const adminRunStatusFilter = document.getElementById("admin-run-status-filter");
+const adminRunAgeFilter = document.getElementById("admin-run-age-filter");
+const adminRunSearch = document.getElementById("admin-run-search");
+const adminRunDuplicatesOnly = document.getElementById("admin-run-duplicates-only");
+const adminSelectVisible = document.getElementById("admin-select-visible");
+const adminBulkReject = document.getElementById("admin-bulk-reject");
 const adminAnalytics = document.getElementById("admin-analytics");
 const adminFeedback = document.getElementById("admin-feedback");
 const adminExportScope = document.getElementById("admin-export-scope");
@@ -12,6 +20,10 @@ const adminList = document.getElementById("admin-list");
 const ADMIN_TRUST_DEVICE_KEY = "leaderboard_admin_trust_device";
 const ADMIN_DEVICE_ID_KEY = "leaderboard_admin_device_id";
 let currentFeedbackSubmissions = [];
+let currentAdminRuns = [];
+let currentAdminView = "runs";
+let currentAdminDuplicateCounts = new Map();
+const selectedAdminRunIds = new Set();
 
 function initAdmin(){
   adminRememberPassword.checked = true;
@@ -21,6 +33,13 @@ function initAdmin(){
   ensureAdminDeviceId();
 
   adminLoad.addEventListener("click", loadAdminQueue);
+  adminRefresh.addEventListener("click", loadAdminQueue);
+  adminRunStatusFilter.addEventListener("change", renderFilteredAdminRuns);
+  adminRunAgeFilter.addEventListener("change", renderFilteredAdminRuns);
+  adminRunSearch.addEventListener("input", renderFilteredAdminRuns);
+  adminRunDuplicatesOnly.addEventListener("change", renderFilteredAdminRuns);
+  adminSelectVisible.addEventListener("change", toggleVisibleAdminRuns);
+  adminBulkReject.addEventListener("click", bulkRejectSelectedRuns);
   adminAnalytics.addEventListener("click", loadAnalytics);
   adminFeedback.addEventListener("click", loadFeedback);
   adminExport.addEventListener("click", exportCsv);
@@ -30,6 +49,7 @@ function initAdmin(){
     if(event.key === "Enter") loadAdminQueue();
   });
   updateExportControls();
+  updateAdminSelectionControls();
 }
 
 function syncAdminTrustStorage(){
@@ -119,7 +139,13 @@ async function adminRequest(action, extra={}){
   }
   if(payload.trustedAdminDevice) saveTrustedAdminDevice(payload.trustedAdminDevice);
   if(password) adminPassword.value = "";
+  unlockAdminTools();
   return payload;
+}
+
+function unlockAdminTools(){
+  adminTools.hidden = false;
+  adminLoad.textContent = "Reload all runs";
 }
 
 function getAdminErrorMessage(payload, text, status){
@@ -140,18 +166,168 @@ function getAdminErrorMessage(payload, text, status){
 
 async function loadAdminQueue(){
   adminLoad.disabled = true;
+  adminRefresh.disabled = true;
   setAdminStatus("Loading queue...");
   adminList.innerHTML = "";
 
   try{
-    const payload = await adminRequest("list");
-    renderAdminRuns(payload.runs || []);
-    setAdminStatus(`${(payload.runs || []).length} runs need review.`);
+    const payload = await adminRequest("list", {statusFilter:"all"});
+    currentAdminRuns = Array.isArray(payload.runs) ? payload.runs : [];
+    currentAdminView = "runs";
+    selectedAdminRunIds.clear();
+    renderFilteredAdminRuns();
   }catch(error){
     setAdminStatus(error.message || "Could not load admin queue.");
   }finally{
     adminLoad.disabled = false;
+    adminRefresh.disabled = false;
   }
+}
+
+function renderFilteredAdminRuns(){
+  if(currentAdminView !== "runs") return;
+  currentAdminDuplicateCounts = buildAdminDuplicateCounts(currentAdminRuns);
+  const runs = getFilteredAdminRuns();
+  renderAdminRuns(runs);
+  updateAdminSelectionControls(runs);
+
+  const counts = {approved:0, pending:0, rejected:0};
+  currentAdminRuns.forEach(run=>{
+    if(Object.hasOwn(counts, run.status)) counts[run.status] += 1;
+  });
+  const duplicateGroups = new Set(currentAdminRuns
+    .map(getAdminRunEvidenceKey)
+    .filter(key=>(currentAdminDuplicateCounts.get(key) || 0) > 1)).size;
+  setAdminStatus(
+    `${runs.length} of ${currentAdminRuns.length} loaded runs shown. `
+    + `${counts.pending} pending, ${counts.approved} approved, ${counts.rejected} rejected. `
+    + `${duplicateGroups} duplicate evidence group${duplicateGroups === 1 ? "" : "s"}.`
+  );
+}
+
+function getFilteredAdminRuns(){
+  const status = adminRunStatusFilter.value || "pending";
+  const age = adminRunAgeFilter.value || "24";
+  const query = normaliseAdminSearch(adminRunSearch.value);
+  const duplicatesOnly = adminRunDuplicatesOnly.checked;
+  const cutoff = age === "all" ? null : Date.now() - Number(age) * 60 * 60 * 1000;
+
+  return currentAdminRuns.filter(run=>{
+    if(status !== "all" && run.status !== status) return false;
+    if(duplicatesOnly && (currentAdminDuplicateCounts.get(getAdminRunEvidenceKey(run)) || 0) < 2) return false;
+    if(cutoff !== null){
+      const createdAt = new Date(run.created_at || 0).getTime();
+      if(!Number.isFinite(createdAt) || createdAt < cutoff) return false;
+    }
+    return !query || getAdminRunSearchText(run).includes(query);
+  });
+}
+
+function buildAdminDuplicateCounts(runs){
+  const counts = new Map();
+  for(const run of runs){
+    const key = getAdminRunEvidenceKey(run);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+}
+
+function getAdminRunEvidenceKey(run){
+  const route = (Array.isArray(run && run.route) ? run.route : []).map(entry=>[
+    entry.index,
+    entry.country,
+    entry.answer,
+    entry.shownMs,
+    entry.firstInputMs,
+    entry.firstSubmitMs,
+    entry.solvedMs,
+    entry.attempts,
+    entry.wrongAttempts,
+    entry.typedChars,
+    entry.skipped
+  ]);
+  return JSON.stringify([
+    run.mode_key,
+    run.time_ms,
+    run.correct_first_try,
+    run.total,
+    run.typed_chars,
+    run.canonical_chars,
+    run.wpm,
+    run.splits,
+    route
+  ]);
+}
+
+function getAdminRunSearchText(run){
+  const telemetry = run && run.telemetry && typeof run.telemetry === "object" ? run.telemetry : {};
+  const antiCheat = run && run.anti_cheat && typeof run.anti_cheat === "object" ? run.anti_cheat : {};
+  return normaliseAdminSearch([
+    run.id,
+    run.player_name,
+    run.mode_key,
+    run.status,
+    run.set_label,
+    run.continent,
+    telemetry.playerId,
+    telemetry.deviceNumber,
+    antiCheat.submissionFingerprint,
+    ...(Array.isArray(telemetry.knownPlayerNames) ? telemetry.knownPlayerNames : []),
+    ...(Array.isArray(telemetry.leaderboardNames) ? telemetry.leaderboardNames : [])
+  ].join(" "));
+}
+
+function normaliseAdminSearch(value){
+  return String(value || "").trim().toLowerCase();
+}
+
+function toggleVisibleAdminRuns(){
+  for(const run of getFilteredAdminRuns()){
+    const id = Number(run.id);
+    if(!Number.isInteger(id)) continue;
+    if(adminSelectVisible.checked) selectedAdminRunIds.add(id);
+    else selectedAdminRunIds.delete(id);
+  }
+  renderFilteredAdminRuns();
+}
+
+function updateAdminSelectionControls(visibleRuns=getFilteredAdminRuns()){
+  const visibleIds = visibleRuns.map(run=>Number(run.id)).filter(Number.isInteger);
+  const selectedVisible = visibleIds.filter(id=>selectedAdminRunIds.has(id)).length;
+  adminSelectVisible.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
+  adminSelectVisible.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
+  adminBulkReject.disabled = selectedAdminRunIds.size === 0;
+  adminBulkReject.textContent = selectedAdminRunIds.size
+    ? `Reject selected (${selectedAdminRunIds.size})`
+    : "Reject selected";
+}
+
+async function bulkRejectSelectedRuns(){
+  const ids = Array.from(selectedAdminRunIds).filter(Number.isInteger).slice(0, 100);
+  if(!ids.length) return;
+  if(!window.confirm(`Reject ${ids.length} selected run${ids.length === 1 ? "" : "s"}?`)) return;
+
+  adminBulkReject.disabled = true;
+  setAdminStatus(`Rejecting ${ids.length} selected runs...`);
+  try{
+    const payload = await adminRequest("bulk-reject", {
+      ids,
+      note:"Bulk rejected by admin"
+    });
+    updateAdminRunsLocally(payload.runs || []);
+    ids.forEach(id=>selectedAdminRunIds.delete(id));
+    renderFilteredAdminRuns();
+  }catch(error){
+    setAdminStatus(error.message || "Could not reject selected runs.");
+  }finally{
+    updateAdminSelectionControls();
+  }
+}
+
+function updateAdminRunsLocally(updatedRuns){
+  const byId = new Map((Array.isArray(updatedRuns) ? updatedRuns : [])
+    .map(run=>[Number(run.id), run]));
+  currentAdminRuns = currentAdminRuns.map(run=>byId.get(Number(run.id)) || run);
 }
 
 async function loadAnalytics(){
@@ -161,6 +337,7 @@ async function loadAnalytics(){
 
   try{
     const payload = await adminRequest("analytics");
+    currentAdminView = "analytics";
     renderAnalytics(payload.analytics || []);
     setAdminStatus(`${(payload.analytics || []).length} completed speedrun analytics records loaded.`);
   }catch(error){
@@ -177,6 +354,7 @@ async function loadFeedback(){
 
   try{
     const payload = await adminRequest("feedback");
+    currentAdminView = "feedback";
     currentFeedbackSubmissions = Array.isArray(payload.feedback) ? payload.feedback : [];
     renderFeedbackSubmissions(currentFeedbackSubmissions);
     setAdminStatus(`${currentFeedbackSubmissions.length} feedback item${currentFeedbackSubmissions.length === 1 ? "" : "s"} loaded.`);
@@ -236,7 +414,7 @@ function renderAdminRuns(runs){
   if(!runs.length){
     const empty = document.createElement("p");
     empty.className = "empty-mini leaderboard-page-empty";
-    empty.textContent = "No pending or rejected runs.";
+    empty.textContent = "No runs match these filters.";
     adminList.appendChild(empty);
     return;
   }
@@ -792,7 +970,26 @@ function normaliseFeedbackItem(item){
 
 function renderAdminRun(run){
   const card = document.createElement("article");
-  card.className = "leaderboard-category-card admin-run-card";
+  const matchingEvidence = currentAdminDuplicateCounts.get(getAdminRunEvidenceKey(run)) || 1;
+  card.className = `leaderboard-category-card admin-run-card is-${run.status || "pending"}${matchingEvidence > 1 ? " is-duplicate" : ""}`;
+  card.dataset.runId = String(run.id || "");
+
+  const selection = document.createElement("label");
+  selection.className = "checkbox admin-run-selection";
+  const selectionInput = document.createElement("input");
+  selectionInput.type = "checkbox";
+  selectionInput.className = "admin-run-select";
+  selectionInput.value = String(run.id || "");
+  selectionInput.checked = selectedAdminRunIds.has(Number(run.id));
+  selectionInput.addEventListener("change", ()=>{
+    const id = Number(run.id);
+    if(selectionInput.checked) selectedAdminRunIds.add(id);
+    else selectedAdminRunIds.delete(id);
+    updateAdminSelectionControls();
+  });
+  const selectionText = document.createElement("span");
+  selectionText.textContent = `Select run #${run.id}`;
+  selection.append(selectionInput, selectionText);
 
   const heading = document.createElement("header");
   heading.className = "leaderboard-category-heading";
@@ -806,13 +1003,22 @@ function renderAdminRun(run){
   const facts = document.createElement("div");
   facts.className = "leaderboard-expanded-facts";
   const reasons = Array.isArray(run.review_reasons) ? run.review_reasons : [];
+  const telemetry = run.telemetry && typeof run.telemetry === "object" ? run.telemetry : {};
+  const antiCheat = run.anti_cheat && typeof run.anti_cheat === "object" ? run.anti_cheat : {};
   facts.append(
+    factPill(`Run ID: ${run.id}`),
     factPill(`Created: ${new Date(run.created_at).toLocaleString()}`),
     factPill(`Set: ${run.set_label || run.continent || "All"}`),
     factPill(`Mode: ${formatAdminMode(run)}`),
     factPill(`Scope: ${run.game_scope || "countries"}`),
-    factPill(`Review flags: ${reasons.length || 0}`)
+    factPill(`Review flags: ${reasons.length || 0}`),
+    factPill(`Matching evidence: ${matchingEvidence}`),
+    factPill(`Player ID: ${telemetry.playerId || "unknown"}`),
+    factPill(`Device: ${telemetry.deviceNumber || "unknown"}`),
+    factPill(`Fingerprint: ${antiCheat.submissionFingerprint || antiCheat.routeHash || "legacy"}`)
   );
+  if(run.reviewed_at) facts.append(factPill(`Reviewed: ${formatDateTime(run.reviewed_at)}`));
+  if(run.review_note) facts.append(factPill(`Note: ${run.review_note}`));
 
   const route = document.createElement("ol");
   route.className = "leaderboard-route-list";
@@ -859,17 +1065,19 @@ function renderAdminRun(run){
   const approve = document.createElement("button");
   approve.className = "btn primary";
   approve.type = "button";
-  approve.textContent = "Approve";
+  approve.textContent = run.status === "approved" ? "Approved" : "Approve";
+  approve.disabled = run.status === "approved";
   approve.addEventListener("click", ()=>moderateRun(run.id, "approve", note.value, publicName.value));
 
   const reject = document.createElement("button");
   reject.className = "btn danger";
   reject.type = "button";
-  reject.textContent = "Reject";
+  reject.textContent = run.status === "rejected" ? "Rejected" : "Reject";
+  reject.disabled = run.status === "rejected";
   reject.addEventListener("click", ()=>moderateRun(run.id, "reject", note.value));
   actions.append(approve, reject);
 
-  card.append(heading, renderReviewReasonPanel(run, reasons), facts, route, nameReview, note, actions);
+  card.append(selection, heading, renderReviewReasonPanel(run, reasons), facts, route, nameReview, note, actions);
   return card;
 }
 
@@ -895,7 +1103,11 @@ function renderReviewReasonPanel(run, reasons){
     panel.appendChild(list);
   }else{
     const body = document.createElement("p");
-    body.textContent = "This run is in the review queue without a stored flag. Check the route and name before approving.";
+    body.textContent = run.status === "approved"
+      ? "This run is currently visible on the public leaderboard."
+      : run.status === "rejected"
+        ? "This run is retained as moderation history and is not public."
+        : "This run is pending without a specific stored flag. Check the route and name before approving.";
     panel.appendChild(body);
   }
 
@@ -930,6 +1142,12 @@ function getReviewReasonDetail(reason){
   if(String(reason || "").includes("name")){
     return "The public display name needs an admin decision before publication.";
   }
+  if(String(reason || "").includes("manual-approval")){
+    return "Automatic publication is paused; an admin must approve this run.";
+  }
+  if(String(reason || "").includes("duplicate")){
+    return "The server found matching run evidence and blocked a replay.";
+  }
   return "Server-side validation requested manual review before publication.";
 }
 
@@ -947,11 +1165,18 @@ function formatAdminMode(run){
 
 async function moderateRun(id, action, note, publicName){
   setAdminStatus(`${action === "approve" ? "Approving" : "Rejecting"} run ${id}...`);
+  const card = adminList.querySelector(`[data-run-id="${id}"]`);
+  const buttons = card ? Array.from(card.querySelectorAll("button")) : [];
+  buttons.forEach(button=>{ button.disabled = true; });
   try{
-    await adminRequest(action, {id, note, publicName});
-    await loadAdminQueue();
+    const payload = await adminRequest(action, {id, note, publicName});
+    if(payload.run) updateAdminRunsLocally([payload.run]);
+    selectedAdminRunIds.delete(Number(id));
+    renderFilteredAdminRuns();
+    setAdminStatus(`${action === "approve" ? "Approved" : "Rejected"} run ${id}. No queue reload was needed.`);
   }catch(error){
     setAdminStatus(error.message || "Could not update run.");
+    buttons.forEach(button=>{ button.disabled = false; });
   }
 }
 
