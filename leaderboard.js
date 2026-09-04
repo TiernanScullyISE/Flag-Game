@@ -253,10 +253,10 @@
     ].some(text=>message.includes(text));
   }
 
-  async function submitRun(run){
+  function buildSubmissionPayload(run){
     const route = normaliseSubmissionRoute(run.route);
     const correctFirstTry = countFirstTrySolved(route);
-    const payload = {
+    return {
       player_name: cleanText(run.playerName, "Player", 24),
       mode_key: cleanText(run.modeKey, "unknown", 120),
       game_scope: cleanText(run.gameScope || run.runContext && run.runContext.gameScope, "countries", 16),
@@ -266,7 +266,7 @@
       which: cleanText(run.which, "flags", 12),
       continent: cleanText(run.continent, "All", 80),
       difficulty: cleanText(run.difficulty, "hard", 12),
-      target: cleanText(run.target, "all", 12),
+      target: cleanText(run.targetValue || run.target, "all", 12),
       target_label: cleanText(run.targetLabel, "All", 24),
       time_ms: Math.round(Number(run.timeMs) || 0),
       correct_first_try: correctFirstTry,
@@ -284,7 +284,9 @@
       submission_method: run.submissionMethod || "direct",
       verified: !!run.verified
     };
+  }
 
+  async function callSubmitFunction(payload){
     const config = getConfig();
     if(!configuredValue(config.submitFunctionUrl)){
       throw new Error("Shared leaderboard submit function is not configured.");
@@ -301,6 +303,40 @@
     }
     const text = await response.text();
     return text ? JSON.parse(text) : {ok:true, status:"approved"};
+  }
+
+  async function startRunSession(run){
+    const telemetry = run && run.telemetry && typeof run.telemetry === "object" ? run.telemetry : {};
+    return callSubmitFunction({
+      action: "start",
+      mode_key: cleanText(run.modeKey, "unknown", 120),
+      game_scope: cleanText(run.gameScope, "countries", 16),
+      set_key: cleanText(run.setKey, "", 80),
+      which: cleanText(run.which, "flags", 12),
+      continent: cleanText(run.continent, "All", 80),
+      difficulty: cleanText(run.difficulty, "hard", 12),
+      target: cleanText(run.targetValue || run.target, "all", 12),
+      total: Math.round(Number(run.total) || 0),
+      player_id: cleanText(telemetry.playerId || run.playerId, "", 80),
+      client_nonce: cleanText(telemetry.nonce || run.clientNonce, "", 120)
+    });
+  }
+
+  async function finishRunSession(challenge, run){
+    if(!challenge) throw new Error("Secure run verification did not start. Start a new run.");
+    return callSubmitFunction({
+      action: "finish",
+      challenge: String(challenge),
+      run: buildSubmissionPayload(run)
+    });
+  }
+
+  async function submitRun(run){
+    return callSubmitFunction({
+      action: "submit",
+      ...buildSubmissionPayload(run),
+      completion_receipt: cleanText(run.completionReceipt, "", 5000)
+    });
   }
 
   async function submitAnalytics(run){
@@ -384,6 +420,8 @@
     isAnalyticsConfigured,
     fetchRuns,
     fetchAllRuns,
+    startRunSession,
+    finishRunSession,
     submitRun,
     submitAnalytics
   };

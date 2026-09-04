@@ -129,7 +129,7 @@ window.LEADERBOARD_CONFIG = {
 
 Only commit the public browser key. Never put the `service_role` key, admin password or private function secrets in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted to the public leaderboard only when they are a personal best for that exact category and the player chooses to submit them.
 
-Posted runs include private route order, splits and anti-cheat telemetry for server/admin review. The public leaderboard reads only simple approved result columns.
+Posted runs include private route and anti-cheat telemetry for server/admin review. The public leaderboard reads only simple approved result columns. Only the selected target is eligible for a shared submission; intermediate split records remain local because their clocks are not independently server-authoritative.
 
 Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include per-run context, per-question render/input/submit timings, raw attempts, accepted aliases, autocomplete/shortcut usage, typed-vs-canonical character counts, WPM variants, correction time, region breakdowns, mastery labels, device ID, submitted leaderboard names and quality flags. These records are private educational data and are available only through the admin function. The post-game summary can show the current browser's own local device progress without exposing anyone else's records.
 
@@ -140,7 +140,8 @@ Completed speedruns are also submitted automatically to the private `speedrun_an
 The leaderboard is designed for a public-source static app, so the browser is treated as untrusted. The private server implementation uses layered checks rather than relying on any single client-side signal:
 
 - Direct public table inserts are revoked by the default SQL setup.
-- Submissions go through an Edge Function that recomputes category, route, answer, timing and score consistency before writing to the database.
+- Submissions go through private Edge Functions that recompute category, route, answer, timing and score consistency before writing to the database.
+- Shared runs use opaque, server-issued, single-use completion receipts. Supabase establishes the official elapsed time before the player enters a publication name, so client nonces, edited clocks and renamed replays are not trusted.
 - Client telemetry is stored as evidence, but the browser does not decide whether a run is valid for the shared leaderboard.
 - Database constraints, a server-generated evidence fingerprint, duplicate detection and an insert trigger provide a second line of defence if the server write path regresses.
 - Structurally valid runs are published automatically unless server-side timing, telemetry, name or identity checks flag them for admin review.

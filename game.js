@@ -111,7 +111,11 @@ function makeSession(){
       typedChars: 0,
       splits: {},
       gaveUp: false,
-      recorded: false
+      recorded: false,
+      startingPromise: null,
+      secureStartPromise: null,
+      secureChallenge: "",
+      secureError: ""
     }
   };
 }
@@ -928,6 +932,7 @@ function resetSession(){
   state.session.livesRemaining = getInitialLives();
   clearFeedback();
   toggleAnswerUi();
+  if(state.playMode === "speedrun") disableInputs();
   updateAllStatus();
   loadQuestion();
   refreshSharedLeaderboard();
@@ -1204,6 +1209,7 @@ async function markCurrentQuestionVisible(country){
   if(!entry || entry.country !== country || entry.visiblePerf !== null) return;
   await afterVisibleFrame();
   if(state.session.gameOver || getCurrentRouteEntry() !== entry) return;
+  await startSpeedRun();
   const perfNow = performance.now();
   entry.visiblePerf = perfNow;
   entry.visibleAt = Math.round(perfNow);
@@ -1214,6 +1220,7 @@ async function markWorldMapVisible(){
   if(state.playMode !== "speedrun" || !isWorldMode()) return;
   await afterVisibleFrame();
   if(state.session.gameOver) return;
+  await startSpeedRun();
   const perfNow = performance.now();
   state.session.worldMapVisiblePerf = perfNow;
   state.session.worldLastSolvedPerf = perfNow;
@@ -2603,17 +2610,94 @@ function setReviseFeedback(added){
 
 function startSpeedRun(){
   const session = state.session;
-  if(session.speedRun.started || !session.pool.length) return;
-  session.speedRun.started = true;
-  session.speedRun.startMs = Date.now();
-  session.speedRun.startPerf = performance.now();
-  session.speedRun.elapsedMs = 0;
-  session.security.startedAt = new Date().toISOString();
-  session.analytics.startedAt = session.security.startedAt;
-  session.analytics.startedPerf = session.speedRun.startPerf;
-  if(session.speedRun.timerId) window.clearInterval(session.speedRun.timerId);
-  session.speedRun.timerId = window.setInterval(updateTimerDisplay, TIMER_TICK_MS);
-  updateTimerDisplay();
+  if(session.speedRun.started || !session.pool.length) return Promise.resolve();
+  if(session.speedRun.startingPromise) return session.speedRun.startingPromise;
+
+  session.speedRun.startingPromise = (async()=>{
+    await beginSecureSpeedRun(session);
+    if(session !== state.session || session.gameOver) return;
+    session.speedRun.started = true;
+    session.speedRun.startMs = Date.now();
+    session.speedRun.startPerf = performance.now();
+    session.speedRun.elapsedMs = 0;
+    session.security.startedAt = new Date().toISOString();
+    session.analytics.startedAt = session.security.startedAt;
+    session.analytics.startedPerf = session.speedRun.startPerf;
+    if(session.speedRun.timerId) window.clearInterval(session.speedRun.timerId);
+    session.speedRun.timerId = window.setInterval(updateTimerDisplay, TIMER_TICK_MS);
+    updateTimerDisplay();
+  })();
+  return session.speedRun.startingPromise;
+}
+
+function beginSecureSpeedRun(session){
+  const service = getLeaderboardService();
+  if(!isSharedLeaderboardConfigured() || !service || typeof service.startRunSession !== "function"){
+    return Promise.resolve("");
+  }
+  if(session.speedRun.secureStartPromise) return session.speedRun.secureStartPromise;
+
+  const setLabel = getCurrentSetLabel();
+  const gameScope = getGameScopeKey();
+  session.speedRun.secureStartPromise = service.startRunSession({
+    modeKey: getSpeedRunKey(),
+    gameScope,
+    setKey: getLeaderboardSetKey(gameScope, setLabel),
+    which: state.which,
+    continent: setLabel,
+    difficulty: "hard",
+    targetValue: state.speedTarget,
+    total: session.pool.length,
+    telemetry: {
+      playerId: state.playerId,
+      nonce: session.security.nonce
+    }
+  }).then(result=>{
+    if(session !== state.session) return "";
+    const challenge = result && typeof result.challenge === "string" ? result.challenge : "";
+    if(!challenge) throw new Error("Secure run verification did not start.");
+    session.speedRun.secureChallenge = challenge;
+    return challenge;
+  }).catch(error=>{
+    session.speedRun.secureError = getSharedLeaderboardErrorMessage(error);
+    return "";
+  });
+  return session.speedRun.secureStartPromise;
+}
+
+function prepareSecureRunCompletion(session, run){
+  const service = getLeaderboardService();
+  if(!run || !isSharedLeaderboardConfigured() || !service || typeof service.finishRunSession !== "function") return;
+
+  const completionPromise = (async()=>{
+    const challenge = session.speedRun.secureChallenge
+      || (session.speedRun.secureStartPromise ? await session.speedRun.secureStartPromise : "");
+    if(!challenge){
+      throw new Error(session.speedRun.secureError || "Secure run verification did not start. Start a new run.");
+    }
+    const result = await service.finishRunSession(challenge, run);
+    if(!result || typeof result.completionReceipt !== "string" || !result.completionReceipt){
+      throw new Error("Supabase did not return secure run verification.");
+    }
+    run.completionReceipt = result.completionReceipt;
+    run.serverTimeMs = Number(result.time_ms) || run.timeMs;
+    return result;
+  })().catch(error=>{
+    run.secureCompletionError = getSharedLeaderboardErrorMessage(error);
+    return null;
+  });
+
+  Object.defineProperty(run, "secureCompletionPromise", {
+    configurable: true,
+    enumerable: false,
+    value: completionPromise
+  });
+}
+
+async function ensureSecureRunCompletion(run){
+  if(run && run.completionReceipt) return true;
+  if(run && run.secureCompletionPromise) await run.secureCompletionPromise;
+  return !!(run && run.completionReceipt);
 }
 
 function stopSpeedRun(){
@@ -3049,6 +3133,21 @@ async function postPendingSharedRun(){
   const pendingRuns = getPendingSharedRuns();
   if(!pendingRuns.length) return;
   postLeaderboardBtn.disabled = true;
+  if(leaderboardPublishStatus){
+    leaderboardPublishStatus.textContent = "Verifying completed run...";
+  }
+
+  for(const run of pendingRuns){
+    if(!await ensureSecureRunCompletion(run)){
+      if(leaderboardPublishStatus){
+        leaderboardPublishStatus.textContent = run.secureCompletionError
+          || "This run could not be verified securely. Start a new run and try again.";
+      }
+      postLeaderboardBtn.disabled = false;
+      return;
+    }
+  }
+
   if(leaderboardPublishStatus){
     leaderboardPublishStatus.textContent = pendingRuns.length === 1
       ? "Posting run..."
@@ -4627,6 +4726,7 @@ function finishSession(reason){
       const run = recordSpeedRun();
       state.lastCompletedRun = run;
       state.pendingSharedRun = buildPendingSharedRuns(run);
+      if(state.pendingSharedRun) prepareSecureRunCompletion(session, run);
       try{
         queueCompletedRunAnalytics(run);
       }catch(error){
@@ -4654,13 +4754,7 @@ function finishSession(reason){
 }
 
 function buildPendingSharedRuns(run){
-  if(!run) return null;
-  const candidates = [
-    run,
-    ...(Array.isArray(run.relatedPersonalBestRuns) ? run.relatedPersonalBestRuns : [])
-  ];
-  const pending = candidates.filter(item=>item.isPersonalBest);
-  return pending.length ? pending : null;
+  return run && run.isPersonalBest ? run : null;
 }
 
 function recordPracticePercentage(){

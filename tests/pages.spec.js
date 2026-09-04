@@ -34,10 +34,11 @@ for(const [name, url, expectedText] of pages){
 test("play page switches quiz modes", async ({page})=>{
   await page.goto("/game.html");
   await page.getByRole("button", {name:"Capital Quiz"}).click();
-  await expect(page.locator("#country-label")).toBeVisible();
+  await expect(page.locator("#country-label")).toBeVisible({timeout:15000});
 
   await page.getByRole("button", {name:"Speedrun"}).click();
-  await expect(page.locator("#timer-value")).toHaveText("0:00.0");
+  await expect.poll(()=>page.evaluate(()=>state.session.speedRun.started), {timeout:15000}).toBe(true);
+  await expect(page.locator("#timer-value")).toBeVisible();
 });
 
 test("mobile typing keeps the question visual and compact answer controls in view", async ({page})=>{
@@ -392,7 +393,7 @@ test("play page supports regional county and state sets", async ({page})=>{
   });
 
   await page.getByRole("button", {name:"Capitals"}).click();
-  await expect(page.locator("#question-visual .region-map-capital-marker")).toHaveCount(1);
+  await expect(page.locator("#question-visual .region-map-capital-marker")).toHaveCount(1, {timeout:15000});
   await expect(page.locator("#question-visual .region-map-capital-label")).toHaveCount(0);
 });
 
@@ -555,6 +556,60 @@ test("first speedrun completion opens results with publish prompt", async ({page
   expect(result.publishTitle).toContain("New personal best");
 });
 
+test("shared speedrun uses a server start, sealed finish and single receipt", async ({page})=>{
+  await page.unroute(/supabase\.co/);
+  const actions = [];
+  await page.route(/supabase\.co/, async route=>{
+    const request = route.request();
+    if(request.url().includes("/functions/v1/submit-speedrun")){
+      const body = JSON.parse(request.postData() || "{}");
+      actions.push(body);
+      const response = body.action === "start"
+        ? {ok:true, challenge:"sealed-start"}
+        : body.action === "finish"
+          ? {ok:true, completionReceipt:"sealed-completion", time_ms:1550}
+          : {ok:true, status:"approved", time_ms:1550};
+      await route.fulfill({status:body.action === "submit" ? 201 : 200, contentType:"application/json", body:JSON.stringify(response)});
+      return;
+    }
+    await route.fulfill({status:200, contentType:"application/json", body:"[]"});
+  });
+
+  await page.goto("/game.html");
+  await page.evaluate(async ()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.selectedContinent = "All";
+    state.speedTarget = "all";
+    state.speedRuns = {};
+    state.pendingSharedRun = null;
+    state.lastCompletedRun = null;
+    state.session = makeSession();
+    state.session.pool = ["France"];
+    state.session.correctCountry = "France";
+    state.session.correctAnswer = "France";
+    recordRouteQuestion("France");
+    await startSpeedRun();
+    state.session.speedRun.startPerf = performance.now() - 1500;
+    state.session.speedRun.startMs = Date.now() - 1500;
+    const firstAttempt = registerAttempt();
+    recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
+    handleCorrect(firstAttempt);
+  });
+
+  await expect(page.locator("#leaderboard-publish")).toBeVisible();
+  await page.locator("#result-player-name").fill("Secure Runner");
+  await page.locator("#post-leaderboard-btn").click();
+  await expect(page.locator("#leaderboard-publish-status")).toContainText("Posted run");
+
+  expect(actions.map(body=>body.action)).toEqual(["start", "finish", "submit"]);
+  expect(actions[1].challenge).toBe("sealed-start");
+  expect(actions[2].completion_receipt).toBe("sealed-completion");
+  expect(actions[2].player_name).toBe("Secure Runner");
+});
+
 test("speedrun results and publish prompt survive progress summary errors", async ({page})=>{
   await page.goto("/game.html");
 
@@ -671,7 +726,7 @@ test("speedrun PB upload prompt survives localStorage write failures", async ({p
 test("non-PB speedrun completion still opens results without publish prompt", async ({page})=>{
   await page.goto("/game.html");
 
-  const result = await page.evaluate(()=>{
+  const result = await page.evaluate(async ()=>{
     state.playMode = "speedrun";
     state.gameScope = "countries";
     state.which = "flags";
@@ -693,6 +748,7 @@ test("non-PB speedrun completion still opens results without publish prompt", as
     state.session.correctAnswer = "France";
     recordRouteQuestion("France");
 
+    await startSpeedRun();
     const firstAttempt = registerAttempt();
     state.session.speedRun.startPerf = performance.now() - 2000;
     state.session.speedRun.startMs = Date.now() - 2000;
