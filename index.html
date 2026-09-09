@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -8,21 +8,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <script src="theme.js?v=theme-2"></script>
-  <link rel="stylesheet" href="style.css?v=regional-map-3" />
+  <script src="theme.js?v=polish-1"></script>
+  <link rel="stylesheet" href="style.css?v=polish-1" />
 </head>
-<body>
+<body class="home-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header hero">
     <p class="eyebrow">World geography trainer</p>
     <h1>Flag & Capital Quiz</h1>
-    <p class="subtitle">Practise flags, capitals, world-map country recall, hard-mode typing, revision lists, local progress and shared speedrun leaderboards in one browser-based trainer.</p>
+    <p class="subtitle">Learn the world, one answer at a time. Practise flags, capitals and maps, explore regional sets, or put your recall to the test in a speedrun.</p>
   </header>
 
-  <main class="container">
+  <main id="main-content" tabindex="-1" class="container">
     <section class="home-panel">
       <div>
         <p class="section-kicker">Choose a mode</p>
-        <h2>Build recall without losing your progress.</h2>
+        <h2>Your next geography challenge.</h2>
       </div>
       <div class="stat-pill">197 countries</div>
       <div class="stat-pill">6 continents</div>
@@ -30,7 +31,7 @@
     </section>
 
     <div class="grid-3">
-      <a class="nav-card" href="game.html">
+      <a class="nav-card nav-card-primary" href="game.html">
         <span class="card-index">01</span>
         <h2>Play</h2>
         <p>Flag quiz, capital quiz or country map recall with practice, typed speedruns and local records.</p>
@@ -43,11 +44,11 @@
       <a class="nav-card" href="revise.html">
         <span class="card-index">03</span>
         <h2>Revision</h2>
-        <p>See and filter your revise lists for flags and capitals by continent.</p>
+        <p>Return to saved countries and regions, or practise capitals with flashcards.</p>
       </a>
       <a class="nav-card" href="view.html">
         <span class="card-index">04</span>
-        <h2>All Flags / Capitals</h2>
+        <h2>Browse countries</h2>
         <p>Browse all countries with flags, capitals and continents.</p>
       </a>
       <a class="nav-card" href="feedback.html">
@@ -59,7 +60,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Practice data stays in your browser. Speedrun PBs can be posted to the shared leaderboard.</p>
+    <p>Practice progress is saved on this device. Share a personal best when you choose; completed speedrun analytics are sent privately for review.</p>
   </footer>
 </body>
 </html>

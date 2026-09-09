@@ -1005,6 +1005,7 @@ function renderAdminRun(run){
   const reasons = Array.isArray(run.review_reasons) ? run.review_reasons : [];
   const telemetry = run.telemetry && typeof run.telemetry === "object" ? run.telemetry : {};
   const antiCheat = run.anti_cheat && typeof run.anti_cheat === "object" ? run.anti_cheat : {};
+  const crossRun = antiCheat.crossRun && typeof antiCheat.crossRun === "object" ? antiCheat.crossRun : {};
   facts.append(
     factPill(`Run ID: ${run.id}`),
     factPill(`Created: ${new Date(run.created_at).toLocaleString()}`),
@@ -1017,6 +1018,24 @@ function renderAdminRun(run){
     factPill(`Device: ${telemetry.deviceNumber || "unknown"}`),
     factPill(`Fingerprint: ${antiCheat.submissionFingerprint || antiCheat.routeHash || "legacy"}`)
   );
+  if(Number(crossRun.fingerprintMatches) > 0){
+    facts.append(factPill(`Reused evidence: ${crossRun.fingerprintMatches}`));
+  }
+  if(Number(crossRun.routeOrderMatches) > 0){
+    facts.append(factPill(`Matching routes: ${crossRun.routeOrderMatches}`));
+  }
+  if(Number(crossRun.timingReplayMatches) > 0){
+    facts.append(factPill(`Timing matches: ${crossRun.timingReplayMatches}`));
+    const matchedIds = (Array.isArray(crossRun.timingReplayRunIds) ? crossRun.timingReplayRunIds : [])
+      .filter(id=>Number.isInteger(id) && id > 0).map(id=>`#${id}`);
+    if(matchedIds.length) facts.append(factPill(`Earlier matching runs: ${matchedIds.join(", ")}`));
+  }
+  if(Number(crossRun.recentServerClientNames) > 1){
+    facts.append(factPill(`Recent client names: ${crossRun.recentServerClientNames}`));
+  }
+  if(Number(crossRun.serverClientBurstRuns) > 1){
+    facts.append(factPill(`Recent client burst: ${crossRun.serverClientBurstRuns}`));
+  }
   if(run.reviewed_at) facts.append(factPill(`Reviewed: ${formatDateTime(run.reviewed_at)}`));
   if(run.review_note) facts.append(factPill(`Note: ${run.review_note}`));
 
@@ -1134,11 +1153,38 @@ function renderReviewReason(reason){
 }
 
 function getReviewReasonTitle(reason){
+  if(["reused-run-evidence", "repeated-run-route", "replayed-timing-pattern", "cross-run-check-unavailable", "rapid-identity-switching", "multi-account-submission-burst"].includes(String(reason || ""))){
+    return "Cross-run review";
+  }
   if(String(reason || "").includes("name")) return "Name review";
   return "Server review check";
 }
 
 function getReviewReasonDetail(reason){
+  if(reason === "mechanical-answer-timing"){
+    return "Recognition delays and typing durations follow a repeated mechanical pattern across several answers. Review the evidence; a single fast answer does not trigger this check.";
+  }
+  if(reason === "uniform-solve-timing"){
+    return "Solve times stay unusually fixed while typing durations closely follow answer length. Both patterns together require review; steady typing alone is not enough.";
+  }
+  if(reason === "replayed-timing-pattern"){
+    return "Detailed question timings match an earlier run, either exactly or after a uniform speed change. Review the linked run IDs; names and overall speed alone do not establish a match.";
+  }
+  if(reason === "cross-run-check-unavailable"){
+    return "Historical evidence could not be checked. The run is held for review, not rejected or labelled as cheating.";
+  }
+  if(reason === "reused-run-evidence"){
+    return "The signed route and timing evidence exactly matches an earlier submission.";
+  }
+  if(reason === "repeated-run-route"){
+    return "The full question order matches earlier run evidence closely enough to require review.";
+  }
+  if(reason === "rapid-identity-switching"){
+    return "Several display names were used recently by the same player or server-derived client identity.";
+  }
+  if(reason === "multi-account-submission-burst"){
+    return "A server-derived client submitted an unusual burst of runs under several display names.";
+  }
   if(String(reason || "").includes("name")){
     return "The public display name needs an admin decision before publication.";
   }
@@ -1225,11 +1271,7 @@ function formatDateTime(value){
 }
 
 function formatAdminTime(ms){
-  const value = Math.max(0, Math.round(ms || 0));
-  const minutes = Math.floor(value / 60000);
-  const seconds = Math.floor((value % 60000) / 1000);
-  const tenths = Math.floor((value % 1000) / 100);
-  return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
+  return QuizUI.formatTime(ms);
 }
 
 function formatAdminMs(ms){

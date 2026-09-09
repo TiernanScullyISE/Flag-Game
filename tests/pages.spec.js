@@ -37,6 +37,10 @@ test("play page switches quiz modes", async ({page})=>{
   await expect(page.locator("#country-label")).toBeVisible({timeout:15000});
 
   await page.getByRole("button", {name:"Speedrun"}).click();
+  await expect(page.locator("#speedrun-oath-modal")).toHaveClass(/is-visible/);
+  await expect(page.getByRole("button", {name:"I agree and start Speedrun"})).toBeDisabled();
+  await page.locator("#speedrun-oath-ack").check();
+  await page.getByRole("button", {name:"I agree and start Speedrun"}).click();
   await expect.poll(()=>page.evaluate(()=>state.session.speedRun.started), {timeout:15000}).toBe(true);
   await expect(page.locator("#timer-value")).toBeVisible();
 });
@@ -112,8 +116,19 @@ test("admin review cards explain pending reasons", async ({page})=>{
       correct_first_try: 31,
       total: 32,
       verified: true,
-      anti_cheat: {score: 86},
-      review_reasons: ["name-review", "timing-review"],
+      anti_cheat: {
+        score: 86,
+        crossRun: {
+          fingerprintMatches: 1,
+          routeOrderMatches: 1,
+          timingReplayMatches: 1,
+          timingReplayRunIds: [42],
+          recentServerClientNames: 3,
+          serverClientBurstRuns: 6
+        }
+      },
+      review_reasons: ["name-review", "timing-review", "reused-run-evidence", "rapid-identity-switching",
+        "mechanical-answer-timing", "uniform-solve-timing", "replayed-timing-pattern", "cross-run-check-unavailable"],
       route: [
         {index:1, country:"Antrim", continent:"Ireland", solvedMs:900, attempts:1}
       ],
@@ -122,9 +137,15 @@ test("admin review cards explain pending reasons", async ({page})=>{
     document.getElementById("admin-list").appendChild(renderAdminRun(sample));
   });
 
-  await expect(page.locator(".admin-review-panel")).toContainText("2 reasons pending review");
+  await expect(page.locator(".admin-review-panel")).toContainText("8 reasons pending review");
   await expect(page.locator(".admin-review-panel")).toContainText("Name review");
   await expect(page.locator(".admin-review-panel")).toContainText("Server review check");
+  await expect(page.locator(".admin-review-panel")).toContainText("Cross-run review");
+  await expect(page.locator(".admin-run-card")).toContainText("Reused evidence: 1");
+  await expect(page.locator(".admin-run-card")).toContainText("Recent client names: 3");
+  await expect(page.locator(".admin-run-card")).toContainText("Earlier matching runs: #42");
+  await expect(page.locator(".admin-review-panel")).toContainText("a single fast answer does not trigger this check");
+  await expect(page.locator(".admin-review-panel")).toContainText("held for review, not rejected or labelled as cheating");
 });
 
 test("admin run filters include approved, pending and rejected records", async ({page})=>{

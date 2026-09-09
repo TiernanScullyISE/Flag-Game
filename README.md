@@ -1,162 +1,163 @@
 # Flag & Capital Quiz
 
-[Live GitHub Pages site](https://tiernanscullyise.github.io/Flag-Game/)
+[Play the quiz](https://tiernanscullyise.github.io/Flag-Game/)
 
-A geography quiz with two front ends:
-
-- **GitHub Pages static site**: browser-based country and regional flag, capital and map quizzes, revision lists, hard mode, streaks and speedrun leaderboards.
-- **Tkinter desktop app**: the same quiz modes and persistence model using local text files.
+A geography trainer for countries and regions, available as a static website and a Python desktop application. Both use the **same HTML, CSS, JavaScript and quiz data**, so gameplay and visual improvements apply to both.
 
 ## Features
 
-- Flag quiz, capital quiz and a typed country-map mode.
-- Regional quiz mode for Ireland's 32 counties, Ireland as Gaeilge, England, Scotland, Wales, the 50 US states, and generated region sets for 193 more countries, with administrative centres, typed list maps, and verified real flags where source data exists.
-- Normal multiple-choice mode and hard typed-answer mode.
-- World-map mode highlights solved countries with flag fills and includes zoomed inset panels for compact regions.
-- Continent filters plus separate flag and capital revision lists.
-- Current streak, per-mode high streak and best session percentage.
-- Shared speedrun leaderboard support through Supabase, with local fallback and PB-only opt-in posting.
-- Dedicated leaderboard page showing the top five runs per speedrun category.
-- Expandable leaderboard entries with route, split and validation details.
-- Admin moderation page for pending or rejected shared runs.
-- Server-validated leaderboard submissions using Supabase Edge Functions, row-level security and database-side integrity checks.
-- "Next", "Last" and "Give Up" session controls.
-- Direct FlagCDN image loading through a complete local alpha-2 country-code map.
-- Country outline rendering uses Natural Earth-derived `world-atlas` TopoJSON from jsDelivr.
+- Country flags, capitals and world-map recall across 197 countries and six continents.
+- Regional flags, administrative centres and maps, including Ireland's 32 counties, Ireland as Gaeilge, England, Scotland, Wales, US states and generated regional sets. Flag modes use verified flag assets where available.
+- Multiple-choice practice, typed hard mode, configurable lives, streaks and saved personal records.
+- Revision lists for countries and regions, capital flashcards and searchable country/capital reference cards.
+- Speedruns with splits, WPM, local records and times displayed to **three decimal places**.
+- A fair-play pledge on first entering speedrun mode in each tab session. Cancelling leaves practice selected; acknowledgement lasts through navigation and reloads in that tab.
+- Optional publication of category personal bests to a shared leaderboard, with server-issued completion receipts and admin review.
+- Dark and light appearances, responsive layouts, keyboard focus indicators and accessible pledge/results dialogs.
+- Feedback submissions and a protected admin interface for moderation and private learning analytics.
 
-## Architecture Highlights
+## Run locally
 
-- Static GitHub Pages frontend with no build step.
-- Shared browser/desktop quiz data model: the desktop app reads from `data.js` through `flag_data.py`.
-- Supabase-backed competitive speedrun leaderboard for a static site.
-- Edge Function submission path keeps privileged database writes off the client.
-- Public reads are separated from private moderation writes through RLS and service-role Edge Functions.
-- PB-only opt-in posting keeps local practice private while still supporting shared competition.
-- Admin review workflow for suspicious or borderline submissions.
-- Local fallback keeps the game usable when shared leaderboard configuration is absent or unavailable.
+Use the repository root (the folder containing `game.html` and `flag.py`) in the VS Code terminal. Commands below are for Windows PowerShell. Use Python 3.10+; verification currently uses Python 3.12.
 
-## Project Structure
+### Website
 
-- `index.html`, `game.html`, `leaderboard.html`, `admin.html`, `revise.html`, `view.html`: GitHub Pages entry points.
-- `style.css`: shared responsive web styling.
-- `data.js`: canonical browser data for countries, capitals, continents, aliases and flag codes.
-- `regions-generated-data.js`: generated country-region quiz sets accepted only when source metadata and map boundaries match cleanly.
-- `regions-data.js`: county/state quiz data for regional mode, including the fada-sensitive Ireland as Gaeilge set.
-- `region-map.js`: regional boundary rendering for county/state maps.
-- `region-source-report.json`: generation report listing included and skipped regional sets with reasons.
-- `scripts/build-region-groups.js`: reproducible generator for additional regional quiz data.
-- `utils.js`, `game.js`, `leaderboard.js`, `leaderboard-page.js`, `revise.js`, `view.js`: active browser logic.
-- `leaderboard-config.js`: public Supabase configuration for shared speedrun records.
-- Supabase schema, Edge Functions and anti-cheat implementation live in a private server repository, not this public repo.
-- `flag_data.py`: desktop data bridge that reads `data.js`.
-- `flag.py`: Tkinter desktop app.
-- `revise_flags.txt`, `revise_capitals.txt`, `high_scores.txt`, `session_percentages.txt`: desktop persistence files.
+```powershell
+python -m http.server 8000 --bind 127.0.0.1
+```
 
-## Run the Web Version Locally
+Open **http://127.0.0.1:8000/index.html** in your browser. There is no build step. Stop the server with `Ctrl+C`. This generic development server serves the repository directory; keep it bound to loopback, especially if your checkout contains ignored private files.
 
-Use any static file server from the repository root, then open the printed local URL.
+### Python desktop application
+
+Create a dedicated environment once:
+
+```powershell
+python -m venv .venv-desktop
+.\.venv-desktop\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv-desktop\Scripts\python.exe flag.py
+```
+
+The app opens in a native desktop window using [pywebview](https://pywebview.flowrl.com/guide/). On Windows it uses Microsoft Edge WebView2. If the runtime is missing, install the [WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and run the last command again. You do not need to activate the virtual environment.
+
+If the checkout is in WSL and PowerShell sees a `\\wsl.localhost\...` network path, put the **Windows environment on the Windows drive**. Loading Python's .NET runtime from the WSL share can fail. From the same repository root in PowerShell, use:
+
+```powershell
+$desktopEnv = Join-Path $env:LOCALAPPDATA "FlagGame\python-env"
+python -m venv $desktopEnv
+& "$desktopEnv\Scripts\python.exe" -m pip install -r requirements.txt
+& "$desktopEnv\Scripts\python.exe" flag.py
+```
+
+Use that interpreter for the native-window verification command below too. This setup was verified with Windows Python 3.14 and WebView2; the Linux native check uses Qt.
+
+The desktop window loads this checkout's local website. It includes regional sets, maps, speedruns, revision, feedback, shared leaderboards and the same admin sign-in. Shared submissions use the existing server verification path. Desktop users receive no extra trust or privileged database access.
+
+Desktop details:
+
+- A restricted server binds to **127.0.0.1:18763** and serves only an explicit list of public assets. It does not serve private server code, passwords, local progress files or directory listings.
+- Persistent desktop storage lives under `%LOCALAPPDATA%\FlagGame\webview` on Windows, `~/Library/Application Support/FlagGame/webview` on macOS, or `$XDG_DATA_HOME/FlagGame/webview` (default `~/.local/share/FlagGame/webview`) on Linux.
+- Desktop, local-browser and hosted-website progress are separate profiles. They do not automatically synchronise.
+- On the first home-page load, old `revise_flags.txt`, `revise_capitals.txt`, `high_scores.txt` and `session_percentages.txt` are imported into desktop practice storage. Revision lists are merged and stronger records are preserved. Original files remain untouched. Old keys without a quiz mode are treated as flag records; old practice scores map to unlimited lives. Nothing is imported as a competitive speedrun.
+- Keep the default port and profile to retain the same storage origin. If the port is occupied, close the other app instance. `--port` and `--profile` are available for isolated testing.
+- An internet connection is needed for uncached flag images, map boundaries, web fonts and shared services. This is not a fully offline package.
+
+The previous Tkinter country flag/capital app remains available:
+
+```powershell
+.\.venv-desktop\Scripts\python.exe flag.py --legacy
+```
+
+It continues to use the old text files and does not have the shared interface's full feature set.
+
+On Linux, install a GUI backend in your Linux environment:
 
 ```bash
-python -m http.server 8000
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt 'pywebview[qt]>=6.0,<7'
+.venv/bin/python flag.py
 ```
 
-The web version can also be served directly by GitHub Pages from the repo root.
+See the [pywebview installation guide](https://pywebview.flowrl.com/guide/installation.html) for platform GUI prerequisites. Windows and WSL need separate Python virtual environments. In WSL, use Linux `npm` and `python` for local checks; do not invoke Windows `npm.cmd` through Bash from a UNC working directory.
 
-## Regional Data Generation
+## Verification
 
-The generated regional quiz bundle currently includes 193 country-level region sets. Monaco and Vatican City are intentionally excluded at this quiz level because the available first-level boundary source has fewer than two usable regions. England, Scotland and Wales are maintained as manual regional sets because they are not separate countries in the main country data.
-
-Run this from the repository root to refresh the generated bundle:
+From the repository root in PowerShell:
 
 ```powershell
-npm.cmd run regions:build
-```
-
-To gather data without changing the app bundle, run:
-
-```powershell
-npm.cmd run regions:scan
-```
-
-The scan uses `.region-cache/` for successful Wikidata, GeoNames and GeoBoundaries responses, writes progress and ETA to the terminal, and updates `region-source-report.json` with included, skipped and pending countries. If it stops because of a request budget or rate limit, wait for the service to recover and rerun the same command; cached responses will be reused.
-
-Useful generator commands:
-
-```powershell
-npm.cmd run regions:limits
-node scripts\build-region-groups.js --report-only --max-requests 120
-node scripts\build-region-groups.js --country "Spain" --report-only
-node scripts\build-region-groups.js --country "Spain" --report-only --wikidata-admin-fallback
-npm.cmd run regions:check-maps
-```
-
-The generator includes a country when it can build a first-level regional set with names, administrative centres and matching map boundaries. It uses Wikidata subdivision/ISO-code rows for verified regional flags, GeoNames ADM1/PPLA dumps as an administrative-centre fallback, and GeoBoundaries ADM1 outlines from `gbOpen` with `gbHumanitarian` as a boundary fallback. If verified flags are missing, the country still appears for town and map modes; flag mode uses only regions with real flag assets and never fabricates region flags. Skipped countries and reasons are written to `region-source-report.json`. Wikidata's public query service documents a 60-second query timeout, 60 seconds of processing time per 60 seconds per client, 30 error queries per minute, and 5 parallel queries per IP. The default build avoids the slower per-country Wikidata label fallback; use `--wikidata-admin-fallback` only for focused investigation. The script runs sequentially, sends an identifiable user agent, records any `429` responses, and waits for the service's `Retry-After` header before retrying. GeoBoundaries documents its API shape and pre-cached metadata, but does not publish a numeric per-minute quota.
-
-## Local Checks
-
-Run the lightweight data, wiring and syntax checks from the repository root:
-
-```powershell
+npm.cmd ci
+npx.cmd playwright install chromium
 npm.cmd test
-```
-
-For browser-level smoke tests, install the dev dependencies and Playwright browsers once, then run:
-
-```powershell
-npm.cmd install
-npx.cmd playwright install
+npm.cmd run test:desktop
 npm.cmd run test:browser
 ```
 
-Playwright is only test tooling. It is not loaded by the live static site and does not affect runtime performance.
+- `test`: shared country-data validation, JavaScript syntax/asset wiring and Python compilation.
+- `test:desktop`: real loopback HTTP checks, public-asset coverage, private-file protection and legacy import validation. No desktop GUI dependencies are needed.
+- `test:browser`: gameplay, country/regional maps, mobile typing, persistence failures, secure submission wiring, moderation, both themes at 320/390/768/1440px, dialog keyboard navigation, automated axe accessibility scans and desktop import behaviour.
+- `.github/workflows/checks.yml`: runs these checks on Linux and Windows. Playwright and axe are development tools, never loaded by the application.
 
-## Shared Speedrun Leaderboard
+For an automated native-window check (requires the installed GUI runtime):
 
-GitHub Pages is static, so shared speedrun records and private learning analytics are handled by Supabase. The browser-facing project URL, public browser key and function URLs live in `leaderboard-config.js`.
-
-The Supabase schema, Edge Functions, admin validation and anti-cheat rules are intentionally kept out of this public repository. Deploy them from the private server repository only.
-
-```js
-window.LEADERBOARD_CONFIG = {
-  supabaseUrl: "https://YOUR_PROJECT.supabase.co",
-  supabaseAnonKey: "YOUR_ANON_PUBLIC_KEY",
-  tableName: "speedrun_leaderboard",
-  submitFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/submit-speedrun",
-  analyticsFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/submit-analytics",
-  adminFunctionUrl: "https://YOUR_PROJECT.supabase.co/functions/v1/admin-leaderboard"
-};
+```powershell
+.\.venv-desktop\Scripts\python.exe scripts/check-desktop-window.py
 ```
 
-Only commit the public browser key. Never put the `service_role` key, admin password or private function secrets in this repository. If the config is blank, speedrun records stay local in the current browser. Completed speedruns are posted to the public leaderboard only when they are a personal best for that exact category and the player chooses to submit them.
+It uses a temporary profile and checks persistence across two separate launches without submitting leaderboard runs. In a Linux virtual display, use `QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu LIBGL_ALWAYS_SOFTWARE=1 PYWEBVIEW_GUI=qt xvfb-run -a .venv/bin/python scripts/check-desktop-window.py` if the virtual GPU cannot initialise.
 
-Posted runs include private route and anti-cheat telemetry for server/admin review. The public leaderboard reads only simple approved result columns. Only the selected target is eligible for a shared submission; intermediate split records remain local because their clocks are not independently server-authoritative.
+For a manual native desktop check, launch `flag.py`, change the theme, save a revision item, close the window and reopen it. The theme and saved item should remain. Confirm country/region switching, a capital/map question and the speedrun pledge. Native runtime testing is separate from headless browser tests.
 
-Completed speedruns are also submitted automatically to the private `speedrun_analytics` table through `submit-analytics`. The browser keeps a capped local retry queue, so temporary upload failures are retried later. Analytics records include per-run context, per-question render/input/submit timings, raw attempts, accepted aliases, autocomplete/shortcut usage, typed-vs-canonical character counts, WPM variants, correction time, region breakdowns, mastery labels, device ID, submitted leaderboard names and quality flags. These records are private educational data and are available only through the admin function. The post-game summary can show the current browser's own local device progress without exposing anyone else's records.
+## Structure and maintenance
 
-`admin.html` uses a private Supabase admin function and an `ADMIN_PASSWORD` Supabase secret. The password is not stored in the repository. Clean submissions are published automatically; submissions with suspicious timing, telemetry, names or identity changes are saved as `pending` for explicit admin review. After unlocking the page, admins can filter all, pending, approved or rejected runs, narrow by age or search terms, identify matching run evidence, and bulk-reject selected records. Moderation updates the loaded view locally instead of downloading the full queue after every decision. The same page can load private analytics records for educational review.
+| Area | Files |
+| --- | --- |
+| Pages | `index.html`, `game.html`, `leaderboard.html`, `revise.html`, `view.html`, `feedback.html`, `admin.html` |
+| Presentation | `style.css`, `theme.js`, `ui.js` (shared time formatting and dialog behaviour) |
+| Quiz | `game.js`, `utils.js`, `map-view.js`, `region-map.js`, `world-map-config.js` |
+| Shared data | `data.js`, `regions-data.js`, `regions-generated-data.js`, `regions-leaderboard-data.js` |
+| Services | `leaderboard.js`, `leaderboard-config.js`, `analytics.js`, `feedback.js`, `admin.js` |
+| Desktop | `flag.py` launcher, `desktop_app.py` host/import, `flag_legacy.py` fallback, `flag_data.py` legacy data bridge |
+| Verification | `tests/`, `scripts/validate-data.js`, `scripts/smoke-check.js` |
 
-## Anti-Cheat Approach
+Keep quiz behaviour in the shared web code. Avoid reimplementing it in Python. `desktop_app.py` maintains a public-asset allowlist: update it when a page gains a local runtime asset. Keep shared styling in `style.css` and preserve the mobile keyboard rules when changing gameplay layouts. Bump relevant asset query versions after edits so hosted browsers fetch the update.
 
-The leaderboard is designed for a public-source static app, so the browser is treated as untrusted. The private server implementation uses layered checks rather than relying on any single client-side signal:
+## Shared services and privacy
 
-- Direct public table inserts are revoked by the default SQL setup.
-- Submissions go through private Edge Functions that recompute category, route, answer, timing and score consistency before writing to the database.
-- Shared runs use opaque, server-issued, single-use completion receipts. Supabase establishes the official elapsed time before the player enters a publication name, so client nonces, edited clocks and renamed replays are not trusted.
-- Client telemetry is stored as evidence, but the browser does not decide whether a run is valid for the shared leaderboard.
-- Database constraints, a server-generated evidence fingerprint, duplicate detection and an insert trigger provide a second line of defence if the server write path regresses.
-- Structurally valid runs are published automatically unless server-side timing, telemetry, name or identity checks flag them for admin review.
-- Player-name moderation uses private server-side review terms; flagged names are saved for admin approval rather than published directly.
-- Submission limits are enforced independently against network and player identifiers so changing a browser-controlled identifier does not reset the network limit.
-- Admin moderation is protected by a server-side password check and database-backed, network-keyed failed-login lockout.
-- Approved public reads are separated from pending/rejected moderation data.
+The browser-facing Supabase URL, public browser key and function URLs are in `leaderboard-config.js`. Only public configuration belongs here. SQL, Edge Functions, moderation rules and privileged credentials belong in the private server project. Do not publish the ignored private backup directory.
 
-Because a public browser app cannot fully hide quiz data or stop real-browser automation, determined attackers can still cheat. Keep the server validation code private, use admin moderation for suspicious records, and avoid prize-backed competition without stronger authentication.
+`sb_publishable_...` keys are not JWTs: send them as `apikey`, not `Authorization: Bearer`. Public Edge Functions accepting these keys are deployed with `--no-verify-jwt` from the private server source. This does not grant clients privileged database access; the function and database enforce their own rules.
 
-## Run the Desktop Version
+A completed speedrun can be published only when it is a personal best for its exact category and the player chooses to submit. Intermediate splits remain local. Public leaderboard reads contain approved result summaries; private route/telemetry details are for admin review.
 
-```bash
-pip install -r requirements.txt
-python flag.py
+Completed speedruns also send **private learning analytics automatically**, independently of public leaderboard posting. These include answer attempts, timings, typing metrics, device/player identifiers and quality flags. Failed analytics uploads use a capped local retry queue. Practice scores and revision lists are stored locally. Feedback is sent to the private review queue. The desktop uses the same service behaviour.
+
+The private server recomputes consistency checks, establishes the official elapsed time and issues sealed completion receipts. It also compares evidence across submissions and applies separate player, client and network rate limits. Suspicious patterns can result in pending review rather than automatic publication. The pledge communicates fair-play expectations; it is not a security boundary. Browser/client evidence alone cannot prove that a player was unaided.
+
+Timing review checks consider repeated mechanical patterns and historical evidence reused at a different speed. They require several corroborating observations; a single quick answer or consistent typing alone is not enough. These checks hold submissions for admin review rather than automatically rejecting them. If historical comparison is unavailable, publication also waits for review. Existing stored runs are not retrospectively moderated by a function deployment.
+
+Admin access is validated by the private admin function, including trusted-device credentials. A client-side device label or editing the page does not itself authorise database access. Never put an admin password, service-role key or server signing secret in frontend code.
+
+## Regional data generation
+
+The generated bundle includes 193 country-level region sets; manual sets provide additional regional categories. Monaco and Vatican City are excluded at this level because the boundary source has fewer than two usable regions.
+
+From the repository root in PowerShell:
+
+```powershell
+npm.cmd run regions:scan
+npm.cmd run regions:build
+npm.cmd run regions:leaderboard
+npm.cmd run regions:check-maps
 ```
 
-The desktop app reads the same country data as the web app, so data changes should be made in `data.js`.
+`regions:scan` updates the source report without replacing the application bundle. `regions:build` refreshes generated quiz data. `regions:leaderboard` regenerates the smaller leaderboard metadata bundle. Successful source responses are cached in ignored `.region-cache/`; reruns reuse that cache. Respect `Retry-After` responses and resume later if an upstream service is rate-limited.
+
+For focused investigations:
+
+```powershell
+npm.cmd run regions:limits
+node scripts\build-region-groups.js --country "Spain" --report-only
+node scripts\build-region-groups.js --country "Spain" --report-only --wikidata-admin-fallback
+```
+
+`region-source-report.json` records included/skipped sets and reasons. Regional sources include Wikidata, GeoNames and GeoBoundaries; country maps use Natural Earth-derived `world-atlas` data. Flags use FlagCDN and verified regional sources. Missing flags are never fabricated.

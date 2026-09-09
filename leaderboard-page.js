@@ -863,12 +863,7 @@ function emptyMiniPage(text){
 }
 
 function formatLeaderboardTime(ms){
-  const value = Math.max(0, Math.round(ms || 0));
-  if(!Number.isFinite(value)) return "0:00.0";
-  const minutes = Math.floor(value / 60000);
-  const seconds = Math.floor((value % 60000) / 1000);
-  const tenths = Math.floor((value % 1000) / 100);
-  return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
+  return QuizUI.formatTime(ms);
 }
 
 function formatLeaderboardWpm(value){

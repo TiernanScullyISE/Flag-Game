@@ -11,3 +11,7 @@ supabase/.temp/
 supabase/functions/
 supabase/*.sql
 .private-supabase-backup/
+
+.venv-desktop/
+core
+core.*

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -8,27 +8,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <script src="theme.js?v=theme-2"></script>
-  <link rel="stylesheet" href="style.css?v=regional-leaderboard-2" />
+  <script src="theme.js?v=polish-1"></script>
+  <link rel="stylesheet" href="style.css?v=polish-1" />
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header with-nav">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
-    <nav class="top-nav">
+    <nav class="top-nav" aria-label="Main navigation">
       <a class="nav-link" href="game.html">Play</a>
-      <a class="nav-link active" href="leaderboard.html">Leaderboard</a>
+      <a class="nav-link active" aria-current="page" href="leaderboard.html">Leaderboard</a>
       <a class="nav-link" href="revise.html">Revision</a>
-      <a class="nav-link" href="view.html">All</a>
+      <a class="nav-link" href="view.html">Browse</a>
       <a class="nav-link" href="feedback.html">Feedback</a>
     </nav>
   </header>
 
-  <main class="container">
+  <main id="main-content" tabindex="-1" class="container">
     <section id="leaderboard-highlights" class="leaderboard-highlights" aria-live="polite"></section>
 
     <section class="page-intro">
       <p class="section-kicker">Shared leaderboard</p>
-      <h1>Top five speedrun times for each category.</h1>
+      <h1>Every category. Your next personal best.</h1>
     </section>
 
     <section class="toolbar leaderboard-toolbar">
@@ -93,6 +94,7 @@
   <script src="regions-leaderboard-data.js?v=regional-leaderboard-2" defer></script>
   <script src="leaderboard-config.js" defer></script>
   <script src="leaderboard.js?v=server-session-1" defer></script>
-  <script src="leaderboard-page.js?v=public-summary-1" defer></script>
+  <script src="ui.js?v=polish-1" defer></script>
+  <script src="leaderboard-page.js?v=polish-1" defer></script>
 </body>
 </html>

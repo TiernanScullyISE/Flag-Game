@@ -1,2 +1,5 @@
+# Shared desktop interface; Windows uses Microsoft Edge WebView2.
+pywebview>=6.0,<7
+# Kept for the optional original Tkinter app.
 requests>=2.31.0
 Pillow>=9.5.0

@@ -1,5 +1,6 @@
 const ANSWER_FLASH_MS = 100;
 const TIMER_TICK_MS = 100;
+const SPEEDRUN_OATH_SESSION_KEY = "flag_game_speedrun_oath_acknowledged";
 const SPEEDRUN_SPLITS = [10, 25, 50, 100, 150];
 const MAX_LEADERBOARD_RUNS = 5;
 const MAX_SHARED_LEADERBOARD_RUNS = 5;
@@ -219,6 +220,13 @@ const postLeaderboardBtn = document.getElementById("post-leaderboard-btn");
 const leaderboardPublishStatus = document.getElementById("leaderboard-publish-status");
 const resultRetry = document.getElementById("result-retry");
 const resultClose = document.getElementById("result-close");
+const speedrunOathModal = document.getElementById("speedrun-oath-modal");
+const speedrunOathAck = document.getElementById("speedrun-oath-ack");
+const speedrunOathAgree = document.getElementById("speedrun-oath-agree");
+const speedrunOathCancel = document.getElementById("speedrun-oath-cancel");
+const resultDialogController = QuizUI.createModal(resultModal, closeResultModal);
+const oathDialogController = QuizUI.createModal(speedrunOathModal, closeSpeedrunOath);
+let speedrunOathAcknowledgedInMemory = false;
 
 function init(){
   setupMobileGameViewport();
@@ -229,16 +237,7 @@ function init(){
         retryVisibleQuestionLoad();
         return;
       }
-      state.playMode = button.dataset.playMode;
-      if(state.playMode === "speedrun" && isRevisionMode()) state.selectedContinent = "All";
-      if(state.playMode === "speedrun"){
-        state.hard = true;
-        state.speedTarget = "all";
-      }
-      syncModeButtons();
-      populateContinents();
-      populateSpeedTargets();
-      resetSession();
+      requestPlayMode(button.dataset.playMode);
     });
   });
 
@@ -359,6 +358,11 @@ function init(){
   });
   resultClose.addEventListener("click", closeResultModal);
   if(postLeaderboardBtn) postLeaderboardBtn.addEventListener("click", postPendingSharedRun);
+  speedrunOathAck.addEventListener("change", ()=>{
+    speedrunOathAgree.disabled = !speedrunOathAck.checked;
+  });
+  speedrunOathAgree.addEventListener("click", acknowledgeSpeedrunOath);
+  speedrunOathCancel.addEventListener("click", closeSpeedrunOath);
 
   populateRegionSets();
   syncModeButtons();
@@ -370,6 +374,59 @@ function init(){
   window.setInterval(()=>{
     if(state.playMode === "speedrun") refreshSharedLeaderboard();
   }, LEADERBOARD_REFRESH_MS);
+}
+
+function requestPlayMode(playMode){
+  if(playMode === "speedrun" && !hasAcknowledgedSpeedrunOath()){
+    openSpeedrunOath();
+    return;
+  }
+  applyPlayMode(playMode);
+}
+
+function applyPlayMode(playMode){
+  state.playMode = playMode;
+  if(state.playMode === "speedrun" && isRevisionMode()) state.selectedContinent = "All";
+  if(state.playMode === "speedrun"){
+    state.hard = true;
+    state.speedTarget = "all";
+  }
+  syncModeButtons();
+  populateContinents();
+  populateSpeedTargets();
+  resetSession();
+}
+
+function hasAcknowledgedSpeedrunOath(){
+  if(speedrunOathAcknowledgedInMemory) return true;
+  try{
+    return sessionStorage.getItem(SPEEDRUN_OATH_SESSION_KEY) === "yes";
+  }catch{
+    return false;
+  }
+}
+
+function openSpeedrunOath(){
+  if(!speedrunOathModal) return;
+  speedrunOathAck.checked = false;
+  speedrunOathAgree.disabled = true;
+  oathDialogController.open(speedrunOathAck);
+}
+
+function closeSpeedrunOath(){
+  oathDialogController.close();
+}
+
+function acknowledgeSpeedrunOath(){
+  if(!speedrunOathAck.checked) return;
+  speedrunOathAcknowledgedInMemory = true;
+  try{
+    sessionStorage.setItem(SPEEDRUN_OATH_SESSION_KEY, "yes");
+  }catch{
+    // The in-memory acknowledgement still applies for this page if storage is unavailable.
+  }
+  closeSpeedrunOath();
+  applyPlayMode("speedrun");
 }
 
 function setupMobileGameViewport(){
@@ -750,9 +807,21 @@ function syncModeButtons(){
   document.body.dataset.playMode = state.playMode;
   document.body.dataset.quizMode = state.which;
   document.body.dataset.gameScope = state.gameScope;
-  playModeButtons.forEach(button=>button.classList.toggle("active", button.dataset.playMode === state.playMode));
-  scopeButtons.forEach(button=>button.classList.toggle("active", button.dataset.gameScope === state.gameScope));
-  quizButtons.forEach(button=>button.classList.toggle("active", button.dataset.mode === state.which));
+  playModeButtons.forEach(button=>{
+    const active = button.dataset.playMode === state.playMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  scopeButtons.forEach(button=>{
+    const active = button.dataset.gameScope === state.gameScope;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  quizButtons.forEach(button=>{
+    const active = button.dataset.mode === state.which;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
   updateQuizButtonLabels();
   hardToggle.checked = state.hard;
   hardToggle.disabled = state.playMode === "speedrun" || isWorldMode();
@@ -4559,7 +4628,7 @@ function updateLivesDisplay(){
 
 function updateTimerDisplay(){
   if(state.playMode !== "speedrun"){
-    timerValue.textContent = "0:00.0";
+    timerValue.textContent = "0:00.000";
     timerStatus.textContent = "Switch to Speedrun to start the clock.";
     updateWpmDisplay();
     return;
@@ -4836,8 +4905,7 @@ function showResultModal(reason){
   }
 
   renderLeaderboardPublishPromptSafely(reason);
-  resultModal.classList.add("is-visible");
-  resultModal.setAttribute("aria-hidden", "false");
+  resultDialogController.open();
   if(leaderboardPublish && !leaderboardPublish.hidden && resultPlayerNameInput && !resultPlayerNameInput.hidden){
     resultPlayerNameInput.focus();
   }else{
@@ -5072,8 +5140,7 @@ function getResultTitle(reason){
 }
 
 function closeResultModal(){
-  resultModal.classList.remove("is-visible");
-  resultModal.setAttribute("aria-hidden", "true");
+  resultDialogController.close();
   if(leaderboardPublish) leaderboardPublish.hidden = true;
 }
 
@@ -5120,11 +5187,7 @@ function showWorldAnswerFlash(ok){
 }
 
 function formatTime(ms){
-  const value = Math.max(0, Math.round(ms || 0));
-  const minutes = Math.floor(value / 60000);
-  const seconds = Math.floor((value % 60000) / 1000);
-  const tenths = Math.floor((value % 1000) / 100);
-  return `${minutes}:${String(seconds).padStart(2,"0")}.${tenths}`;
+  return QuizUI.formatTime(ms);
 }
 
 function formatTimeCompact(ms){

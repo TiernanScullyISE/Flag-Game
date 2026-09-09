@@ -1,16 +1,18 @@
 {
   "scripts": {
-    "test": "node scripts/validate-data.js && node scripts/smoke-check.js && python -m py_compile flag.py flag_data.py",
+    "test": "node scripts/validate-data.js && node scripts/smoke-check.js && python -m py_compile flag.py flag_data.py desktop_app.py flag_legacy.py",
     "test:data": "node scripts/validate-data.js",
-    "test:smoke": "node scripts/smoke-check.js && python -m py_compile flag.py flag_data.py",
+    "test:smoke": "node scripts/smoke-check.js && python -m py_compile flag.py flag_data.py desktop_app.py flag_legacy.py",
     "test:browser": "playwright test",
     "regions:scan": "node scripts/build-region-groups.js --report-only",
     "regions:build": "node scripts/build-region-groups.js",
     "regions:leaderboard": "node scripts/build-region-leaderboard-data.js",
     "regions:limits": "node scripts/build-region-groups.js --limits",
-    "regions:check-maps": "node scripts/check-region-maps.js"
+    "regions:check-maps": "node scripts/check-region-maps.js",
+    "test:desktop": "python -m unittest discover -s tests -p \"test_*.py\""
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.44.0"
   }
 }

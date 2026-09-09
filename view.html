@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -8,25 +8,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <script src="theme.js?v=theme-2"></script>
-  <link rel="stylesheet" href="style.css?v=regional-map-3" />
+  <script src="theme.js?v=polish-1"></script>
+  <link rel="stylesheet" href="style.css?v=polish-1" />
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header with-nav">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
-    <nav class="top-nav">
+    <nav class="top-nav" aria-label="Main navigation">
       <a class="nav-link" href="game.html">Play</a>
       <a class="nav-link" href="leaderboard.html">Leaderboard</a>
       <a class="nav-link" href="revise.html">Revision</a>
-      <a class="nav-link active" href="view.html">All</a>
+      <a class="nav-link active" aria-current="page" href="view.html">Browse</a>
       <a class="nav-link" href="feedback.html">Feedback</a>
     </nav>
   </header>
 
-  <main class="container">
+  <main id="main-content" tabindex="-1" class="container">
     <section class="page-intro">
       <p class="section-kicker">Reference</p>
-      <h1>Browse every country in the quiz data set.</h1>
+      <h1>Browse every country.</h1>
     </section>
 
     <div class="segment-switch">
@@ -40,6 +41,14 @@
       </label>
     </div>
 
+    <section class="toolbar" aria-label="Browse filters">
+      <div class="control browse-search-control">
+        <label for="browse-search">Find a country or capital</label>
+        <input id="browse-search" type="search" autocomplete="off" placeholder="Search countries, capitals or continents" />
+      </div>
+      <p id="browse-count" class="browse-count" role="status"></p>
+    </section>
+
     <section id="grid" class="card-grid" aria-live="polite"></section>
   </main>
 
@@ -49,6 +58,6 @@
 
   <script src="data.js" defer></script>
   <script src="utils.js" defer></script>
-  <script src="view.js" defer></script>
+  <script src="view.js?v=polish-1" defer></script>
 </body>
 </html>

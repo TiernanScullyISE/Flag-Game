@@ -6,6 +6,7 @@ const ROOT = path.resolve(__dirname, "..");
 const HTML_FILES = ["index.html", "game.html", "leaderboard.html", "admin.html", "feedback.html", "revise.html", "view.html"];
 const JS_FILES = [
   "theme.js",
+  "ui.js",
   "data.js",
   "regions-generated-data.js",
   "regions-data.js",

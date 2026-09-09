@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content" />
@@ -8,25 +8,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-  <script src="theme.js?v=theme-2"></script>
-  <link rel="stylesheet" href="style.css?v=mobile-game-layout-2" />
+  <script src="theme.js?v=polish-1"></script>
+  <link rel="stylesheet" href="style.css?v=polish-1" />
 </head>
 <body data-play-mode="practice" data-quiz-mode="flags" data-game-scope="countries">
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header with-nav compact-header">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
-    <nav class="top-nav">
-      <a class="nav-link active" href="game.html">Play</a>
+    <nav class="top-nav" aria-label="Main navigation">
+      <a class="nav-link active" aria-current="page" href="game.html">Play</a>
       <a class="nav-link" href="leaderboard.html">Leaderboard</a>
       <a class="nav-link" href="revise.html">Revision</a>
-      <a class="nav-link" href="view.html">All</a>
+      <a class="nav-link" href="view.html">Browse</a>
       <a class="nav-link" href="feedback.html">Feedback</a>
     </nav>
   </header>
 
-  <main class="container game-container">
+  <main id="main-content" tabindex="-1" class="container game-container">
     <section class="page-intro game-intro">
       <p class="section-kicker">Quiz mode</p>
-      <h1>Practise with lives across countries, county sets, or state sets, or switch to speedrun mode.</h1>
+      <h1>Practise with lives. Race your personal best.</h1>
     </section>
 
     <section class="game-layout">
@@ -98,7 +99,7 @@
         <section class="speedrun-panel speedrun-only" aria-label="Speedrun timer and records">
           <div class="timer-card">
             <p class="panel-label">Speedrun Timer</p>
-            <p id="timer-value" class="timer-value">0:00.0</p>
+            <p id="timer-value" class="timer-value">0:00.000</p>
             <p id="timer-status" class="timer-status">Starts when you begin typing.</p>
           </div>
           <div class="timer-card">
@@ -140,14 +141,14 @@
         <div class="answer-control-row">
           <button id="last-btn" class="btn subtle">Last</button>
           <div id="text-answer" class="text-answer">
-            <input id="answer-input" type="text" placeholder="Type your answer..." autocomplete="off" />
+            <input id="answer-input" type="text" aria-label="Your answer" placeholder="Type your answer..." autocomplete="off" />
           </div>
           <button id="next-btn" class="btn subtle">Skip / Next</button>
           <button id="giveup-btn" class="btn danger">Give up</button>
           <button id="submit-btn" class="btn primary">Submit</button>
         </div>
 
-        <p id="feedback" class="feedback"></p>
+        <p id="feedback" class="feedback" role="status"></p>
         <p id="revise-feedback" class="revise-feedback"></p>
 
         <div class="stats">
@@ -183,6 +184,24 @@
     </div>
   </div>
 
+  <div id="speedrun-oath-modal" class="result-modal speedrun-oath-modal" aria-hidden="true">
+    <div class="result-dialog speedrun-oath-dialog" role="dialog" aria-modal="true" aria-labelledby="speedrun-oath-title">
+      <p class="panel-label">Before you begin</p>
+      <h2 id="speedrun-oath-title">Fair play pledge</h2>
+      <p class="result-summary">Speedruns are shared competitive results. Please only submit a run completed fairly and unaided.</p>
+      <p class="speedrun-oath-copy">I will complete speedruns using my own knowledge. I will not use outside answers or assistance, including answer lists or other material on another screen or device, another person, automation, scripts, modified game code, or any other unfair help.</p>
+      <p class="speedrun-oath-copy">These examples are not exhaustive and the fair-play rules may be updated. Submitted runs may be reviewed. If I deliberately cheat, my runs may be removed and I may be permanently banned from submitting leaderboard runs.</p>
+      <label class="checkbox speedrun-oath-checkbox">
+        <input id="speedrun-oath-ack" type="checkbox" />
+        <span>I understand and agree to the fair-play rules.</span>
+      </label>
+      <div class="result-actions">
+        <button id="speedrun-oath-cancel" class="btn subtle" type="button">Cancel</button>
+        <button id="speedrun-oath-agree" class="btn primary" type="button" disabled>I agree and start Speedrun</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="site-footer compact-footer">
     <p>Country flags load from FlagCDN; regional maps use public boundary datasets where available. Practice scores stay in this browser; speedrun leaderboards can be shared.</p>
   </footer>
@@ -198,6 +217,7 @@
   <script src="map-view.js?v=capital-map-18" defer></script>
   <script src="region-map.js?v=regional-map-9" defer></script>
   <script src="world-map-config.js?v=capital-map-17" defer></script>
-  <script src="game.js?v=server-session-1" defer></script>
+  <script src="ui.js?v=polish-1" defer></script>
+  <script src="game.js?v=polish-1" defer></script>
 </body>
 </html>
