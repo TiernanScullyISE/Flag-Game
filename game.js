@@ -1044,7 +1044,7 @@ function buildPool(){
 }
 
 function shouldPreloadSpeedRunFlags(){
-  return state.playMode === "speedrun" && state.which === "flags";
+  return (state.playMode === "speedrun" || state.playMode === "practice") && state.which === "flags";
 }
 
 function getSpeedRunFlagPreloadUrl(country){
@@ -1205,6 +1205,11 @@ function getQuestionCandidates(){
 
 async function renderFlag(country){
   cancelQuestionFocusMapRender();
+  const preloadUrl = getSpeedRunFlagPreloadUrl(country);
+  if(shouldPreloadSpeedRunFlags() && preloadUrl && typeof preloadImageUrl === "function"){
+    await preloadImageUrl(preloadUrl);
+  }
+  if(state.session.gameOver || state.session.correctCountry !== country) return;
   questionVisual.innerHTML = "";
   const holder = document.createElement("div");
   holder.className = "flag-holder";
@@ -4854,6 +4859,7 @@ function enableNav(){
 function showResultModal(reason){
   const session = state.session;
   const isSpeed = state.playMode === "speedrun";
+  resultHero.classList.toggle("speedrun-result-hero", isSpeed);
   const pct = session.totalFirstAttempts
     ? Math.round((session.correctFirstTry / session.totalFirstAttempts) * 1000) / 10
     : 0;

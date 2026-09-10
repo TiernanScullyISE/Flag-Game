@@ -880,6 +880,35 @@ test("speedrun flag mode preloads current and upcoming flags", async ({page})=>{
   expect(result.loading).toBe("eager");
 });
 
+test("practice flag mode preloads the buffer before showing the flag", async ({page})=>{
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(async ()=>{
+    const requests = [];
+    preloadImageUrl = url=>{
+      requests.push(url);
+      return Promise.resolve(true);
+    };
+    state.playMode = "practice";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.session = makeSession();
+    state.session.pool = ["France", "Germany", "Italy"];
+
+    await loadQuestion();
+    return {
+      current: state.session.correctCountry,
+      requests,
+      alt: document.querySelector("#question-visual img")?.alt || ""
+    };
+  });
+
+  expect(result.current).toBeTruthy();
+  expect(result.requests.length).toBeGreaterThanOrEqual(3);
+  expect(result.alt).toBe(`Flag of ${result.current}`);
+});
+
 test("country speedrun progress ignores older regional revision targets", async ({page})=>{
   await page.goto("/game.html");
 
