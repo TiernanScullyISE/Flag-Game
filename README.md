@@ -6,13 +6,15 @@ A geography trainer for countries and regions, available as a static website and
 
 ## Features
 
+- Typing studio (`typing.html`): English, Gaeilge, Python and Java; timed tests, fixed word counts, complete named passages, complete code samples, an alphabet drill and the classic quick-brown-fox pangram. Timed tests include 15/30/60/90/120-second and 5/10/30/60-minute controls. Every named passage and each language, test type and punctuation setting has its own category and browser-local top 10. Public typing submissions use a separate private verification path from the geography leaderboard; only flagged runs enter admin review.
+- Typing starts on the first character typed anywhere on the page and runs continuously, including while the tab is hidden. Space advances to the next word, corrections apply to the current word, Tab restarts from the typing area or results, and Escape restores normal keyboard navigation. Irish fadas and code punctuation are required. Results include WPM, raw WPM, keystroke accuracy, errors, corrections and a pace chart.
 - Country flags, capitals and world-map recall across 197 countries and six continents.
 - Regional flags, administrative centres and maps, including Ireland's 32 counties, Ireland as Gaeilge, England, Scotland, Wales, US states and generated regional sets. Flag modes use verified flag assets where available.
 - Multiple-choice practice, typed hard mode, configurable lives, streaks and saved personal records.
 - Revision lists for countries and regions, capital flashcards and searchable country/capital reference cards.
 - Speedruns with splits, WPM, local records and times displayed to **three decimal places**.
 - A fair-play pledge on first entering speedrun mode in each tab session. Cancelling leaves practice selected; acknowledgement lasts through navigation and reloads in that tab.
-- Optional publication of category personal bests to a shared leaderboard, with server-issued completion receipts and admin review.
+- Optional publication of category personal bests to a shared leaderboard, with server-issued completion receipts. Ordinary typing runs publish immediately; only WR-level, near-WR or suspicious evidence is held for admin review.
 - Dark and light appearances, responsive layouts, keyboard focus indicators and accessible pledge/results dialogs.
 - Feedback submissions and a protected admin interface for moderation and private learning analytics.
 
@@ -127,7 +129,7 @@ The browser-facing Supabase URL, public browser key and function URLs are in `le
 
 `sb_publishable_...` keys are not JWTs: send them as `apikey`, not `Authorization: Bearer`. Public Edge Functions accepting these keys are deployed with `--no-verify-jwt` from the private server source. This does not grant clients privileged database access; the function and database enforce their own rules.
 
-A completed speedrun can be published only when it is a personal best for its exact category and the player chooses to submit. Intermediate splits remain local. Public leaderboard reads contain approved result summaries; private route/telemetry details are for admin review.
+A completed speedrun or typing run can be published only when it is a personal best for its exact category and the player chooses to submit. Intermediate splits remain local. Public leaderboard reads contain approved result summaries; private route/telemetry details are for admin review.
 
 Completed speedruns also send **private learning analytics automatically**, independently of public leaderboard posting. These include answer attempts, timings, typing metrics, device/player identifiers and quality flags. Failed analytics uploads use a capped local retry queue. Practice scores and revision lists are stored locally. Feedback is sent to the private review queue. The desktop uses the same service behaviour.
 

@@ -134,6 +134,22 @@ button,input,select,textarea{font:inherit}
   justify-content:flex-end;
 }
 
+.typing-leaderboards{margin-top:56px}
+.typing-leaderboards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:22px}
+.typing-leaderboard-card{min-height:230px}
+.typing-leaderboard-table-wrap{overflow-x:auto}
+.typing-leaderboard-card table{width:100%;border-collapse:collapse;text-align:left;font-variant-numeric:tabular-nums}
+.typing-leaderboard-card th{padding:0 9px 6px;color:var(--muted);font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.typing-leaderboard-card td{padding:9px;border-top:6px solid transparent;background:rgba(255,249,238,.78);color:var(--ink);font-size:.86rem;font-weight:800;background-clip:padding-box}
+.typing-leaderboard-card tbody tr td:first-child{border-radius:12px 0 0 12px;color:var(--accent-dark)}
+.typing-leaderboard-card tbody tr td:last-child{border-radius:0 12px 12px 0}
+html[data-theme="dark"] .typing-leaderboard-card td{background:rgba(255,249,238,.08);color:var(--ink)}
+html[data-theme="dark"] .typing-leaderboard-card th{color:var(--muted)}
+html[data-theme="dark"] .typing-leaderboard-card tbody tr td:first-child{color:var(--accent-dark)}
+body[data-leaderboard-view="typing"] #leaderboard-page-status,
+body[data-leaderboard-view="typing"] #leaderboard-page-grid,
+body[data-leaderboard-view="typing"] .leaderboard-load-row{display:none}
+
 .nav-link{
   padding:10px 14px;
   border:1px solid var(--line-dark);

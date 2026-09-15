@@ -2,7 +2,7 @@ const {test, expect} = require("@playwright/test");
 const {execFileSync} = require("node:child_process");
 const path = require("node:path");
 
-const pages = ["index", "game", "leaderboard", "revise", "view", "feedback", "admin"];
+const pages = ["index", "game", "typing", "leaderboard", "revise", "view", "feedback", "admin"];
 test.beforeEach(async ({page})=>{
   await page.route(/supabase\.co/, route=>route.fulfill({json:[]}));
 });

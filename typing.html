@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Typing studio - Flag & Capital Quiz</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <script src="theme.js?v=polish-1"></script>
+  <link rel="stylesheet" href="style.css?v=flag-results-1">
+  <link rel="stylesheet" href="typing.css?v=4">
+  <script src="typing-data.js?v=1" defer></script>
+  <script src="typing-passages.js?v=5" defer></script>
+  <script src="leaderboard-config.js" defer></script>
+  <script src="typing.js?v=9" type="module"></script>
+</head>
+<body class="typing-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header with-nav">
+    <a class="brand" href="index.html">Flag & Capital Quiz</a>
+    <nav class="top-nav" aria-label="Main navigation">
+      <a class="nav-link active" aria-current="page" href="typing.html">Typing</a>
+      <a class="nav-link" href="game.html">Play</a>
+      <a class="nav-link" href="leaderboard.html">Leaderboard</a>
+      <a class="nav-link" href="revise.html">Revision</a>
+      <a class="nav-link" href="view.html">Browse</a>
+      <a class="nav-link" href="feedback.html">Feedback</a>
+    </nav>
+  </header>
+  <main id="main-content" class="container typing-container" tabindex="-1">
+    <div class="typing-heading"><div><p class="section-kicker">Find your rhythm</p><h1>Typing studio<span>.</span></h1><p>Clear your mind. Let your fingers do the talking.</p></div><a href="#typing-board" class="typing-board-link">Your leaderboard ↗</a></div>
+    <section class="typing-studio" aria-label="Timed typing test">
+      <div class="typing-controls">
+        <label>Language<select id="typing-language"><option value="english">English</option><option value="irish">Gaeilge</option><option value="python">Python</option><option value="java">Java</option></select></label>
+        <label>Test<select id="typing-mode"><option value="time">Timed</option><option value="words">Word count</option><option value="passage">Passage / script</option><option value="alphabet" data-english-only>Alphabet · a–z</option><option value="pangram" data-english-only>Quick brown fox</option></select></label>
+        <label>Duration<select id="typing-duration"><option value="15">15 seconds</option><option value="30" selected>30 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option><option value="120">120 seconds</option><option value="300">5 minutes</option><option value="600">10 minutes</option><option value="1800">30 minutes</option><option value="3600">60 minutes</option></select></label>
+        <label id="typing-count-control" hidden>Words<select id="typing-count"><option>10</option><option selected>25</option><option>50</option><option>100</option><option>250</option></select></label>
+        <label id="typing-length-control" hidden>Passage<select id="typing-length"></select></label>
+        <label class="typing-punctuation-label"><input id="typing-punctuation" type="checkbox"> Punctuation</label>
+        <span id="typing-category" class="typing-category"></span>
+        <button id="typing-reset" type="button" class="btn subtle">↻ Restart</button>
+      </div>
+      <div class="typing-live" aria-label="Live statistics"><div><strong id="typing-remaining">0:30</strong><span>remaining</span></div><div><strong id="typing-wpm">0</strong><span>WPM</span></div><div><strong id="typing-accuracy">100%</strong><span>accuracy</span></div><span id="typing-phase">Ready when you are</span></div>
+      <div class="typing-progress" aria-hidden="true"><div id="typing-progress-fill"></div></div>
+      <p id="typing-source" class="typing-definition"></p>
+      <div id="typing-surface" class="typing-surface" tabindex="-1">
+        <div id="typing-prompt" class="typing-prompt" aria-hidden="true"></div>
+        <label class="typing-input-label" for="typing-input">Type the displayed text</label>
+        <textarea id="typing-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-describedby="typing-help typing-current" aria-keyshortcuts="Tab Escape"></textarea>
+        <span id="typing-current" class="typing-input-label"></span>
+      </div>
+      <p id="typing-help" class="typing-help">Type anywhere on this page to begin · <kbd>Tab</kbd> restarts · <kbd>Esc</kbd> leaves the typing area · In code scripts, <kbd>Enter</kbd> supplies the required indentation automatically</p>
+      <p id="typing-notice" class="typing-notice" role="status"></p>
+      <section id="typing-results" class="typing-results" hidden tabindex="-1" aria-label="Typing results">
+        <p class="section-kicker">Session complete</p><h2>Your rhythm, in numbers.</h2>
+        <div id="typing-metrics" class="typing-metrics"></div>
+        <figure class="typing-chart"><figcaption>WPM over time <span>Correct characters · cumulative pace</span></figcaption><svg id="typing-chart" viewBox="0 0 600 140" role="img" aria-label="Typing pace during this run"></svg></figure>
+        <p id="typing-result-summary"></p>
+        <form id="typing-publish" class="typing-publish" hidden>
+          <h3>New personal best</h3><p>Would you like to add this run to the public leaderboard?</p>
+          <label for="typing-name">Public name</label><input id="typing-name" maxlength="24" autocomplete="nickname" value="Player" required>
+          <label class="checkbox"><input id="typing-fair-play" type="checkbox" required> I completed this test myself, without scripts, pasted text or outside assistance.</label>
+          <p class="typing-definition">Submitting sends this run’s typing history and timing evidence privately for automated checks. Ordinary runs appear immediately; only flagged runs require admin review.</p>
+          <button id="typing-post" class="btn primary" type="submit" disabled>Add to leaderboard</button>
+          <button id="typing-decline" class="btn subtle" type="button">No thanks</button>
+          <p id="typing-publish-status" role="status"></p>
+        </form>
+        <p class="typing-definition">WPM = correct characters ÷ 5 ÷ minutes. Raw WPM counts all entered characters, including corrections. Accuracy counts correct keystrokes out of all character keystrokes. Spaces count; capitals, punctuation and fadas must match.</p>
+        <button id="typing-again" class="btn primary" type="button">↻ Try again <kbd>Tab</kbd></button>
+      </section>
+    </section>
+    <section id="typing-board" class="typing-board" aria-labelledby="typing-board-title">
+      <div class="typing-board-heading"><div><p class="section-kicker">Personal bests</p><h2 id="typing-board-title">Your leaderboard</h2></div><span id="typing-board-category"></span></div>
+      <p>Personal top 10 saved in this browser. Each language, test, length and punctuation setting has a separate category.</p>
+      <div class="typing-table-wrap"><table><caption class="typing-input-label">Completed runs for the selected language and duration</caption><thead><tr><th scope="col">Rank</th><th scope="col">WPM</th><th scope="col">Raw</th><th scope="col">Accuracy</th><th scope="col">Date</th></tr></thead><tbody id="typing-rankings"></tbody></table></div>
+      <p id="typing-empty">A clean slate. Finish a test to set your first record.</p>
+      <h3>Public leaderboard</h3><p id="typing-public-status" role="status">Loading approved runs…</p>
+      <div class="typing-table-wrap"><table><caption class="typing-input-label">Approved public results for this category</caption><thead><tr><th scope="col">Rank</th><th scope="col">Name</th><th scope="col">WPM</th><th scope="col">Accuracy</th></tr></thead><tbody id="typing-public-rankings"></tbody></table></div>
+    </section>
+  </main>
+  <footer class="site-footer"><p>A little practice. A steadier rhythm.</p></footer>
+</body>
+</html>

@@ -41,6 +41,9 @@ test("play page switches quiz modes", async ({page})=>{
   await expect(page.getByRole("button", {name:"I agree and start Speedrun"})).toBeDisabled();
   await page.locator("#speedrun-oath-ack").check();
   await page.getByRole("button", {name:"I agree and start Speedrun"}).click();
+  await expect.poll(()=>page.evaluate(()=>state.session.speedRun.started), {timeout:15000}).toBe(false);
+  await expect(page.locator("#answer-input")).toBeEnabled({timeout:15000});
+  await page.locator("#answer-input").pressSequentially("a");
   await expect.poll(()=>page.evaluate(()=>state.session.speedRun.started), {timeout:15000}).toBe(true);
   await expect(page.locator("#timer-value")).toBeVisible();
 });
@@ -97,6 +100,22 @@ test("leaderboard page lists regional boards and searches categories", async ({p
 
   await page.locator("#leaderboard-search").fill("United States");
   await expect(page.locator("#leaderboard-page-grid")).toContainText("United States");
+});
+
+test("leaderboard page exposes filterable typing record tables", async ({page})=>{
+  await page.goto("/leaderboard.html");
+  await expect(page.locator("#typing-leaderboards")).toBeVisible();
+  await expect(page.locator("#typing-leaderboards-grid .typing-leaderboard-card")).toHaveCount(46);
+  await page.locator("#typing-leaderboard-mode").selectOption("passage");
+  await expect(page.locator("#typing-leaderboards-grid .typing-leaderboard-card")).toHaveCount(16);
+  await expect(page.locator("#typing-leaderboards-grid")).toContainText("As You Like It · Act II, Scene VII");
+  await expect(page.locator("#typing-leaderboards-grid")).toContainText("Bill Gates Challenge");
+  await page.locator("#typing-leaderboard-language").selectOption("python");
+  await expect(page.locator("#typing-leaderboards-grid .typing-leaderboard-card")).toHaveCount(3);
+  await expect(page.locator("#typing-leaderboard-mode option[value='alphabet']")).toBeHidden();
+  await page.locator("#leaderboard-mode").selectOption("typing");
+  await expect(page.locator("body")).toHaveAttribute("data-leaderboard-view","typing");
+  await expect(page.locator("#leaderboard-page-grid")).toBeHidden();
 });
 
 test("admin review cards explain pending reasons", async ({page})=>{

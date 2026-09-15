@@ -3,8 +3,12 @@ const path = require("node:path");
 const {execFileSync} = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const HTML_FILES = ["index.html", "game.html", "leaderboard.html", "admin.html", "feedback.html", "revise.html", "view.html"];
+const HTML_FILES = ["index.html", "game.html", "typing.html", "leaderboard.html", "admin.html", "feedback.html", "revise.html", "view.html"];
 const JS_FILES = [
+  "typing.js",
+  "typing-core.js",
+  "typing-passages.js",
+  "typing-data.js",
   "theme.js",
   "ui.js",
   "data.js",
@@ -20,6 +24,7 @@ const JS_FILES = [
   "world-map-config.js",
   "game.js",
   "leaderboard-page.js",
+  "typing-leaderboard-page.js",
   "admin.js",
   "revise.js",
   "view.js"
@@ -59,7 +64,11 @@ function checkHtmlAssets(){
 
 function checkScriptSyntax(){
   for(const file of JS_FILES){
-    execFileSync(process.execPath, ["--check", path.join(ROOT, file)], {stdio:"inherit"});
+    if(["typing.js", "typing-core.js", "typing-leaderboard-page.js"].includes(file)){
+      execFileSync(process.execPath, ["--input-type=module", "--check"], {input:fs.readFileSync(path.join(ROOT,file)),stdio:["pipe","inherit","inherit"]});
+    }else{
+      execFileSync(process.execPath, ["--check", path.join(ROOT, file)], {stdio:"inherit"});
+    }
   }
 }
 

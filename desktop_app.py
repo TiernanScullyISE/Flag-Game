@@ -19,10 +19,11 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parent
 DEFAULT_PORT = 18763  # A stable origin preserves localStorage between launches.
 PUBLIC_ASSETS = frozenset({
+    "typing.html", "typing.css", "typing.js", "typing-data.js", "typing-core.js", "typing-passages.js",
     "index.html", "game.html", "leaderboard.html", "revise.html", "view.html",
     "feedback.html", "admin.html", "favicon.svg", "style.css", "theme.js", "ui.js",
     "data.js", "regions-data.js", "regions-generated-data.js", "regions-leaderboard-data.js",
-    "utils.js", "game.js", "leaderboard.js", "leaderboard-page.js", "leaderboard-config.js",
+    "utils.js", "game.js", "leaderboard.js", "leaderboard-page.js", "typing-leaderboard-page.js", "leaderboard-config.js",
     "revise.js", "view.js", "feedback.js", "admin.js", "analytics.js", "map-view.js",
     "region-map.js", "world-map-config.js",
 })

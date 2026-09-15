@@ -41,6 +41,7 @@ function initAdmin(){
   adminSelectVisible.addEventListener("change", toggleVisibleAdminRuns);
   adminBulkReject.addEventListener("click", bulkRejectSelectedRuns);
   adminAnalytics.addEventListener("click", loadAnalytics);
+  document.getElementById("admin-typing").addEventListener("click", loadTypingSubmissions);
   adminFeedback.addEventListener("click", loadFeedback);
   adminExport.addEventListener("click", exportCsv);
   adminExportScope.addEventListener("change", updateExportControls);
@@ -54,6 +55,50 @@ function initAdmin(){
 
 function syncAdminTrustStorage(){
   if(!adminRememberPassword.checked) clearTrustedAdminDevice();
+}
+
+async function loadTypingSubmissions(){
+  currentAdminView = "typing";
+  adminList.replaceChildren();
+  setAdminStatus("Loading typing submissions…");
+  try{
+    const payload = await adminRequest("typing-list");
+    if(currentAdminView !== "typing") return;
+    const rows = payload.runs || [];
+    setAdminStatus(`${rows.length} recent typing submissions. Approval requires a review note; timing alone does not prove cheating.`);
+    for(const run of rows){
+      const card = document.createElement("article");card.className = "admin-run-card";
+      const title = document.createElement("h2");title.textContent = `${run.player_name} · ${Number(run.wpm).toFixed(1)} WPM · ${run.status}`;
+      const description = document.createElement("p");description.textContent = `${run.category} · ${Number(run.accuracy).toFixed(1)}% accuracy · ${(run.elapsed_ms/1000).toFixed(3)} seconds`;
+      const reasons = document.createElement("p");reasons.textContent = (run.review_reasons || []).join(" ");
+      const label = document.createElement("label");label.textContent = "Review note and supporting evidence";
+      const note = document.createElement("textarea");note.value = run.review_note || "";note.maxLength = 2000;note.rows = 3;note.id = `typing-note-${run.id}`;label.htmlFor = note.id;
+      const actions = document.createElement("div");actions.className = "result-actions";
+      const evidence = document.createElement("button");evidence.className = "btn subtle";evidence.textContent = "View private evidence";
+      const output = document.createElement("pre");output.hidden = true;output.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto";
+      evidence.addEventListener("click",async ()=>{
+        evidence.disabled = true;
+        try{
+          const detail = await adminRequest("typing-detail",{typingId:run.id});
+          const full = detail.runs?.[0];
+          output.textContent = JSON.stringify(full,null,2);output.hidden = false;
+        }catch(error){setAdminStatus(error.message);}finally{evidence.disabled = false;}
+      });
+      actions.append(evidence);
+      for(const decision of ["approved","rejected"]){
+        const button = document.createElement("button");button.className = "btn subtle";button.textContent = decision === "approved" ? "Approve" : "Reject";
+        button.addEventListener("click",async ()=>{
+          button.disabled = true;
+          try{
+            await adminRequest("typing-review",{typingId:run.id,decision,note:note.value});
+            title.textContent = `${run.player_name} · ${Number(run.wpm).toFixed(1)} WPM · ${decision}`;
+            setAdminStatus("Typing review saved.");
+          }catch(error){setAdminStatus(error.message);}finally{button.disabled = false;}
+        });actions.append(button);
+      }
+      card.append(title,description,reasons,label,note,actions,output);adminList.append(card);
+    }
+  }catch(error){setAdminStatus(error.message || "Could not load typing submissions.");}
 }
 
 function ensureAdminDeviceId(){

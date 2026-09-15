@@ -588,7 +588,8 @@ function isActiveSpeedRun(){
     && !state.session.speedRun.gaveUp;
 }
 
-function ensureSpeedRunStarted(){
+function ensureSpeedRunStarted(fromTypedInput=false){
+  if(!fromTypedInput) return;
   if(state.playMode === "speedrun" && state.session && !state.session.speedRun.started && !state.session.gameOver){
     startSpeedRun();
   }
@@ -610,8 +611,8 @@ function recordSecurityEvent(type){
 }
 
 function recordAnswerKey(event){
-  if(isTypedCharacterKey(event) || event.key === "Backspace" || event.key === "Delete"){
-    ensureSpeedRunStarted();
+  if(isTypedCharacterKey(event)){
+    ensureSpeedRunStarted(true);
   }
   if(!isActiveSpeedRun()) return;
   const security = state.session.security;
@@ -643,7 +644,7 @@ function isTypedCharacterKey(event){
 }
 
 function recordAnswerInput(){
-  ensureSpeedRunStarted();
+  if(answerInput.value.length) ensureSpeedRunStarted(true);
   if(!isActiveSpeedRun()) return;
   const security = state.session.security;
   security.inputEvents += 1;
@@ -1283,7 +1284,6 @@ async function markCurrentQuestionVisible(country){
   if(!entry || entry.country !== country || entry.visiblePerf !== null) return;
   await afterVisibleFrame();
   if(state.session.gameOver || getCurrentRouteEntry() !== entry) return;
-  await startSpeedRun();
   const perfNow = performance.now();
   entry.visiblePerf = perfNow;
   entry.visibleAt = Math.round(perfNow);
@@ -1294,7 +1294,6 @@ async function markWorldMapVisible(){
   if(state.playMode !== "speedrun" || !isWorldMode()) return;
   await afterVisibleFrame();
   if(state.session.gameOver) return;
-  await startSpeedRun();
   const perfNow = performance.now();
   state.session.worldMapVisiblePerf = perfNow;
   state.session.worldLastSolvedPerf = perfNow;
@@ -2687,20 +2686,19 @@ function startSpeedRun(){
   if(session.speedRun.started || !session.pool.length) return Promise.resolve();
   if(session.speedRun.startingPromise) return session.speedRun.startingPromise;
 
-  session.speedRun.startingPromise = (async()=>{
-    await beginSecureSpeedRun(session);
-    if(session !== state.session || session.gameOver) return;
-    session.speedRun.started = true;
-    session.speedRun.startMs = Date.now();
-    session.speedRun.startPerf = performance.now();
-    session.speedRun.elapsedMs = 0;
-    session.security.startedAt = new Date().toISOString();
-    session.analytics.startedAt = session.security.startedAt;
-    session.analytics.startedPerf = session.speedRun.startPerf;
-    if(session.speedRun.timerId) window.clearInterval(session.speedRun.timerId);
-    session.speedRun.timerId = window.setInterval(updateTimerDisplay, TIMER_TICK_MS);
-    updateTimerDisplay();
-  })();
+  // The first typed character is the start signal. The server session begins in
+  // the same interaction and its completion receipt is still required to post.
+  session.speedRun.started = true;
+  session.speedRun.startMs = Date.now();
+  session.speedRun.startPerf = performance.now();
+  session.speedRun.elapsedMs = 0;
+  session.security.startedAt = new Date().toISOString();
+  session.analytics.startedAt = session.security.startedAt;
+  session.analytics.startedPerf = session.speedRun.startPerf;
+  if(session.speedRun.timerId) window.clearInterval(session.speedRun.timerId);
+  session.speedRun.timerId = window.setInterval(updateTimerDisplay, TIMER_TICK_MS);
+  updateTimerDisplay();
+  session.speedRun.startingPromise = beginSecureSpeedRun(session);
   return session.speedRun.startingPromise;
 }
 

@@ -36,7 +36,10 @@ function initLeaderboardPage(){
     populateContinentFilter();
     renderLeaderboardPage({resetLimit:true});
   });
-  modeFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
+  modeFilter.addEventListener("change", ()=>{
+    syncLeaderboardView();
+    renderLeaderboardPage({resetLimit:true});
+  });
   continentFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
   targetFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
   withScoresFilter.addEventListener("change", ()=>renderLeaderboardPage({resetLimit:true}));
@@ -47,7 +50,14 @@ function initLeaderboardPage(){
     renderLeaderboardPage();
   });
 
+  syncLeaderboardView();
   loadSharedLeaderboards();
+}
+
+function syncLeaderboardView(){
+  const typing = modeFilter.value === "typing";
+  document.body.dataset.leaderboardView = typing ? "typing" : "speedrun";
+  for(const control of [scopeFilter, continentFilter, targetFilter, searchInput, withScoresFilter]) control.disabled = typing;
 }
 
 function scheduleLeaderboardSearch(){

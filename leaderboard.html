@@ -9,13 +9,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="theme.js?v=polish-1"></script>
-  <link rel="stylesheet" href="style.css?v=polish-1" />
+  <link rel="stylesheet" href="style.css?v=typing-board-2" />
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header with-nav">
     <a class="brand" href="index.html">Flag & Capital Quiz</a>
     <nav class="top-nav" aria-label="Main navigation">
+      <a class="nav-link" href="typing.html">Typing</a>
       <a class="nav-link" href="game.html">Play</a>
       <a class="nav-link active" aria-current="page" href="leaderboard.html">Leaderboard</a>
       <a class="nav-link" href="revise.html">Revision</a>
@@ -48,6 +49,7 @@
           <option value="flags">Flags</option>
           <option value="capitals">Capitals</option>
           <option value="world">Countries</option>
+          <option value="typing">Typing</option>
         </select>
       </div>
       <div class="control">
@@ -84,6 +86,48 @@
     <div class="leaderboard-load-row">
       <button id="leaderboard-load-more" class="btn subtle" type="button" hidden>Show more</button>
     </div>
+
+    <section id="typing-leaderboards" class="typing-leaderboards" aria-labelledby="typing-leaderboards-title">
+      <div class="page-intro">
+        <p class="section-kicker">Typing studio</p>
+        <h2 id="typing-leaderboards-title">Typing leaderboards</h2>
+        <p>Public records for every typing language, mode, length and punctuation category.</p>
+      </div>
+      <div class="toolbar typing-leaderboard-toolbar">
+        <div class="control">
+          <label for="typing-leaderboard-language">Language</label>
+          <select id="typing-leaderboard-language">
+            <option value="english" selected>English</option>
+            <option value="irish">Gaeilge</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="all">All languages</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="typing-leaderboard-mode">Mode</label>
+          <select id="typing-leaderboard-mode">
+            <option value="all" selected>All typing modes</option>
+            <option value="time">Timed</option>
+            <option value="words">Word count</option>
+            <option value="passage">Passage / script</option>
+            <option value="alphabet">Alphabet</option>
+            <option value="pangram">Quick brown fox</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="typing-leaderboard-punctuation">Punctuation</label>
+          <select id="typing-leaderboard-punctuation">
+            <option value="all" selected>All settings</option>
+            <option value="plain">Plain</option>
+            <option value="punctuation">Punctuation</option>
+          </select>
+        </div>
+        <button id="typing-leaderboards-refresh" class="btn subtle" type="button">Refresh typing records</button>
+      </div>
+      <p id="typing-leaderboards-status" class="leaderboard-page-status" aria-live="polite"></p>
+      <div id="typing-leaderboards-grid" class="typing-leaderboards-grid"></div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -92,9 +136,11 @@
 
   <script src="data.js" defer></script>
   <script src="regions-leaderboard-data.js?v=regional-leaderboard-2" defer></script>
+  <script src="typing-passages.js?v=5" defer></script>
   <script src="leaderboard-config.js" defer></script>
   <script src="leaderboard.js?v=server-session-1" defer></script>
   <script src="ui.js?v=polish-1" defer></script>
-  <script src="leaderboard-page.js?v=polish-1" defer></script>
+  <script src="leaderboard-page.js?v=typing-view-1" defer></script>
+  <script src="typing-leaderboard-page.js?v=4" type="module"></script>
 </body>
 </html>
