@@ -160,6 +160,7 @@ test("admin review cards explain pending reasons", async ({page})=>{
   await expect(page.locator(".admin-review-panel")).toContainText("Name review");
   await expect(page.locator(".admin-review-panel")).toContainText("Server review check");
   await expect(page.locator(".admin-review-panel")).toContainText("Cross-run review");
+  await expect(page.locator(".admin-review-panel")).toContainText("Check whether the device is shared before deciding");
   await expect(page.locator(".admin-run-card")).toContainText("Reused evidence: 1");
   await expect(page.locator(".admin-run-card")).toContainText("Recent client names: 3");
   await expect(page.locator(".admin-run-card")).toContainText("Earlier matching runs: #42");
@@ -551,7 +552,7 @@ test("mobile speedrun keeps the answer input focused between flags", async ({pag
 test("first speedrun completion opens results with publish prompt", async ({page})=>{
   await page.goto("/game.html");
 
-  const result = await page.evaluate(()=>{
+  const result = await page.evaluate(async ()=>{
     state.playMode = "speedrun";
     state.gameScope = "countries";
     state.which = "flags";
@@ -573,6 +574,7 @@ test("first speedrun completion opens results with publish prompt", async ({page
     recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
     handleCorrect(firstAttempt);
     finishSession("complete");
+    await state.pendingSharedRunCheck;
 
     return {
       modalVisible: resultModal.classList.contains("is-visible"),
@@ -593,7 +595,7 @@ test("first speedrun completion opens results with publish prompt", async ({page
     pendingCount: 1,
     isPersonalBest: true
   });
-  expect(result.publishTitle).toContain("New personal best");
+  expect(result.publishTitle).toContain("Faster than your posted personal best");
 });
 
 test("shared speedrun uses a server start, sealed finish and single receipt", async ({page})=>{
@@ -653,7 +655,7 @@ test("shared speedrun uses a server start, sealed finish and single receipt", as
 test("speedrun results and publish prompt survive progress summary errors", async ({page})=>{
   await page.goto("/game.html");
 
-  const result = await page.evaluate(()=>{
+  const result = await page.evaluate(async ()=>{
     const originalGenerateRunAnalysis = window.SpeedrunAnalytics.generateRunAnalysis;
     window.SpeedrunAnalytics.generateRunAnalysis = ()=>{
       throw new Error("forced progress summary failure");
@@ -681,6 +683,7 @@ test("speedrun results and publish prompt survive progress summary errors", asyn
       state.session.speedRun.startMs = Date.now() - 1500;
       recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
       handleCorrect(firstAttempt);
+      await state.pendingSharedRunCheck;
 
       return {
         modalVisible: resultModal.classList.contains("is-visible"),
@@ -704,13 +707,13 @@ test("speedrun results and publish prompt survive progress summary errors", asyn
     pendingCount: 1,
     isPersonalBest: true
   });
-  expect(result.publishTitle).toContain("New personal best");
+  expect(result.publishTitle).toContain("Faster than your posted personal best");
 });
 
 test("speedrun PB upload prompt survives localStorage write failures", async ({page})=>{
   await page.goto("/game.html");
 
-  const result = await page.evaluate(()=>{
+  const result = await page.evaluate(async ()=>{
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = ()=>{
       throw new Error("forced storage failure");
@@ -737,6 +740,7 @@ test("speedrun PB upload prompt survives localStorage write failures", async ({p
       state.session.speedRun.startMs = Date.now() - 1500;
       recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
       handleCorrect(firstAttempt);
+      await state.pendingSharedRunCheck;
 
       return {
         modalVisible: resultModal.classList.contains("is-visible"),
@@ -760,10 +764,13 @@ test("speedrun PB upload prompt survives localStorage write failures", async ({p
     pendingCount: 1,
     isPersonalBest: true
   });
-  expect(result.publishTitle).toContain("New personal best");
+  expect(result.publishTitle).toContain("Faster than your posted personal best");
 });
 
-test("non-PB speedrun completion still opens results without publish prompt", async ({page})=>{
+test("run slower than posted PB opens results without publish prompt", async ({page})=>{
+  await page.route(/\/rest\/v1\/speedrun_leaderboard/, route=>route.fulfill({
+    status:200, contentType:"application/json", body:JSON.stringify([{time_ms:1000}])
+  }));
   await page.goto("/game.html");
 
   const result = await page.evaluate(async ()=>{
@@ -794,6 +801,7 @@ test("non-PB speedrun completion still opens results without publish prompt", as
     state.session.speedRun.startMs = Date.now() - 2000;
     recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
     handleCorrect(firstAttempt);
+    await state.pendingSharedRunCheck;
 
     return {
       modalVisible: resultModal.classList.contains("is-visible"),
@@ -811,6 +819,69 @@ test("non-PB speedrun completion still opens results without publish prompt", as
     pendingCount: 0,
     isPersonalBest: false
   });
+});
+
+test("rejected local PB does not block a faster run than the posted PB", async ({page})=>{
+  const actions = [];
+  await page.route(/\/rest\/v1\/speedrun_leaderboard/, route=>route.fulfill({
+    status:200, contentType:"application/json", body:JSON.stringify([{time_ms:3000}])
+  }));
+  await page.route(/\/functions\/v1\/submit-speedrun/, route=>{
+    const action = JSON.parse(route.request().postData() || "{}").action;
+    actions.push(action);
+    const body = action === "start"
+      ? {ok:true, challenge:"rejected-pb-start"}
+      : action === "finish"
+        ? {ok:true, completionReceipt:"rejected-pb-finish", time_ms:2000}
+        : {ok:true, status:"approved", time_ms:2000};
+    return route.fulfill({status:200, contentType:"application/json", body:JSON.stringify(body)});
+  });
+  await page.goto("/game.html");
+
+  const result = await page.evaluate(async ()=>{
+    state.playMode = "speedrun";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.selectedContinent = "All";
+    state.speedTarget = "all";
+    const speedRunKey = getSpeedRunKey();
+    state.speedRuns = {
+      [speedRunKey]: {
+        bestSplits:{all:1000},
+        runs:[{timeMs:1000, status:"rejected", date:new Date().toISOString()}]
+      }
+    };
+    state.session = makeSession();
+    state.session.pool = ["France"];
+    state.session.correctCountry = "France";
+    state.session.correctAnswer = "France";
+    recordRouteQuestion("France");
+    await startSpeedRun();
+    const firstAttempt = registerAttempt();
+    state.session.speedRun.startPerf = performance.now() - 2000;
+    state.session.speedRun.startMs = Date.now() - 2000;
+    recordRouteAttempt("France", true, {exact:true, aliasOk:false, fuzzyOk:false});
+    handleCorrect(firstAttempt);
+    await state.pendingSharedRunCheck;
+
+    return {
+      isLocalPersonalBest: state.lastCompletedRun.isPersonalBest,
+      publishHidden: leaderboardPublish.hidden,
+      pendingCount: getPendingSharedRuns().length,
+      title: leaderboardPublishTitle.textContent
+    };
+  });
+
+  expect(result).toMatchObject({
+    isLocalPersonalBest:false,
+    publishHidden:false,
+    pendingCount:1
+  });
+  expect(result.title).toContain("Faster than your posted personal best");
+  await page.locator("#post-leaderboard-btn").click();
+  await expect(page.locator("#leaderboard-publish-status")).toContainText("Posted run");
+  expect(actions).toEqual(["start", "finish", "submit"]);
 });
 
 test("speedrun completion still opens results if local recording fails", async ({page})=>{

@@ -203,6 +203,17 @@
     return Array.isArray(rows) ? rows.map(normalizeRun) : [];
   }
 
+  async function fetchBestPostedRunTime(modeKey, playerName){
+    const params = new URLSearchParams();
+    params.set("select", "time_ms");
+    params.set("mode_key", `eq.${modeKey}`);
+    params.set("player_name", `eq.${cleanText(playerName, "Player", 24)}`);
+    params.set("order", "time_ms.asc");
+    params.set("limit", "1");
+    const rows = await request(params);
+    return Array.isArray(rows) && rows.length ? Number(rows[0].time_ms) : null;
+  }
+
   async function fetchAllRuns(limit=5000){
     const params = makeRunParams("full", limit);
     const rows = await requestWithLegacyFallback(params, limit);
@@ -419,6 +430,7 @@
     isConfigured,
     isAnalyticsConfigured,
     fetchRuns,
+    fetchBestPostedRunTime,
     fetchAllRuns,
     startRunSession,
     finishRunSession,

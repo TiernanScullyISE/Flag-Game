@@ -1225,7 +1225,7 @@ function getReviewReasonDetail(reason){
     return "The full question order matches earlier run evidence closely enough to require review.";
   }
   if(reason === "rapid-identity-switching"){
-    return "Several display names were used recently by the same player or server-derived client identity.";
+    return "Several display names were submitted recently from one browser profile. Check whether the device is shared before deciding.";
   }
   if(reason === "multi-account-submission-burst"){
     return "A server-derived client submitted an unusual burst of runs under several display names.";

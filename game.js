@@ -66,6 +66,8 @@ const state = {
   sharedLeaderboardMessage: "",
   sharedLeaderboardLastLoadedKey: "",
   pendingSharedRun: null,
+  pendingSharedRunCheck: null,
+  postedPbLookupFailed: false,
   lastCompletedRun: null,
 
   session: makeSession()
@@ -326,6 +328,11 @@ function init(){
     resultPlayerNameInput.value = state.playerName;
     resultPlayerNameInput.addEventListener("change", savePlayerName);
     resultPlayerNameInput.addEventListener("blur", savePlayerName);
+    resultPlayerNameInput.addEventListener("change", ()=>{
+      if(state.lastCompletedRun && resultModal.classList.contains("is-visible")){
+        state.pendingSharedRunCheck = refreshPendingSharedRun(state.lastCompletedRun, state.session);
+      }
+    });
   }
 
   mcqBtns.forEach((button,index)=>button.addEventListener("click",()=>checkMcq(index)));
@@ -3199,12 +3206,28 @@ async function submitSharedSpeedRun(run){
 }
 
 async function postPendingSharedRun(){
-  if(!state.pendingSharedRun || !postLeaderboardBtn) return;
+  if(!state.lastCompletedRun || !postLeaderboardBtn) return;
+  if(state.pendingSharedRunCheck) await state.pendingSharedRunCheck;
+  if(!state.pendingSharedRun || state.lastCompletedRun.sharedSubmitted) return;
   savePlayerName();
-  rememberPostedPlayerName(state.playerName);
-  const pendingRuns = getPendingSharedRuns();
-  if(!pendingRuns.length) return;
+  const pendingRuns = [state.lastCompletedRun];
   postLeaderboardBtn.disabled = true;
+  try{
+    const postedBest = await getLeaderboardService().fetchBestPostedRunTime(
+      pendingRuns[0].modeKey, state.playerName
+    );
+    if(postedBest !== null && pendingRuns[0].timeMs >= postedBest){
+      state.pendingSharedRun = null;
+      if(leaderboardPublishRow) leaderboardPublishRow.hidden = true;
+      if(leaderboardPublishStatus){
+        leaderboardPublishStatus.textContent = "This run is not faster than your posted personal best for this category.";
+      }
+      return;
+    }
+  }catch(error){
+    // A temporary leaderboard read failure must not strand a completed run.
+  }
+  rememberPostedPlayerName(state.playerName);
   if(leaderboardPublishStatus){
     leaderboardPublishStatus.textContent = "Verifying completed run...";
   }
@@ -3250,6 +3273,7 @@ async function postPendingSharedRun(){
   }
 
   if(results.length){
+    state.lastCompletedRun.sharedSubmitted = true;
     state.pendingSharedRun = null;
     const queued = results.some(result=>result.status === "pending");
     if(leaderboardPublishStatus){
@@ -4797,8 +4821,8 @@ function finishSession(reason){
     try{
       const run = recordSpeedRun();
       state.lastCompletedRun = run;
-      state.pendingSharedRun = buildPendingSharedRuns(run);
-      if(state.pendingSharedRun) prepareSecureRunCompletion(session, run);
+      state.pendingSharedRun = null;
+      state.pendingSharedRunCheck = refreshPendingSharedRun(run, session);
       try{
         queueCompletedRunAnalytics(run);
       }catch(error){
@@ -4825,8 +4849,36 @@ function finishSession(reason){
   showResultModal(reason);
 }
 
-function buildPendingSharedRuns(run){
-  return run && run.isPersonalBest ? run : null;
+async function refreshPendingSharedRun(run, session){
+  if(run && run.sharedSubmitted) return;
+  if(!run || !isSharedLeaderboardConfigured()){
+    state.pendingSharedRun = run && run.isPersonalBest ? run : null;
+    renderLeaderboardPublishPrompt("complete");
+    return;
+  }
+
+  const playerName = sanitizePlayerName(resultPlayerNameInput ? resultPlayerNameInput.value : state.playerName);
+
+  let postedBest = null;
+  let lookupFailed = false;
+  try{
+    postedBest = await getLeaderboardService().fetchBestPostedRunTime(run.modeKey, playerName);
+  }catch(error){
+    lookupFailed = true;
+  }
+  if(state.lastCompletedRun !== run || state.session !== session
+      || sanitizePlayerName(resultPlayerNameInput ? resultPlayerNameInput.value : state.playerName) !== playerName){
+    return;
+  }
+  state.postedPbLookupFailed = lookupFailed;
+  state.pendingSharedRun = null;
+  if(postedBest === null || run.timeMs < postedBest || lookupFailed){
+    state.pendingSharedRun = run;
+    if(!run.secureCompletionPromise && !run.completionReceipt){
+      prepareSecureRunCompletion(session, run);
+    }
+  }
+  renderLeaderboardPublishPrompt("complete");
 }
 
 function recordPracticePercentage(){
@@ -4962,10 +5014,9 @@ function renderLeaderboardPublishPrompt(reason){
 
   leaderboardPublish.hidden = false;
   if(leaderboardPublishTitle){
-    const count = pendingRuns.length;
-    leaderboardPublishTitle.textContent = count === 1
-      ? "New personal best. Post this run to the shared leaderboard?"
-      : `${count} new personal bests from this route. Post them to the shared leaderboard?`;
+    leaderboardPublishTitle.textContent = state.postedPbLookupFailed
+      ? "Could not check your posted personal best. Submit this run?"
+      : "Faster than your posted personal best. Submit this run?";
   }
   if(resultPlayerNameInput){
     resultPlayerNameInput.value = state.playerName;

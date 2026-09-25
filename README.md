@@ -14,7 +14,7 @@ A geography trainer for countries and regions, available as a static website and
 - Revision lists for countries and regions, capital flashcards and searchable country/capital reference cards.
 - Speedruns with splits, WPM, local records and times displayed to **three decimal places**.
 - A fair-play pledge on first entering speedrun mode in each tab session. Cancelling leaves practice selected; acknowledgement lasts through navigation and reloads in that tab.
-- Optional publication of category personal bests to a shared leaderboard, with server-issued completion receipts. Ordinary typing runs publish immediately; only WR-level, near-WR or suspicious evidence is held for admin review.
+- Optional publication of runs faster than the player's posted personal best for that category, with server-issued completion receipts. Ordinary typing runs publish immediately; only WR-level, near-WR or suspicious evidence is held for admin review.
 - Dark and light appearances, responsive layouts, keyboard focus indicators and accessible pledge/results dialogs.
 - Feedback submissions and a protected admin interface for moderation and private learning analytics.
 
@@ -129,7 +129,7 @@ The browser-facing Supabase URL, public browser key and function URLs are in `le
 
 `sb_publishable_...` keys are not JWTs: send them as `apikey`, not `Authorization: Bearer`. Public Edge Functions accepting these keys are deployed with `--no-verify-jwt` from the private server source. This does not grant clients privileged database access; the function and database enforce their own rules.
 
-A completed speedrun or typing run can be published only when it is a personal best for its exact category and the player chooses to submit. Intermediate splits remain local. Public leaderboard reads contain approved result summaries; private route/telemetry details are for admin review.
+A completed speedrun can be submitted when it beats the player's approved posted time for the exact category and name, even if a faster local run was rejected. A typing run still follows its own personal-best rule. Intermediate splits remain local. Public leaderboard reads contain approved result summaries; private route/telemetry details are for admin review.
 
 Completed speedruns also send **private learning analytics automatically**, independently of public leaderboard posting. These include answer attempts, timings, typing metrics, device/player identifiers and quality flags. Failed analytics uploads use a capped local retry queue. Practice scores and revision lists are stored locally. Feedback is sent to the private review queue. The desktop uses the same service behaviour.
 
