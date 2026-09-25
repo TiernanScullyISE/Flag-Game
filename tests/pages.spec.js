@@ -1,4 +1,4 @@
-const {test, expect} = require("@playwright/test");
+const {test, expect} = require("./coverage-fixture");
 
 const pages = [
   ["home", "/index.html", "Flag & Capital Quiz"],

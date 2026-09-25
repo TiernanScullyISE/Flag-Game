@@ -1,4 +1,4 @@
-const {test, expect} = require("@playwright/test");
+const {test, expect} = require("./coverage-fixture");
 const {execFileSync} = require("node:child_process");
 const path = require("node:path");
 

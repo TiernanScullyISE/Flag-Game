@@ -99,6 +99,19 @@ npm.cmd run test:browser
 - `test:browser`: gameplay, country/regional maps, mobile typing, persistence failures, secure submission wiring, moderation, both themes at 320/390/768/1440px, dialog keyboard navigation, automated axe accessibility scans and desktop import behaviour.
 - `.github/workflows/checks.yml`: runs these checks on Linux and Windows. Playwright and axe are development tools, never loaded by the application.
 
+### SonarQube Cloud CI analysis
+
+`.github/workflows/sonar.yml` runs on pushes to `main` and pull requests from this repository. It runs the tests on Linux, collects browser JavaScript and desktop Python coverage, then scans this public repository. Fork pull requests still run the normal checks, but cannot use the SonarQube token. `sonar-project.properties` identifies source and test files and excludes generated regional data from analysis. The private Supabase server needs its own scan in its private repository.
+
+To activate the CI scan:
+
+1. In the **SonarQube Cloud browser dashboard**, open **My Account > Security** and generate a token for an account with **Execute Analysis** permission on `TiernanScullyISE_Flag-Game`. Copy it when shown. Do not put it in this repository or in chat.
+2. In the **GitHub browser dashboard** for `TiernanScullyISE/Flag-Game`, open **Settings > Secrets and variables > Actions > New repository secret**. Name it `SONAR_TOKEN` and paste the token as its value.
+3. In the **SonarQube Cloud browser dashboard**, open the Flag-Game project, then **Administration > Analysis Method**, and turn **Automatic Analysis** off. CI now supplies the analysis and coverage report.
+4. Push the changes and open **GitHub > Actions > SonarQube analysis**. The job should pass, and the SonarQube project overview should show a new analysis with coverage and a computed quality gate. If the job reports a missing `SONAR_TOKEN`, check the repository secret name and the token's project permission.
+
+For a local browser coverage check in **PowerShell**, from the repository root, run `$env:SONAR_COVERAGE = "1"; npm.cmd run test:browser; Remove-Item Env:SONAR_COVERAGE`. The report appears at `coverage-reports/browser/lcov.info`. This is a local report; SonarQube receives coverage only from the CI scan.
+
 For an automated native-window check (requires the installed GUI runtime):
 
 ```powershell

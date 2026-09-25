@@ -5,6 +5,9 @@ node_modules/
 .venv/
 test-results/
 playwright-report/
+coverage-reports/
+.coverage
+.scannerwork/
 .region-cache/
 .vscode/
 supabase/.temp/
