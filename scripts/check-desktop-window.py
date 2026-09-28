@@ -13,6 +13,45 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 
+def wait_for(window, expression):
+    for _ in range(200):
+        try:
+            if window.evaluate_js(expression):
+                return
+        except Exception:
+            pass  # Navigation briefly replaces the JavaScript context.
+        time.sleep(.1)
+    raise RuntimeError(f"Desktop page did not become ready: {expression}")
+
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def verify_window(window, phase, passed):
+    try:
+        wait_for(window, "document.readyState === 'complete' && localStorage.getItem('flag_game_desktop_import_v1') === 'yes' && typeof state !== 'undefined' && !!state.session && typeof QuizUI !== 'undefined'")
+        require("Practise with lives" in window.evaluate_js("document.querySelector('h1').textContent"), "Game heading is missing")
+        if phase == "write":
+            window.evaluate_js("localStorage.setItem('desktop_smoke_persistence','verified')")
+        else:
+            require(window.evaluate_js("localStorage.getItem('desktop_smoke_persistence')") == "verified", "Saved state was lost")
+        require(window.evaluate_js("QuizUI.formatTime(376669)") == "6:16.669", "Time formatting changed")
+        require(window.evaluate_js("document.querySelectorAll('.scope-segment').length") == 2, "Scope controls are missing")
+        require(window.evaluate_js("document.querySelectorAll('.quiz-segment').length") == 3, "Quiz controls are missing")
+        window.evaluate_js("document.querySelector('.play-mode-segment[data-play-mode=\"speedrun\"]').click()")
+        require(window.evaluate_js("document.querySelector('#speedrun-oath-modal').classList.contains('is-visible')"), "Speedrun pledge is missing")
+        window.evaluate_js("document.querySelector('#speedrun-oath-cancel').click()")
+        require(window.evaluate_js("state.playMode") == "practice", "Cancelling pledge changed the mode")
+        passed.append(True)
+        print(f"Native desktop {phase}: shared game, pledge and saved state passed.", flush=True)
+    except Exception as error:
+        print(f"Native desktop check failed: {error!r}", file=sys.stderr, flush=True)
+    finally:
+        window.destroy()
+
+
 def check_window(phase: str, profile: str, port: int) -> int:
     import desktop_app
     import webview
@@ -25,45 +64,8 @@ def check_window(phase: str, profile: str, port: int) -> int:
         kwargs.update(confirm_close=False, hidden=True)
         return original_create(*args, **kwargs)
 
-    def wait_for(window, expression):
-        for _ in range(200):
-            try:
-                if window.evaluate_js(expression):
-                    return
-            except Exception:
-                pass  # Navigation briefly replaces the JavaScript context.
-            time.sleep(.1)
-        raise RuntimeError(f"Desktop page did not become ready: {expression}")
-
-    def require(condition, message):
-        if not condition:
-            raise RuntimeError(message)
-
-    def verify():
-        window = webview.windows[0]
-        try:
-            wait_for(window, "document.readyState === 'complete' && localStorage.getItem('flag_game_desktop_import_v1') === 'yes' && typeof state !== 'undefined' && !!state.session && typeof QuizUI !== 'undefined'")
-            require("Practise with lives" in window.evaluate_js("document.querySelector('h1').textContent"), "Game heading is missing")
-            if phase == "write":
-                window.evaluate_js("localStorage.setItem('desktop_smoke_persistence','verified')")
-            else:
-                require(window.evaluate_js("localStorage.getItem('desktop_smoke_persistence')") == "verified", "Saved state was lost")
-            require(window.evaluate_js("QuizUI.formatTime(376669)") == "6:16.669", "Time formatting changed")
-            require(window.evaluate_js("document.querySelectorAll('.scope-segment').length") == 2, "Scope controls are missing")
-            require(window.evaluate_js("document.querySelectorAll('.quiz-segment').length") == 3, "Quiz controls are missing")
-            window.evaluate_js("document.querySelector('.play-mode-segment[data-play-mode=\"speedrun\"]').click()")
-            require(window.evaluate_js("document.querySelector('#speedrun-oath-modal').classList.contains('is-visible')"), "Speedrun pledge is missing")
-            window.evaluate_js("document.querySelector('#speedrun-oath-cancel').click()")
-            require(window.evaluate_js("state.playMode") == "practice", "Cancelling pledge changed the mode")
-            passed.append(True)
-            print(f"Native desktop {phase}: shared game, pledge and saved state passed.", flush=True)
-        except Exception as error:
-            print(f"Native desktop check failed: {error!r}", file=sys.stderr, flush=True)
-        finally:
-            window.destroy()
-
     def start(**kwargs):
-        original_start(func=verify, **kwargs)
+        original_start(func=lambda: verify_window(webview.windows[0], phase, passed), **kwargs)
 
     webview.start = start
     webview.create_window = create
