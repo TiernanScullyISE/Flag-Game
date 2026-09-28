@@ -2,7 +2,7 @@ const {test, expect} = require("./coverage-fixture");
 const {execFileSync} = require("node:child_process");
 const path = require("node:path");
 
-const pages = ["index", "game", "typing", "leaderboard", "revise", "view", "feedback", "admin"];
+const pages = ["game", "typing", "leaderboard", "revise", "view", "feedback", "admin"];
 test.beforeEach(async ({page})=>{
   await page.route(/supabase\.co/, route=>route.fulfill({json:[]}));
 });
@@ -20,7 +20,7 @@ for(const theme of ["dark", "light"]){
         const overflow = await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth + 1);
         expect(overflow, `${name}: horizontal overflow`).toBe(false);
         await expect(page.locator('.skip-link')).toHaveAttribute("href", "#main-content");
-        if(["index", "game"].includes(name) && [390,1440].includes(width)){
+        if(name === "game" && [390,1440].includes(width)){
           await page.screenshot({path:testInfo.outputPath(`${name}.png`), fullPage:true});
         }
       }
@@ -87,7 +87,7 @@ test("browse filters do not mix stale cards after rapid mode switches", async ({
 
 test("desktop import merges once and preserves stronger existing records", async ({page})=>{
   const script = execFileSync("python", ["-c", "from desktop_app import migration_script; print(migration_script({'revise_flags':['France'],'high_scores':{'countries_flags_all_hard_unlimited':36}}))"], {cwd:path.resolve(__dirname,".."),encoding:"utf8"}).trim();
-  await page.goto("/index.html");
+  await page.goto("/game.html");
   await page.evaluate(()=>{
     localStorage.setItem("revise_flags", '["Ireland"]');
     localStorage.setItem("high_scores", '{"countries_flags_all_hard_unlimited":40}');
@@ -96,6 +96,9 @@ test("desktop import merges once and preserves stronger existing records", async
   expect(await page.evaluate(script)).toBe(false);
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem("revise_flags")))).toEqual(["Ireland","France"]);
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem("high_scores")))).toEqual({countries_flags_all_hard_unlimited:40});
+  await page.reload();
+  expect(await page.evaluate(()=>state.reviseFlags)).toEqual(["Ireland","France"]);
+  expect(await page.evaluate(()=>state.highScores.countries_flags_all_hard_unlimited)).toBe(40);
 });
 
 for(const theme of ["dark", "light"]){

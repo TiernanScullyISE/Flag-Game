@@ -1,6 +1,6 @@
 # Flag & Capital Quiz
 
-[Play the quiz](https://tiernanscullyise.github.io/Flag-Game/)
+[Play the quiz](https://tiernanscullyise.github.io/Flag-Game/game.html)
 
 A geography trainer for countries and regions, available as a static website and a Python desktop application. Both use the **same HTML, CSS, JavaScript and quiz data**, so gameplay and visual improvements apply to both.
 
@@ -28,7 +28,7 @@ Use the repository root (the folder containing `game.html` and `flag.py`) in the
 python -m http.server 8000 --bind 127.0.0.1
 ```
 
-Open **http://127.0.0.1:8000/index.html** in your browser. There is no build step. Stop the server with `Ctrl+C`. This generic development server serves the repository directory; keep it bound to loopback, especially if your checkout contains ignored private files.
+Open **http://127.0.0.1:8000/game.html** in your browser. The site root and `index.html` redirect there. There is no build step. Stop the server with `Ctrl+C`. This generic development server serves the repository directory; keep it bound to loopback, especially if your checkout contains ignored private files.
 
 ### Python desktop application
 
@@ -60,7 +60,7 @@ Desktop details:
 - A restricted server binds to **127.0.0.1:18763** and serves only an explicit list of public assets. It does not serve private server code, passwords, local progress files or directory listings.
 - Persistent desktop storage lives under `%LOCALAPPDATA%\FlagGame\webview` on Windows, `~/Library/Application Support/FlagGame/webview` on macOS, or `$XDG_DATA_HOME/FlagGame/webview` (default `~/.local/share/FlagGame/webview`) on Linux.
 - Desktop, local-browser and hosted-website progress are separate profiles. They do not automatically synchronise.
-- On the first home-page load, old `revise_flags.txt`, `revise_capitals.txt`, `high_scores.txt` and `session_percentages.txt` are imported into desktop practice storage. Revision lists are merged and stronger records are preserved. Original files remain untouched. Old keys without a quiz mode are treated as flag records; old practice scores map to unlimited lives. Nothing is imported as a competitive speedrun.
+- On the first game-page load, old `revise_flags.txt`, `revise_capitals.txt`, `high_scores.txt` and `session_percentages.txt` are imported into desktop practice storage, then the page refreshes once to show the imported values. Revision lists are merged and stronger records are preserved. Original files remain untouched. Old keys without a quiz mode are treated as flag records; old practice scores map to unlimited lives. Nothing is imported as a competitive speedrun.
 - Keep the default port and profile to retain the same storage origin. If the port is occupied, close the other app instance. `--port` and `--profile` are available for isolated testing.
 - An internet connection is needed for uncached flag images, map boundaries, web fonts and shared services. This is not a fully offline package.
 

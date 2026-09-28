@@ -1,7 +1,7 @@
 const {test, expect} = require("./coverage-fixture");
 
 const pages = [
-  ["home", "/index.html", "Flag & Capital Quiz"],
+  ["site root", "/", "Practise with lives"],
   ["play", "/game.html", "Practise with lives"],
   ["leaderboard", "/leaderboard.html", "Fastest WPM"],
   ["revision", "/revise.html", "Revision"],
@@ -30,6 +30,14 @@ for(const [name, url, expectedText] of pages){
     expect(pageErrors).toEqual([]);
   });
 }
+
+test("site root and index open the game", async ({page})=>{
+  for(const path of ["/", "/index.html"]){
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/game\.html$/);
+    await expect(page.getByRole("heading", {level:1})).toContainText("Practise with lives");
+  }
+});
 
 test("play page switches quiz modes", async ({page})=>{
   await page.goto("/game.html");

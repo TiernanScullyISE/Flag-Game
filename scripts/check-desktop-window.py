@@ -38,21 +38,19 @@ def check_window(phase: str, profile: str, port: int) -> int:
     def verify():
         window = webview.windows[0]
         try:
-            wait_for(window, "document.readyState === 'complete' && !!document.querySelector('h1')")
-            assert window.evaluate_js("document.querySelector('h1').textContent") == "Flag & Capital Quiz"
+            wait_for(window, "document.readyState === 'complete' && localStorage.getItem('flag_game_desktop_import_v1') === 'yes' && typeof state !== 'undefined' && !!state.session && typeof QuizUI !== 'undefined'")
+            assert "Practise with lives" in window.evaluate_js("document.querySelector('h1').textContent"), "Game heading is missing"
             if phase == "write":
                 window.evaluate_js("localStorage.setItem('desktop_smoke_persistence','verified')")
             else:
-                assert window.evaluate_js("localStorage.getItem('desktop_smoke_persistence')") == "verified"
-            window.load_url(f"http://127.0.0.1:{port}/game.html")
-            wait_for(window, "typeof state !== 'undefined' && !!state.session && typeof QuizUI !== 'undefined'")
-            assert window.evaluate_js("QuizUI.formatTime(376669)") == "6:16.669"
-            assert window.evaluate_js("document.querySelectorAll('.scope-segment').length") == 2
-            assert window.evaluate_js("document.querySelectorAll('.quiz-segment').length") == 3
+                assert window.evaluate_js("localStorage.getItem('desktop_smoke_persistence')") == "verified", "Saved state was lost"
+            assert window.evaluate_js("QuizUI.formatTime(376669)") == "6:16.669", "Time formatting changed"
+            assert window.evaluate_js("document.querySelectorAll('.scope-segment').length") == 2, "Scope controls are missing"
+            assert window.evaluate_js("document.querySelectorAll('.quiz-segment').length") == 3, "Quiz controls are missing"
             window.evaluate_js("document.querySelector('.play-mode-segment[data-play-mode=\"speedrun\"]').click()")
-            assert window.evaluate_js("document.querySelector('#speedrun-oath-modal').classList.contains('is-visible')")
+            assert window.evaluate_js("document.querySelector('#speedrun-oath-modal').classList.contains('is-visible')"), "Speedrun pledge is missing"
             window.evaluate_js("document.querySelector('#speedrun-oath-cancel').click()")
-            assert window.evaluate_js("state.playMode") == "practice"
+            assert window.evaluate_js("state.playMode") == "practice", "Cancelling pledge changed the mode"
             passed.append(True)
             print(f"Native desktop {phase}: shared game, pledge and saved state passed.", flush=True)
         except Exception as error:

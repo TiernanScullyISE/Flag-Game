@@ -199,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     try:
         with serve_app(port=args.port) as server:
-            print(f"Flag & Capital Quiz: {server.origin}/index.html (PID {os.getpid()})", flush=True)
+            print(f"Flag & Capital Quiz: {server.origin}/game.html (PID {os.getpid()})", flush=True)
             if args.serve:
                 from threading import Event
                 Event().wait()
@@ -209,20 +209,21 @@ def main(argv: list[str] | None = None) -> int:
             webview.settings["ALLOW_FILE_URLS"] = False
             webview.settings["ALLOW_DOWNLOADS"] = True
             window = webview.create_window(
-                "Flag & Capital Quiz", f"{server.origin}/index.html",
+                "Flag & Capital Quiz", f"{server.origin}/game.html",
                 width=1280, height=860, min_size=(640, 600), background_color="#101820",
                 text_select=True, zoomable=True, confirm_close=True,
             )
             progress = read_legacy_progress()
 
             def import_progress():
-                # Run on the home page only, before the player starts the game.
-                if window.get_current_url() != f"{server.origin}/index.html":
+                if window.get_current_url() != f"{server.origin}/game.html":
                     return
                 try:
-                    window.evaluate_js(migration_script(progress))
+                    # The page has already read localStorage, so refresh once after import.
+                    if window.evaluate_js(migration_script(progress)) is True:
+                        window.load_url(f"{server.origin}/game.html")
                 except Exception:
-                    print("Could not import previous practice records. Original files are unchanged; import will retry on the home page.", file=sys.stderr)
+                    print("Could not import previous practice records. Original files are unchanged; import will retry on the game page.", file=sys.stderr)
 
             window.events.loaded += import_progress
             webview.start(

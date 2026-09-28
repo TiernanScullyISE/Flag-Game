@@ -10,7 +10,7 @@ module.exports = defineConfig({
   },
   webServer: {
     command: "python -m http.server 8000 --bind 127.0.0.1",
-    url: "http://127.0.0.1:8000/index.html",
+    url: "http://127.0.0.1:8000/game.html",
     reuseExistingServer: !process.env.CI,
     timeout: 10000
   }
