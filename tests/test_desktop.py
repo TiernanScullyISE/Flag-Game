@@ -57,6 +57,7 @@ class DesktopServerTests(unittest.TestCase):
             self.assertEqual(restarted.server_port, port)
 
     def test_external_host_and_writes_are_refused(self):
+        self.assertEqual(self.server.server_address[0], "127.0.0.1")
         self.assertEqual(self.request("/index.html", headers={"Host": "attacker.example"})[0], 403)
         self.assertEqual(self.request("/game.js", "POST")[0], 501)
 

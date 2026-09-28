@@ -1,0 +1,75 @@
+name: Review confirmed SonarQube desktop findings
+on:
+  workflow_dispatch:
+    inputs:
+      http_issue:
+        description: SonarQube issue key for the loopback HTTP report
+        required: true
+        type: string
+      xss_issue:
+        description: SonarQube issue key for the allowlisted asset response report
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mark only the two reviewed desktop reports as false positives
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          HTTP_ISSUE: ${{ inputs.http_issue }}
+          XSS_ISSUE: ${{ inputs.xss_issue }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          token = os.environ.get("SONAR_TOKEN", "")
+          if not token:
+              raise SystemExit("SONAR_TOKEN repository secret is missing")
+
+          project = "TiernanScullyISE_Flag-Game"
+          component = project + ":desktop_app.py"
+          reviews = [
+              (
+                  os.environ["HTTP_ISSUE"],
+                  "python:S5332",
+                  "Desktop WebView needs a stable loopback HTTP origin for browser storage. "
+                  "LocalAppServer binds only 127.0.0.1 and checks the Host header; "
+                  "the desktop HTTP tests verify these restrictions.",
+              ),
+              (
+                  os.environ["XSS_ISSUE"],
+                  "pythonsecurity:S5131",
+                  "The response body comes only from checked-in files selected through "
+                  "PUBLIC_ASSET_ROUTES. Unknown, traversal and script paths return 404, "
+                  "and the HTTP tests confirm request text is not reflected.",
+              ),
+          ]
+
+          def request(path, fields=None):
+              data = urlencode(fields).encode() if fields is not None else None
+              headers = {"Authorization": "Bearer " + token}
+              if data is not None:
+                  headers["Content-Type"] = "application/x-www-form-urlencoded"
+              with urlopen(Request("https://sonarcloud.io/api/" + path, data=data, headers=headers), timeout=20) as response:
+                  return json.load(response)
+
+          for key, rule, comment in reviews:
+              found = request("issues/search?" + urlencode({"issues": key, "componentKeys": project}))
+              issues = found.get("issues", [])
+              if len(issues) != 1:
+                  raise SystemExit("Expected exactly one issue for " + rule)
+              issue = issues[0]
+              if issue["key"] != key or issue["rule"] != rule or issue["component"] != component:
+                  raise SystemExit("Issue identity does not match the reviewed desktop finding")
+              if issue["status"] != "OPEN":
+                  raise SystemExit("Issue is no longer open: " + key)
+              updated = request("issues/do_transition", {"issue": key, "transition": "falsepositive", "comment": comment})
+              print(rule + ": " + updated["issue"]["status"])
+          PY

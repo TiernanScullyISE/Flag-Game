@@ -126,6 +126,36 @@ test("leaderboard page exposes filterable typing record tables", async ({page})=
   await expect(page.locator("#leaderboard-page-grid")).toBeHidden();
 });
 
+test("posted leaderboard run remains searchable and shows its split details", async ({page})=>{
+  await page.goto("/leaderboard.html");
+  await page.evaluate(()=>{
+    const category = leaderboardPageState.categories.find(item=>item.gameScope === "countries" && item.which === "flags");
+    const run = {
+      modeKey:category.key,
+      gameScope:"countries",
+      which:"flags",
+      playerName:"Coverage Runner",
+      timeMs:15000,
+      correct:10,
+      total:10,
+      date:"2026-09-28T12:00:00Z",
+      splits:{10:15000,all:15000}
+    };
+    leaderboardPageState.loading = false;
+    leaderboardPageState.error = "";
+    leaderboardPageState.allRuns = [run];
+    leaderboardPageState.runsByKey = new Map([[category.key,[run]]]);
+    renderLeaderboardPage();
+  });
+  await page.locator("#leaderboard-with-scores").check();
+  await expect(page.locator("#leaderboard-page-grid .leaderboard-run-details")).toHaveCount(1);
+  await expect(page.locator("#leaderboard-page-grid")).toContainText("Coverage Runner");
+  await page.locator("#leaderboard-page-grid .leaderboard-run-details summary").click();
+  await expect(page.locator("#leaderboard-page-grid")).toContainText("First 10: 0:15.000");
+  await page.locator("#leaderboard-search").fill("Coverage Runner");
+  await expect(page.locator("#leaderboard-page-grid .leaderboard-run-details")).toHaveCount(1);
+});
+
 test("admin review cards explain pending reasons", async ({page})=>{
   await page.goto("/admin.html");
   await page.evaluate(()=>{
@@ -260,6 +290,43 @@ test("admin moderation updates locally without reloading the run list", async ({
   await expect(page.locator("#admin-status")).toContainText("No queue reload was needed");
   await expect(page.locator(".admin-run-card")).toHaveClass(/is-rejected/);
   expect(listRequests).toBe(1);
+});
+
+test("admin analytics presents a completed run and country-level learning data", async ({page})=>{
+  await page.goto("/admin.html");
+  await page.evaluate(()=>renderAnalytics([{
+    clientRunId:"test-run",
+    playerName:"Runner",
+    playerId:"test-device",
+    gameScope:"countries",
+    mode:"flags",
+    region:"Europe",
+    target:"10",
+    totalDurationMs:12000,
+    totalQuestions:1,
+    solvedCount:1,
+    firstTryCorrectCount:1,
+    completedAt:"2026-09-28T12:00:00Z",
+    questionAnalytics:[{
+      country:"France",
+      continent:"Europe",
+      canonicalAnswer:"France",
+      rawFinalInput:"France",
+      attempts:[{rawInput:"France",correct:true}],
+      attemptsCount:1,
+      finalSolveMs:1200,
+      recognitionMs:400,
+      activeTypingMs:500,
+      typedChars:6,
+      canonicalChars:6,
+      firstTry:true
+    }]
+  }]));
+  await expect(page.locator("#admin-list")).toContainText("Private device tracking");
+  await expect(page.locator("#admin-list")).toContainText("1 analytics runs");
+  await expect(page.locator("#admin-list")).toContainText("Runner");
+  await expect(page.locator("#admin-list")).toContainText("France");
+  await expect(page.locator("#admin-list")).toContainText("Automatic analysis");
 });
 
 test("feedback form submits to configured endpoint", async ({page})=>{

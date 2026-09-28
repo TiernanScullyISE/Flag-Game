@@ -55,7 +55,7 @@ class LocalAppServer(ThreadingHTTPServer):
         if sys.platform == "win32":
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         # Desktop assets are available only on this process's loopback socket.
-        super().server_bind()  # NOSONAR: local WebView origin requires HTTP on 127.0.0.1
+        super().server_bind()
 
     @property
     def origin(self) -> str:
@@ -104,7 +104,7 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             if send_body:
                 # The body comes from a fixed asset route, never request text.
-                self.wfile.write(content)  # NOSONAR: PUBLIC_ASSET_ROUTES rejects all other paths
+                self.wfile.write(content)
         except ConnectionError:
             # Navigation or closing the window can cancel an in-flight asset.
             pass
