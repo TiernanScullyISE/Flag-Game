@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
-      - run: npm exec --no -- playwright install --with-deps chromium
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
       - run: npm test
       - run: npm run test:desktop
       - run: npm run test:browser

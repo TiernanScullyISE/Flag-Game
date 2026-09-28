@@ -27,14 +27,14 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
-      - run: npm exec --no -- playwright install --with-deps chromium
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
       - run: npm test
-      - run: python -m pip install coverage==7.16.1
+      - run: 'python -m pip install --only-binary :all: coverage==7.16.1'
       - run: python -m coverage run --source=desktop_app,flag_data -m unittest discover -s tests -p 'test_*.py'
       - run: python -m coverage xml -o coverage-reports/python.xml
       - run: npm run test:browser
         env:
           SONAR_COVERAGE: '1'
-      - uses: SonarSource/sonarqube-scan-action@v8.2.2
+      - uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

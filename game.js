@@ -4850,9 +4850,9 @@ function finishSession(reason){
 }
 
 async function refreshPendingSharedRun(run, session){
-  if(run && run.sharedSubmitted) return;
+  if(run?.sharedSubmitted) return;
   if(!run || !isSharedLeaderboardConfigured()){
-    state.pendingSharedRun = run && run.isPersonalBest ? run : null;
+    state.pendingSharedRun = run?.isPersonalBest ? run : null;
     renderLeaderboardPublishPrompt("complete");
     return;
   }

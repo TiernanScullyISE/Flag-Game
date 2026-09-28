@@ -3,7 +3,7 @@ const path = require("node:path");
 const MCR = require("monocart-coverage-reports");
 const options = require("./browser-coverage-options");
 
-module.exports = async()=>{
+module.exports = async function writeBrowserCoverage(){
   await MCR(options).generate();
   const report = path.join(options.outputDir, "lcov.info");
   if(!fs.existsSync(report) || !fs.readFileSync(report, "utf8").includes("SF:")){

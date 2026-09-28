@@ -1,10 +1,12 @@
 """Desktop hosting and migration checks; no GUI or external service required."""
 import http.client
+import io
 import tempfile
+from contextlib import redirect_stderr
 from pathlib import Path
 import unittest
 
-from desktop_app import PUBLIC_ASSETS, ROOT, read_legacy_progress, serve_app
+from desktop_app import PUBLIC_ASSETS, ROOT, import_legacy_progress, read_legacy_progress, serve_app
 
 
 class DesktopServerTests(unittest.TestCase):
@@ -57,6 +59,44 @@ class DesktopServerTests(unittest.TestCase):
 
 
 class MigrationTests(unittest.TestCase):
+    def test_import_runs_on_game_page_and_refreshes_once(self):
+        class Window:
+            def __init__(self):
+                self.url = "http://127.0.0.1:18763/index.html"
+                self.imported = True
+                self.fail_import = False
+                self.scripts = []
+                self.loads = []
+
+            def get_current_url(self):
+                return self.url
+
+            def evaluate_js(self, script):
+                if self.fail_import:
+                    raise RuntimeError("temporary webview failure")
+                self.scripts.append(script)
+                return self.imported
+
+            def load_url(self, url):
+                self.loads.append(url)
+
+        window = Window()
+        origin = "http://127.0.0.1:18763"
+        import_legacy_progress(window, origin, {"revise_flags": ["France"]})
+        self.assertEqual(window.scripts, [])
+        window.url = f"{origin}/game.html"
+        import_legacy_progress(window, origin, {"revise_flags": ["France"]})
+        self.assertEqual(window.loads, [window.url])
+        self.assertIn("France", window.scripts[0])
+        window.imported = False
+        import_legacy_progress(window, origin, {"revise_flags": ["France"]})
+        self.assertEqual(window.loads, [window.url])
+        window.fail_import = True
+        output = io.StringIO()
+        with redirect_stderr(output):
+            import_legacy_progress(window, origin, {"revise_flags": ["France"]})
+        self.assertIn("import will retry", output.getvalue())
+
     def test_import_preserves_valid_records_and_ignores_bad_values(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

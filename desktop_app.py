@@ -179,6 +179,17 @@ def migration_script(progress: dict) -> str:
     })()""" % json.dumps(progress, ensure_ascii=True, allow_nan=False)
 
 
+def import_legacy_progress(window, origin: str, progress: dict) -> None:
+    if window.get_current_url() != f"{origin}/game.html":
+        return
+    try:
+        # The page has already read localStorage, so refresh once after import.
+        if window.evaluate_js(migration_script(progress)) is True:
+            window.load_url(f"{origin}/game.html")
+    except Exception:
+        print("Could not import previous practice records. Original files are unchanged; import will retry on the game page.", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--legacy", action="store_true", help="Open the original Tkinter country quiz")
@@ -215,17 +226,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             progress = read_legacy_progress()
 
-            def import_progress():
-                if window.get_current_url() != f"{server.origin}/game.html":
-                    return
-                try:
-                    # The page has already read localStorage, so refresh once after import.
-                    if window.evaluate_js(migration_script(progress)) is True:
-                        window.load_url(f"{server.origin}/game.html")
-                except Exception:
-                    print("Could not import previous practice records. Original files are unchanged; import will retry on the game page.", file=sys.stderr)
-
-            window.events.loaded += import_progress
+            window.events.loaded += lambda: import_legacy_progress(window, server.origin, progress)
             webview.start(
                 gui="edgechromium" if sys.platform == "win32" else None,
                 private_mode=False, storage_path=str(profile), debug=False,

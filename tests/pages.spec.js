@@ -829,6 +829,66 @@ test("run slower than posted PB opens results without publish prompt", async ({p
   });
 });
 
+test("a posted PB updated after the prompt stops a stale submission", async ({page})=>{
+  await page.goto("/game.html");
+  const result = await page.evaluate(async ()=>{
+    const service = window.sharedLeaderboard;
+    const originalFetch = service.fetchBestPostedRunTime;
+    try{
+      service.fetchBestPostedRunTime = async ()=>1000;
+      state.lastCompletedRun = {modeKey:"flags_All_hard_25", timeMs:2000};
+      state.pendingSharedRun = state.lastCompletedRun;
+      state.pendingSharedRunCheck = null;
+      leaderboardPublishRow.hidden = false;
+      await postPendingSharedRun();
+      return {
+        pending:state.pendingSharedRun,
+        rowHidden:leaderboardPublishRow.hidden,
+        message:leaderboardPublishStatus.textContent
+      };
+    }finally{
+      service.fetchBestPostedRunTime = originalFetch;
+    }
+  });
+  expect(result.pending).toBeNull();
+  expect(result.rowHidden).toBe(true);
+  expect(result.message).toContain("not faster than your posted personal best");
+});
+
+test("PB prompt stays available when shared lookup is unavailable", async ({page})=>{
+  await page.goto("/game.html");
+  const result = await page.evaluate(async ()=>{
+    const service = window.sharedLeaderboard;
+    const originalConfigured = service.isConfigured;
+    const originalFetch = service.fetchBestPostedRunTime;
+    try{
+      state.playMode = "speedrun";
+      const run = {modeKey:"flags_All_hard_25", timeMs:2000,
+        isPersonalBest:true, completionReceipt:"offline-test-receipt"};
+      state.lastCompletedRun = run;
+      state.session = makeSession();
+      service.isConfigured = ()=>false;
+      await refreshPendingSharedRun(run, state.session);
+      const local = {pending:state.pendingSharedRun === run,
+        title:leaderboardPublishTitle.textContent, rowHidden:leaderboardPublishRow.hidden};
+
+      service.isConfigured = ()=>true;
+      service.fetchBestPostedRunTime = async ()=>{ throw new Error("offline lookup"); };
+      await refreshPendingSharedRun(run, state.session);
+      const lookupFailure = {pending:state.pendingSharedRun === run,
+        title:leaderboardPublishTitle.textContent, failed:state.postedPbLookupFailed};
+      return {local, lookupFailure};
+    }finally{
+      service.isConfigured = originalConfigured;
+      service.fetchBestPostedRunTime = originalFetch;
+    }
+  });
+  expect(result.local).toMatchObject({pending:true, rowHidden:true});
+  expect(result.local.title).toContain("saved locally");
+  expect(result.lookupFailure).toMatchObject({pending:true, failed:true});
+  expect(result.lookupFailure.title).toContain("Could not check your posted personal best");
+});
+
 test("rejected local PB does not block a faster run than the posted PB", async ({page})=>{
   const actions = [];
   await page.route(/\/rest\/v1\/speedrun_leaderboard/, route=>route.fulfill({
