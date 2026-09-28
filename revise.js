@@ -52,7 +52,7 @@ function init(){
 }
 
 function populateContinents(){
-  const continents = Array.from(new Set(Object.values(countryContinent))).sort();
+  const continents = Array.from(new Set(Object.values(countryContinent))).sort((left,right)=>left.localeCompare(right));
   reviseContinent.innerHTML = "";
   for(const value of ["All", ...continents]){
     const option = document.createElement("option");

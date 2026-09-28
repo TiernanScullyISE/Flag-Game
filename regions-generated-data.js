@@ -46851,3 +46851,7 @@ var GENERATED_REGION_GAME_GROUPS = {
     ]
   }
 };
+
+if(typeof module === "object" && module.exports){
+  module.exports = GENERATED_REGION_GAME_GROUPS;
+}

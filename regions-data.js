@@ -328,9 +328,16 @@ const REGION_GAME_GROUPS = {
   }
 };
 
-if(typeof GENERATED_REGION_GAME_GROUPS !== "undefined" && GENERATED_REGION_GAME_GROUPS){
-  Object.assign(REGION_GAME_GROUPS, GENERATED_REGION_GAME_GROUPS);
+const generatedRegionGroups = typeof module === "object" && module.exports
+  ? require("./regions-generated-data.js")
+  : typeof GENERATED_REGION_GAME_GROUPS !== "undefined" ? GENERATED_REGION_GAME_GROUPS : null;
+if(generatedRegionGroups){
+  Object.assign(REGION_GAME_GROUPS, generatedRegionGroups);
 }
 
 const REGION_GAME_GROUP_ORDER = Object.keys(REGION_GAME_GROUPS);
 const DEFAULT_REGION_GAME_GROUP = REGION_GAME_GROUP_ORDER[0];
+
+if(typeof module === "object" && module.exports){
+  module.exports = {REGION_GAME_GROUPS,REGION_GAME_GROUP_ORDER,DEFAULT_REGION_GAME_GROUP};
+}

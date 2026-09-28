@@ -82,7 +82,7 @@ function populateContinentFilter(){
 }
 
 function getLeaderboardContinents(){
-  return Array.from(new Set(Object.values(countryContinent))).sort();
+  return Array.from(new Set(Object.values(countryContinent))).sort((left,right)=>left.localeCompare(right));
 }
 
 function getLeaderboardSetOptions(scope="all"){

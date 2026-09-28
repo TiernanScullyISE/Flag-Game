@@ -1,5 +1,6 @@
 /* Original practice vocabulary and code fragments. No code is executed. */
-window.TypingData = Object.freeze({
+const typingDataScope = typeof window !== "undefined" ? window : globalThis;
+typingDataScope.TypingData = Object.freeze({
   version: 1,
   durations: [15, 30, 60, 90, 120, 300, 600, 1800, 3600],
   languages: {
@@ -47,3 +48,7 @@ window.TypingData = Object.freeze({
     ]}
   }
 });
+
+if(typeof module === "object" && module.exports){
+  module.exports = typingDataScope.TypingData;
+}

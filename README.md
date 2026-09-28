@@ -89,6 +89,7 @@ From the repository root in PowerShell:
 ```powershell
 npm.cmd ci
 npx.cmd playwright install chromium
+python -m pip install --only-binary :all: "requests>=2.31,<3" "Pillow>=9.5,<13"
 npm.cmd test
 npm.cmd run test:desktop
 npm.cmd run test:browser
@@ -101,7 +102,7 @@ npm.cmd run test:browser
 
 ### SonarQube Cloud CI analysis
 
-`.github/workflows/sonar.yml` runs on pushes to `main` and pull requests from this repository. It runs the tests on Linux, collects browser JavaScript and desktop Python coverage, then scans this public repository. Fork pull requests still run the normal checks, but cannot use the SonarQube token. `sonar-project.properties` identifies source and test files and excludes generated regional data from analysis. The private Supabase server needs its own scan in its private repository.
+`.github/workflows/sonar.yml` runs on pushes to `main` and pull requests from this repository. It runs the tests on Linux, collects browser JavaScript and desktop and legacy Python coverage, then scans this public repository. Fork pull requests still run the normal checks, but cannot use the SonarQube token. `sonar-project.properties` identifies source and test files and excludes generated regional data from analysis. The private Supabase server needs its own scan in its private repository.
 
 To activate the CI scan:
 

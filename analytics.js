@@ -689,7 +689,7 @@
         trend: getTrend(group.timeline),
         masteryLevel: ""
       };
-      item.masteryLevel = classifyMastery(item, group.timeline);
+      item.masteryLevel = classifyMastery(item);
       return item;
     }).sort((left,right)=>{
       const priority = masteryPriority(left.masteryLevel) - masteryPriority(right.masteryLevel);

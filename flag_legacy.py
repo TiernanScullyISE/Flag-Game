@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import random
+import secrets
 import unicodedata
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -559,7 +559,7 @@ class FlagQuizApp:
                 self.render_empty_question(which)
             return
 
-        country = random.choice(unanswered)
+        country = secrets.choice(unanswered)
         state.correct_country = country
         state.correct_answer = country if which == "flags" else COUNTRY_CAPITALS.get(country, "Unknown")
         state.question_answered = False
@@ -636,10 +636,10 @@ class FlagQuizApp:
             pool = [COUNTRY_CAPITALS[country] for country in state.current_pool if country in COUNTRY_CAPITALS]
 
         while len(options) < 4 and len(options) < len(pool):
-            choice = random.choice(pool)
+            choice = secrets.choice(pool)
             if choice not in options:
                 options.append(choice)
-        random.shuffle(options)
+        secrets.SystemRandom().shuffle(options)
 
         for index, button in enumerate(self.mcq_buttons(which)):
             if index < len(options):

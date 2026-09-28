@@ -1,11 +1,10 @@
 const {test,expect}=require('./coverage-fixture');
 const fs=require('node:fs');
 const path=require('node:path');
-const vm=require('node:vm');
 const AxeBuilder=require('@axe-core/playwright').default;
 const root=path.resolve(__dirname,'..');
-const context={window:{}};vm.createContext(context);
-for(const file of ['typing-data.js','typing-passages.js'])vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context);
+const vocabulary=require('../typing-data.js').languages;
+const passages=require('../typing-passages.js');
 const core=import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync(path.join(root,'typing-core.js'),'utf8')).toString('base64'));
 let calls;
 test.beforeEach(async ({page})=>{
@@ -13,7 +12,7 @@ test.beforeEach(async ({page})=>{
   const {makeText}=await core;
   await page.route(/supabase\.co/,async route=>{
     const body=route.request().postDataJSON();calls.push(body);
-    if(body.action==='prepare')return route.fulfill({json:{id:'test-session',identity:'signed-test-identity',prompt:makeText(body.config,42,context.window.TypingData.languages,context.window.TypingPassages)}});
+    if(body.action==='prepare')return route.fulfill({json:{id:'test-session',identity:'signed-test-identity',prompt:makeText(body.config,42,vocabulary,passages)}});
     if(body.action==='board')return route.fulfill({json:{rows:[]}});
     if(body.action==='finish')return route.fulfill({json:{receipt:'test-session'}});
     if(body.action==='publish')return route.fulfill({json:{status:'approved',message:'Added to the public leaderboard.'}});
@@ -21,6 +20,20 @@ test.beforeEach(async ({page})=>{
   });
 });
 async function ready(page){await expect(page.locator('#typing-input')).toBeEnabled();}
+test('poisoned local typing records and identity cannot alter the page or online identity',async ({page})=>{
+  await page.addInitScript(()=>{
+    localStorage.setItem('typing-studio-records-v2','{"__proto__":[{"wpm":999999,"raw":999999,"accuracy":100,"date":"2026-01-01"}],"bad":[{"wpm":"fast","raw":2,"accuracy":100,"date":"2026-01-01"}]}');
+    localStorage.setItem('typing-identity','{"unexpected":"object"}');
+    localStorage.setItem('typing-public-name','{"unexpected":"object"}');
+  });
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/typing.html');await ready(page);
+  expect(errors).toEqual([]);
+  await expect(page.locator('#typing-name')).toHaveValue('Player');
+  await expect(page.locator('#typing-empty')).toBeVisible();
+  expect(calls.find(call=>call.action==='prepare')?.identity).toBe('');
+});
 test('timed PB asks permission and only uploads typing history after consent',async ({page})=>{
   await page.clock.install();await page.goto('/typing.html');await ready(page);
   await page.locator('#typing-duration').selectOption('15');await ready(page);
@@ -102,13 +115,13 @@ test('passages have named categories and always issue their complete text',async
   await page.goto('/typing.html');await ready(page);await page.locator('#typing-mode').selectOption('passage');await ready(page);
   for(const language of ['english','irish','python','java']){
     await page.locator('#typing-language').selectOption(language);await ready(page);
-    const entries=context.window.TypingPassages[language].entries;
+    const entries=passages[language].entries;
     await expect(page.locator('#typing-length option')).toHaveCount(entries.length);
     for(const entry of entries){
       await page.locator('#typing-length').selectOption(entry.id);await ready(page);
       const {makeText}=await core;
       const c=calls.filter(c=>c.action==='prepare').at(-1).config;
-      const text=makeText(c,42,context.window.TypingData.languages,context.window.TypingPassages);
+      const text=makeText(c,42,vocabulary,passages);
       const prepared=c.punctuation ? entry.text.trim() : entry.text.trim().replace(/[^\p{L}\p{N}\s]/gu,'').toLowerCase();
       const expected=(['python','java'].includes(language) ? prepared : prepared.replace(/\s+/g,' ')).normalize('NFC');
       expect(c.target).toBe(entry.id);expect(text).toBe(expected);
@@ -116,8 +129,8 @@ test('passages have named categories and always issue their complete text',async
       if(language==='java')expect(text).toContain('public class Main');
     }
   }
-  expect(context.window.TypingPassages.english.entries).toHaveLength(8);
-  expect(context.window.TypingPassages.english.entries.some(entry=>entry.id==='bill-gates-challenge')).toBe(true);
+  expect(passages.english.entries).toHaveLength(8);
+  expect(passages.english.entries.some(entry=>entry.id==='bill-gates-challenge')).toBe(true);
 });
 test('multi-line passages scroll vertically instead of sliding sideways',async ({page})=>{
   await page.goto('/typing.html');await ready(page);await page.locator('#typing-mode').selectOption('passage');await ready(page);
@@ -131,7 +144,7 @@ test('all passage and script variants finish on their final character',async ({p
   await page.goto('/typing.html');await ready(page);await page.locator('#typing-mode').selectOption('passage');await ready(page);
   for(const language of ['english','irish','python','java']){
     await page.locator('#typing-language').selectOption(language);await ready(page);
-    for(const entry of context.window.TypingPassages[language].entries){
+    for(const entry of passages[language].entries){
       await page.locator('#typing-length').selectOption(entry.id);await ready(page);
       const prompt=await page.locator('#typing-prompt').innerText();
       await page.locator('#typing-input').fill(prompt);

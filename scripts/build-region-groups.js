@@ -1,11 +1,9 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const vm = require("node:vm");
 const crypto = require("node:crypto");
 const zlib = require("node:zlib");
 
 const ROOT = path.resolve(__dirname, "..");
-const DATA_PATH = path.join(ROOT, "data.js");
 const OUTPUT_PATH = path.join(ROOT, "regions-generated-data.js");
 const REPORT_PATH = path.join(ROOT, "region-source-report.json");
 const DEFAULT_CACHE_PATH = path.join(ROOT, ".region-cache");
@@ -151,7 +149,7 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Autonomous City of Buenos Aires",
       capital:"Buenos Aires",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Buenos%20Aires.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Buenos%20Aires.svg",
       isoCodes:["AR-C"]
     }
   ],
@@ -159,7 +157,7 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Vienna",
       capital:"Vienna",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Wien.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Wien.svg",
       isoCodes:["AT-9"]
     }
   ],
@@ -167,7 +165,7 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Federation of Bosnia and Herzegovina",
       capital:"Sarajevo",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20the%20Federation%20of%20Bosnia%20and%20Herzegovina.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20the%20Federation%20of%20Bosnia%20and%20Herzegovina.svg",
       isoCodes:["BA-BIH"]
     }
   ],
@@ -175,13 +173,13 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Berlin",
       capital:"Berlin",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Berlin.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Berlin.svg",
       isoCodes:["DE-BE"]
     },
     {
       name:"Hamburg",
       capital:"Hamburg",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Hamburg.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Hamburg.svg",
       isoCodes:["DE-HH"]
     }
   ],
@@ -189,13 +187,13 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Esmeraldas Province",
       capital:"Esmeraldas",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Bandera%20Provincia%20Esmeraldas.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Bandera%20Provincia%20Esmeraldas.svg",
       isoCodes:["EC-E"]
     },
     {
       name:"Pichincha Province",
       capital:"Quito",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Bandera%20Provincia%20Pichincha.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Bandera%20Provincia%20Pichincha.svg",
       isoCodes:["EC-P"]
     }
   ],
@@ -203,13 +201,13 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Moscow",
       capital:"Moscow",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Moscow%2C%20Russia.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Moscow%2C%20Russia.svg",
       isoCodes:["RU-MOW"]
     },
     {
       name:"Saint Petersburg",
       capital:"Saint Petersburg",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Saint%20Petersburg.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Saint%20Petersburg.svg",
       isoCodes:["RU-SPE"]
     }
   ],
@@ -217,19 +215,19 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Gauteng",
       capital:"Johannesburg",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Gauteng.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Gauteng.svg",
       isoCodes:["ZA-GP"]
     },
     {
       name:"KwaZulu-Natal",
       capital:"Pietermaritzburg",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20KwaZulu-Natal.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20KwaZulu-Natal.svg",
       isoCodes:["ZA-KZN"]
     },
     {
       name:"Limpopo",
       capital:"Polokwane",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Limpopo.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Limpopo.svg",
       isoCodes:["ZA-LP"]
     }
   ],
@@ -237,19 +235,19 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Castile and León",
       capital:"Valladolid",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Castile%20and%20Le%C3%B3n.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Castile%20and%20Le%C3%B3n.svg",
       isoCodes:["ES-CL"]
     },
     {
       name:"Ceuta",
       capital:"Ceuta",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Ceuta.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Ceuta.svg",
       isoCodes:["ES-CE"]
     },
     {
       name:"Melilla",
       capital:"Melilla",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Melilla.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Melilla.svg",
       isoCodes:["ES-ML"]
     }
   ],
@@ -257,7 +255,7 @@ const MANUAL_ITEM_PATCHES = {
     {
       name:"Northern Ireland",
       capital:"Belfast",
-      flagUrl:"http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Northern%20Ireland.svg",
+      flagUrl:"https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20Northern%20Ireland.svg",
       isoCodes:["GB-NIR"]
     }
   ]
@@ -415,8 +413,7 @@ function printServiceLimits(){
 }
 
 function loadCountryData(){
-  const source = fs.readFileSync(DATA_PATH, "utf8");
-  return vm.runInNewContext(`${source}\n;({countryContinent,alpha2Overrides,countries});`, {}, {filename:"data.js"});
+  return require("../data.js");
 }
 
 function normalise(value){
@@ -858,7 +855,7 @@ function makeAdminRowsFetcher(){
     if(!RUN_OPTIONS.wikidataAdminFallback) return [];
     const code = String(alpha2 || "").toUpperCase();
     if(!code) return [];
-    const nameKey = Array.from(new Set(names.map(name=>repairMojibake(name)).filter(Boolean))).sort().join("|");
+    const nameKey = Array.from(new Set(names.map(name=>repairMojibake(name)).filter(Boolean))).sort((left,right)=>left.localeCompare(right)).join("|");
     if(!nameKey) return [];
     const key = `${code}:${crypto.createHash("sha1").update(nameKey).digest("hex").slice(0, 12)}`;
     if(cache.has(key)) return cache.get(key);
@@ -1302,7 +1299,7 @@ function makeGroup(countryName, alpha3, meta, items, aliases, options={}){
       ...(item.flagFile ? {flagFile:item.flagFile} : {}),
       ...(Array.isArray(item.colours) && item.colours.length ? {colours:item.colours} : {}),
       ...(item.generatedFlag ? {generatedFlag:true} : {}),
-      isoCodes:Array.from(item.isoCodes).sort()
+      isoCodes:Array.from(item.isoCodes).sort((left,right)=>left.localeCompare(right))
     }))
   };
 }
@@ -2048,6 +2045,7 @@ function makeGeneratedDataBody(outputGroups){
     "/* Auto-generated by scripts/build-region-groups.js.",
     "   Source policy: Wikidata P150/P300/P131 subdivisions with P41 flags and P36, GeoNames ADM1/PPLA, Commons flag files where verified, or generated regional training flags where no public flag asset is available, matched to GeoBoundaries ADM1. */",
     `var GENERATED_REGION_GAME_GROUPS = ${serialiseJs(outputGroups)};`,
+    "if(typeof module === \"object\" && module.exports) module.exports = GENERATED_REGION_GAME_GROUPS;",
     ""
   ].join("\n");
 }

@@ -109,7 +109,7 @@ const countryCapitals = {
   "Lesotho":"Maseru"
 };
 
-const countries = Object.keys(countryContinent).sort();
+const countries = Object.keys(countryContinent).sort((left,right)=>left.localeCompare(right));
 
 const alpha2Overrides = {
   "Afghanistan":"af","Albania":"al","Algeria":"dz","Andorra":"ad",
@@ -219,3 +219,7 @@ const LS_KEYS = {
   playerId:"speedrun_player_id",
   playerNameHistory:"speedrun_player_name_history"
 };
+
+if(typeof module === "object" && module.exports){
+  module.exports = {countryContinent,countryCapitals,alpha2Overrides,countryAliases,capitalAliases,countries,LS_KEYS};
+}

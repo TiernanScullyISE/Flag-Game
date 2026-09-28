@@ -160,11 +160,8 @@ function makeRunAnalyticsState(){
 
 function makeNonce(){
   const bytes = new Uint8Array(12);
-  if(window.crypto && window.crypto.getRandomValues){
-    window.crypto.getRandomValues(bytes);
-    return Array.from(bytes, byte=>byte.toString(16).padStart(2, "0")).join("");
-  }
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte=>byte.toString(16).padStart(2, "0")).join("");
 }
 
 const playModeButtons = Array.from(document.querySelectorAll(".play-mode-segment"));
@@ -943,7 +940,7 @@ function populateContinents(){
     return;
   }
 
-  const continents = Array.from(new Set(Object.values(countryContinent))).sort();
+  const continents = Array.from(new Set(Object.values(countryContinent))).sort((left,right)=>left.localeCompare(right));
   const options = state.playMode === "speedrun" || isWorldMode()
     ? ["All", ...continents]
     : state.which === "flags"
@@ -1139,7 +1136,7 @@ function chooseQuestionCandidate(candidates){
   if(state.playMode === "speedrun" && state.which === "flags"){
     return candidates[0];
   }
-  return candidates[(Math.random()*candidates.length)|0];
+  return candidates[secureRandomIndex(candidates.length)];
 }
 
 async function loadQuestion(){
@@ -2067,7 +2064,7 @@ function setupMcq(){
   }
 
   while(options.length < 4 && options.length < pool.length){
-    const choice = pool[(Math.random()*pool.length)|0];
+    const choice = pool[secureRandomIndex(pool.length)];
     if(!options.includes(choice)) options.push(choice);
   }
   shuffle(options);
@@ -2831,8 +2828,8 @@ function captureSpeedRunSplit(){
   if(state.playMode !== "speedrun" || !state.session.speedRun.started) return;
   const solved = state.session.solved.size;
   for(const split of getSpeedRunSplitTargets()){
-    if(split !== "all" && solved === split && !state.session.speedRun.splits[String(split)]){
-      state.session.speedRun.splits[String(split)] = getElapsedMs();
+    if(split !== "all" && solved === Number(split) && !state.session.speedRun.splits[split]){
+      state.session.speedRun.splits[split] = getElapsedMs();
     }
   }
 }
@@ -3432,8 +3429,7 @@ function getSpeedRunSplitTargets(){
   const finish = state.session.pool.length;
   const targets = SPEEDRUN_SPLITS.filter(split=>split <= finish);
   if(!targets.includes(finish) && state.speedTarget !== "all") targets.push(finish);
-  targets.push("all");
-  return targets;
+  return [...targets.map(String), "all"];
 }
 
 async function renderRegionListMap(){
@@ -4957,7 +4953,7 @@ function showResultModal(reason){
   }
 
   if(session.incorrect.size){
-    appendResultDetail("Review", Array.from(session.incorrect).sort().join(", "), "is-review");
+    appendResultDetail("Review", Array.from(session.incorrect).sort((left,right)=>left.localeCompare(right)).join(", "), "is-review");
   }
 
   renderLeaderboardPublishPromptSafely(reason);

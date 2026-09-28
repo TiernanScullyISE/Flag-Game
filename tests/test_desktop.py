@@ -40,9 +40,12 @@ class DesktopServerTests(unittest.TestCase):
     def test_private_files_and_traversal_are_not_served(self):
         for path in ["/admin_password.txt", "/.git/config", "/requirements.txt", "/flag.py",
                      "/.private-supabase-backup/supabase/functions/submit-speedrun/index.ts",
-                     "/../game.html", "/%2e%2e/game.html", "//admin_password.txt", "/node_modules/"]:
+                     "/../game.html", "/%2e%2e/game.html", "//admin_password.txt", "/node_modules/",
+                     "/%3Cscript%3Ealert(1)%3C%2Fscript%3E"]:
             with self.subTest(path=path):
-                self.assertEqual(self.request(path)[0], 404)
+                status, _, body = self.request(path)
+                self.assertEqual(status, 404)
+                self.assertNotIn(b"<script>", body)
 
     def test_relaunch_reuses_origin_but_second_live_instance_is_refused(self):
         with serve_app(port=0) as first:

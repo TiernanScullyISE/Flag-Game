@@ -518,6 +518,71 @@ test("correct speedrun answer locks skip until the next flag loads", async ({pag
   });
 });
 
+test("numeric speedrun splits are recorded and labelled separately from the finish", async ({page})=>{
+  await page.goto("/game.html");
+  const result = await page.evaluate(()=>{
+    state.playMode = "speedrun";
+    state.speedTarget = "10";
+    state.session = makeSession();
+    state.session.pool = countries.slice(0, 10);
+    state.session.solved = new Set(state.session.pool);
+    state.session.speedRun.started = true;
+    state.session.speedRun.startPerf = performance.now() - 5000;
+    captureSpeedRunSplit();
+    renderSplits();
+    return {
+      split:state.session.speedRun.splits["10"],
+      labels:Array.from(document.querySelectorAll("#split-list .split-row"),row=>row.textContent)
+    };
+  });
+  expect(result.split).toBeGreaterThan(0);
+  expect(result.labels.some(label=>label.includes("First 10"))).toBe(true);
+  expect(result.labels.some(label=>label.includes("Finish"))).toBe(true);
+});
+
+test("practice skips return after the remaining answer and finish with both countries solved", async ({page})=>{
+  await page.goto("/game.html");
+  const first = await page.evaluate(async()=>{
+    state.playMode = "practice";
+    state.gameScope = "countries";
+    state.which = "flags";
+    state.hard = true;
+    state.selectedContinent = "All";
+    state.session = makeSession();
+    state.session.pool = ["France", "Germany"];
+    toggleAnswerUi();
+    await loadQuestion();
+    return state.session.correctCountry;
+  });
+
+  await page.locator("#next-btn").click();
+  const second = await page.evaluate(()=>state.session.correctCountry);
+  expect(second).not.toBe(first);
+  await page.locator("#answer-input").fill(second);
+  await expect.poll(()=>page.evaluate(()=>state.session.correctCountry)).toBe(first);
+  await page.locator("#answer-input").fill(first);
+
+  await expect(page.locator("#result-modal")).toHaveClass(/is-visible/);
+  const outcome = await page.evaluate(()=>({solved:state.session.solved.size,skipped:state.session.skipped.size}));
+  expect(outcome).toEqual({solved:2,skipped:0});
+});
+
+test("one-life practice ends after an incorrect answer without recording a solved question", async ({page})=>{
+  await page.goto("/game.html");
+  await page.locator("#life-select").selectOption("1");
+  await page.locator("#hard-toggle").check();
+  const country = await page.evaluate(()=>state.session.correctCountry);
+  await page.locator("#answer-input").fill("not a country");
+  await page.locator("#submit-btn").click();
+  await expect(page.locator("#result-modal")).toHaveClass(/is-visible/);
+  expect(await page.evaluate(()=>({
+    lives:state.session.livesRemaining,
+    solved:state.session.solved.size,
+    wrong:state.session.incorrect.has(state.session.correctCountry)
+  }))).toEqual({lives:0,solved:0,wrong:true});
+  await expect(page.locator("#result-details")).toContainText(country);
+});
+
 test("mobile speedrun keeps the answer input focused between flags", async ({page})=>{
   await page.setViewportSize({width:390, height:844});
   await page.goto("/game.html");

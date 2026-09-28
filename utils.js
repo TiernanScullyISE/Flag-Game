@@ -47,9 +47,19 @@ function fuzzyMatch(input, answer){
 }
 
 /* Shuffle */
+function secureRandomIndex(length){
+  if(!Number.isSafeInteger(length) || length < 1 || length > 0x100000000) throw new RangeError("Invalid random range.");
+  const values = new Uint32Array(1);
+  const limit = Math.floor(0x100000000 / length) * length;
+  do{
+    crypto.getRandomValues(values);
+  }while(values[0] >= limit);
+  return values[0] % length;
+}
+
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){
-    const j=(Math.random()*(i+1))|0;
+    const j=secureRandomIndex(i+1);
     [arr[i],arr[j]]=[arr[j],arr[i]];
   }
 }

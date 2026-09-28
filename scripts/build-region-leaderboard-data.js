@@ -1,26 +1,14 @@
 const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
 
 const repoRoot = path.resolve(__dirname, "..");
 const outputPath = path.join(repoRoot, "regions-leaderboard-data.js");
 
 function loadRegionGroups(){
-  const context = vm.createContext({console});
-  vm.runInContext(
-    fs.readFileSync(path.join(repoRoot, "regions-generated-data.js"), "utf8"),
-    context,
-    {filename:"regions-generated-data.js"}
-  );
-  const regionSource = fs.readFileSync(path.join(repoRoot, "regions-data.js"), "utf8");
-  vm.runInContext(
-    `${regionSource}\n;globalThis.__REGION_GROUPS__ = REGION_GAME_GROUPS; globalThis.__REGION_ORDER__ = REGION_GAME_GROUP_ORDER;`,
-    context,
-    {filename:"regions-data.js"}
-  );
+  const {REGION_GAME_GROUPS,REGION_GAME_GROUP_ORDER} = require("../regions-data.js");
   return {
-    groups: context.__REGION_GROUPS__,
-    order: context.__REGION_ORDER__
+    groups: REGION_GAME_GROUPS,
+    order: REGION_GAME_GROUP_ORDER
   };
 }
 

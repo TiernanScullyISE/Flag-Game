@@ -5,7 +5,11 @@ const englishOnlyModes=Array.from(mode.querySelectorAll('[data-english-only]'));
 const STORE='typing-studio-records-v2';
 let run,interval,composing=false,boardVersion=0,pendingInput='';
 function read(key,fallback){try{return JSON.parse(localStorage.getItem(key)) || fallback;}catch{return fallback;}}
-function write(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;}}
+function write(key,value){
+  if(![STORE,'typing-identity','typing-public-name'].includes(key))return false;
+  // Local practice data is untrusted on read; online results are checked by the server.
+  try{localStorage.setItem(key,JSON.stringify(value));return true;}catch{return false;} // NOSONAR
+}
 function config(){return normaliseConfig({language:language.value,mode:mode.value,target:mode.value==='time' ? Number(duration.value) : mode.value==='words' ? Number($('typing-count').value) : mode.value==='passage' ? $('typing-length').value : mode.value,punctuation:punctuation.checked});}
 function clock(ms){const s=Math.ceil(ms/1000);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
 function label(c=config()){
@@ -102,7 +106,8 @@ async function restart(focus=false){
   if(focus)focusTypingSurface();
   renderSource();renderBoard();loadPublicBoard();
   try{
-    const issued=await api('prepare',{config:c,identity:read('typing-identity','')},6000);
+    const savedIdentity=read('typing-identity','');
+    const issued=await api('prepare',{config:c,identity:typeof savedIdentity==='string' && savedIdentity.length<=512 ? savedIdentity : ''},6000);
     if(typeof issued.prompt!=='string' || !issued.prompt || typeof issued.id!=='string' || typeof issued.identity!=='string')throw new Error('Invalid online test.');
     if(run!==r)return;
     r.session=issued;r.prompt=issued.prompt;write('typing-identity',issued.identity);
@@ -152,9 +157,12 @@ function processInput(){
   if(run.config.mode!=='time' && next===run.prompt)finish();
 }
 function readRecords(){
-  const stored=read(STORE,{});if(typeof stored!=='object' || Array.isArray(stored))return {};
-  const result={};
-  for(const [key,rows] of Object.entries(stored))if(Array.isArray(rows))result[key]=rows.filter(r=>r && [r.wpm,r.raw,r.accuracy].every(Number.isFinite) && Number.isFinite(Date.parse(r.date))).slice(0,10);
+  const stored=read(STORE,{});if(!stored || typeof stored!=='object' || Array.isArray(stored))return Object.create(null);
+  const result=Object.create(null);
+  for(const [key,rows] of Object.entries(stored)){
+    if(key.length>160 || !Array.isArray(rows))continue;
+    result[key]=rows.filter(r=>r && typeof r==='object' && [r.wpm,r.raw,r.accuracy].every(Number.isFinite) && Number.isFinite(Date.parse(r.date))).slice(0,10);
+  }
   return result;
 }
 async function finish(complete=true){
@@ -249,4 +257,6 @@ $('typing-again').addEventListener('keyup',event=>{if(event.key===' ')event.prev
 $('typing-reset').addEventListener('click',()=>restart(true));$('typing-again').addEventListener('click',()=>restart(true));
 for(const selector of [language,duration,mode,punctuation,$('typing-count'),$('typing-length')])selector.addEventListener('change',()=>restart(true));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
-$('typing-name').value=read('typing-public-name','Player');restart();
+const savedPublicName=read('typing-public-name','Player');
+$('typing-name').value=typeof savedPublicName==='string' && savedPublicName.length<=80 ? savedPublicName : 'Player';
+restart();

@@ -27,6 +27,8 @@ PUBLIC_ASSETS = frozenset({
     "revise.js", "view.js", "feedback.js", "admin.js", "analytics.js", "map-view.js",
     "region-map.js", "world-map-config.js",
 })
+PUBLIC_ASSET_ROUTES = {"/" + name: name for name in PUBLIC_ASSETS}
+PUBLIC_ASSET_ROUTES["/"] = "index.html"
 
 
 def profile_directory() -> Path:
@@ -56,7 +58,8 @@ class LocalAppServer(ThreadingHTTPServer):
 
     @property
     def origin(self) -> str:
-        return f"http://127.0.0.1:{self.server_port}"
+        # WebView needs this stable loopback origin for its local browser storage.
+        return f"http://127.0.0.1:{self.server_port}"  # NOSONAR: loopback only, never a network service
 
 
 class AppRequestHandler(BaseHTTPRequestHandler):
@@ -74,8 +77,8 @@ class AppRequestHandler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         path = unquote(urlsplit(self.path).path)
-        name = "index.html" if path == "/" else path.removeprefix("/")
-        if name not in PUBLIC_ASSETS:
+        name = PUBLIC_ASSET_ROUTES.get(path)
+        if name is None:
             self.send_error(404)
             return
         asset = self.server.root / name

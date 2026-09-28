@@ -1,6 +1,7 @@
 /* Literary excerpts are public domain. Code examples are original, complete programs.
    Typography is normalised for a standard keyboard; historical Irish spelling is retained. */
-window.TypingPassages = {
+const typingPassagesScope = typeof window !== "undefined" ? window : globalThis;
+typingPassagesScope.TypingPassages = {
   english: {
     author: "English passage collection", title: "Random English passages",
     source: "https://www.gutenberg.org/ebooks/1120",
@@ -216,21 +217,21 @@ const englishPassageIds = [
   "supplied-quotation-6",
   "supplied-quotation-7"
 ];
-window.TypingPassages.english.entries = window.TypingPassages.english.passages
+typingPassagesScope.TypingPassages.english.entries = typingPassagesScope.TypingPassages.english.passages
   .map((passage,index)=>({...passage,id:englishPassageIds[index]}));
-window.TypingPassages.irish.entries = [{
+typingPassagesScope.TypingPassages.irish.entries = [{
   id:"niamh-imirt-anama",
-  title:window.TypingPassages.irish.title,
-  author:window.TypingPassages.irish.author,
-  source:window.TypingPassages.irish.source,
-  text:window.TypingPassages.irish.text
+  title:typingPassagesScope.TypingPassages.irish.title,
+  author:typingPassagesScope.TypingPassages.irish.author,
+  source:typingPassagesScope.TypingPassages.irish.source,
+  text:typingPassagesScope.TypingPassages.irish.text
 }];
 const scriptTitles = {
   python:{short:"Greeting program",medium:"Score summary program",long:"Library catalogue program"},
   java:{short:"Hello world program",medium:"Average calculator program",long:"Library catalogue program"}
 };
 for(const language of ["python","java"]){
-  const collection=window.TypingPassages[language];
+  const collection=typingPassagesScope.TypingPassages[language];
   collection.entries=Object.entries(collection.scripts).map(([id,text])=>({
     id,
     title:scriptTitles[language][id],
@@ -238,4 +239,8 @@ for(const language of ["python","java"]){
     source:collection.source,
     text
   }));
+}
+
+if(typeof module === "object" && module.exports){
+  module.exports = typingPassagesScope.TypingPassages;
 }

@@ -111,11 +111,8 @@ function ensureAdminDeviceId(){
 
 function makeAdminDeviceId(){
   const bytes = new Uint8Array(18);
-  if(window.crypto && window.crypto.getRandomValues){
-    window.crypto.getRandomValues(bytes);
-    return Array.from(bytes, byte=>byte.toString(16).padStart(2, "0")).join("");
-  }
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 18)}`;
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte=>byte.toString(16).padStart(2, "0")).join("");
 }
 
 function getTrustedAdminDevice(){

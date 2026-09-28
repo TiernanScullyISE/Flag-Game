@@ -1,11 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const vm = require("node:vm");
 
 const ROOT = path.resolve(__dirname, "..");
-const DATA_PATH = path.join(ROOT, "data.js");
-const GENERATED_REGIONS_DATA_PATH = path.join(ROOT, "regions-generated-data.js");
-const REGIONS_DATA_PATH = path.join(ROOT, "regions-data.js");
 const EXPECTED_CONTINENTS = new Set([
   "Africa",
   "Asia",
@@ -16,10 +12,11 @@ const EXPECTED_CONTINENTS = new Set([
 ]);
 
 function loadData(){
-  const source = fs.readFileSync(DATA_PATH, "utf8");
-  const generatedRegionsSource = fs.readFileSync(GENERATED_REGIONS_DATA_PATH, "utf8");
-  const regionsSource = fs.readFileSync(REGIONS_DATA_PATH, "utf8");
-  return vm.runInNewContext(`${source}\n${generatedRegionsSource}\n${regionsSource}\n;({countryContinent,countryCapitals,alpha2Overrides,countryAliases,capitalAliases,countries,LS_KEYS,REGION_GAME_GROUPS,REGION_GAME_GROUP_ORDER,DEFAULT_REGION_GAME_GROUP,GENERATED_REGION_GAME_GROUPS});`, {}, {filename:"data.js"});
+  return {
+    ...require("../data.js"),
+    ...require("../regions-data.js"),
+    GENERATED_REGION_GAME_GROUPS:require("../regions-generated-data.js")
+  };
 }
 
 function normalise(value){
@@ -216,7 +213,7 @@ function main(){
     addError(errors, `Expected at least 190 countries, found ${countryNames.length}.`);
   }
 
-  const sortedCountries = [...countryNames].sort();
+  const sortedCountries = [...countryNames].sort((left,right)=>left.localeCompare(right));
   if(JSON.stringify(countries) !== JSON.stringify(sortedCountries)){
     addError(errors, "countries must match sorted countryContinent keys.");
   }
