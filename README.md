@@ -89,7 +89,7 @@ From the repository root in PowerShell:
 ```powershell
 npm.cmd ci
 npx.cmd playwright install chromium
-python -m pip install --only-binary :all: "requests>=2.31,<3" "Pillow>=9.5,<13"
+python -m pip install --only-binary :all: requests==2.34.2 Pillow==12.2.0
 npm.cmd test
 npm.cmd run test:desktop
 npm.cmd run test:browser

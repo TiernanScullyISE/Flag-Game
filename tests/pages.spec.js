@@ -329,6 +329,25 @@ test("admin feedback cards can select all and copy selected items", async ({page
 });
 
 test("play page supports regional county and state sets", async ({page})=>{
+  const bhutanItems = require("../regions-data.js").REGION_GAME_GROUPS.Bhutan.items;
+  const bhutanMap = {
+    type:"FeatureCollection",
+    features:bhutanItems.map((item,index)=>{
+      const west = 89 + (index % 5) * 0.6;
+      const south = 26 + Math.floor(index / 5) * 0.6;
+      return {
+        type:"Feature",
+        properties:{shapeName:item.name,shapeISO:item.isoCodes?.[0] || ""},
+        geometry:{type:"Polygon",coordinates:[[[west,south],[west+0.45,south],[west+0.45,south+0.45],[west,south+0.45],[west,south]]]}
+      };
+    })
+  };
+  await page.route("**/geoBoundaries-BTN-ADM1_simplified.geojson",route=>route.fulfill({
+    status:200,
+    contentType:"application/geo+json",
+    headers:{"Access-Control-Allow-Origin":"*"},
+    body:JSON.stringify(bhutanMap)
+  }));
   await page.goto("/game.html");
   await page.getByRole("button", {name:"Regions"}).click();
 

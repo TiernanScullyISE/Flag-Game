@@ -23,7 +23,7 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
       - run: |
-          python -m pip install --only-binary :all: "requests>=2.31,<3" "Pillow>=9.5,<13"
+          python -m pip install --only-binary :all: requests==2.34.2 Pillow==12.2.0
       - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
       - run: npm test
       - run: npm run test:desktop

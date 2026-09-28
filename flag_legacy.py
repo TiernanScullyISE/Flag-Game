@@ -639,7 +639,9 @@ class FlagQuizApp:
             choice = secrets.choice(pool)
             if choice not in options:
                 options.append(choice)
-        secrets.SystemRandom().shuffle(options)
+        for index in range(len(options) - 1, 0, -1):
+            swap = secrets.randbelow(index + 1)
+            options[index], options[swap] = options[swap], options[index]
 
         for index, button in enumerate(self.mcq_buttons(which)):
             if index < len(options):
