@@ -128,6 +128,7 @@ test("leaderboard page exposes filterable typing record tables", async ({page})=
 
 test("posted leaderboard run remains searchable and shows its split details", async ({page})=>{
   await page.goto("/leaderboard.html");
+  await expect(page.locator("#leaderboard-refresh")).toBeEnabled();
   await page.evaluate(()=>{
     const category = leaderboardPageState.categories.find(item=>item.gameScope === "countries" && item.which === "flags");
     const run = {
