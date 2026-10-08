@@ -69,7 +69,7 @@ const countryCapitals = {
   "Ecuador":"Quito","Yemen":"Sanaa","Rwanda":"Kigali","Bangladesh":"Dhaka",
   "Romania":"Bucharest","Slovakia":"Bratislava","Austria":"Vienna","Netherlands":"Amsterdam",
   "Luxembourg":"Luxembourg City","Czechia":"Prague","Liberia":"Monrovia","Iran":"Tehran",
-  "Estonia":"Tallinn","Vatican City":"Vatican City","Equatorial Guinea":"Malabo","Syria":"Damascus",
+  "Estonia":"Tallinn","Vatican City":"Vatican City","Equatorial Guinea":"Ciudad de la Paz","Syria":"Damascus",
   "Malaysia":"Kuala Lumpur","Antigua and Barbuda":"Saint John's","Indonesia":"Jakarta",
   "Dominican Republic":"Santo Domingo","Slovenia":"Ljubljana","Serbia":"Belgrade",
   "Taiwan":"Taipei","Namibia":"Windhoek","North Macedonia":"Skopje","Canada":"Ottawa",
@@ -80,7 +80,7 @@ const countryCapitals = {
   "Malta":"Valletta","Micronesia":"Palikir","Zambia":"Lusaka","Tajikistan":"Dushanbe",
   "Mexico":"Mexico City","Bulgaria":"Sofia","Belarus":"Minsk","Bahrain":"Manama",
   "Zimbabwe":"Harare","Bosnia and Herzegovina":"Sarajevo","Somalia":"Mogadishu",
-  "Paraguay":"Asunción","Sudan":"Khartoum","Kazakhstan":"Nur-Sultan","Benin":"Porto-Novo",
+  "Paraguay":"Asunción","Sudan":"Khartoum","Kazakhstan":"Astana","Benin":"Porto-Novo",
   "Thailand":"Bangkok","Uzbekistan":"Tashkent","Mongolia":"Ulaanbaatar","Montenegro":"Podgorica",
   "Chad":"N'Djamena","China":"Beijing","Guinea-Bissau":"Bissau","Australia":"Canberra",
   "Laos":"Vientiane","Madagascar":"Antananarivo","Jordan":"Amman","Grenada":"Saint George's",
@@ -200,7 +200,7 @@ const capitalAliases = {
   "San José":["san jose"],
   "São Tomé":["sao tome"],
   "N'Djamena":["ndjamena"],
-  "Nur-Sultan":["nur sultan","astana"],
+  "Astana":["nur-sultan","nur sultan"],
   "Bandar Seri Begawan":["bsb"]
 };
 
